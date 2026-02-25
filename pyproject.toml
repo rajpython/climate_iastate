@@ -1,0 +1,74 @@
+[project]
+name = "mhw-state-dashboard"
+version = "0.1.0"
+description = "Marine Heatwave State Dashboard — Hobday-style MHW detection for high-latitude fisheries"
+requires-python = ">=3.10"
+
+# Core: science + data — sufficient for Steps 1–6
+dependencies = [
+    "xarray>=2024.1.0",
+    "netcdf4>=1.6.0",
+    "zarr>=2.16.0",
+    "dask[complete]>=2024.1.0",
+    "numpy>=1.26.0",
+    "pandas>=2.1.0",
+    "scipy>=1.12.0",
+    "requests>=2.31.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=5.0.0",
+    "pyarrow>=14.0.0",
+    "pyyaml>=6.0.0",
+    "erddapy>=2.1.0",
+]
+
+[project.optional-dependencies]
+# Geo/viz: mapping + plotting — needed from Step 1 onward
+geo = [
+    "geopandas>=0.14.0",
+    "shapely>=2.0.0",
+    "rasterio>=1.3.0",
+    "matplotlib>=3.8.0",
+    "cartopy>=0.22.0",
+    "plotly>=5.18.0",
+    "kaleido>=0.2.1",
+]
+# Dashboard: Streamlit UI — needed from Step 7 onward
+dashboard = [
+    "streamlit>=1.30.0",
+]
+# API: FastAPI layer — needed from Step 10 onward
+api = [
+    "fastapi>=0.109.0",
+    "uvicorn>=0.27.0",
+    "pydantic>=2.5.0",
+]
+# Dev: testing + linting
+dev = [
+    "pytest>=7.4.0",
+    "httpx>=0.27",
+    "ruff>=0.2.0",
+    "ipython>=8.0.0",
+    "jupyter>=1.0.0",
+]
+
+[project.scripts]
+mhw-fetch-sst = "mhw.fetch.oisst:main"
+mhw-fetch-indices = "mhw.fetch.indices:main"
+mhw-build-masks = "mhw.regions.masks:main"
+mhw-build-climatology = "mhw.climatology.build_mu_theta:main"
+mhw-plot-climatology = "mhw.climatology.build_mu_theta:plot_main"
+mhw-run-states = "mhw.states.update_states:main"
+mhw-aggregate = "mhw.states.aggregates:main"
+mhw-compute-risk = "mhw.states.risk:main"
+mhw-backfill = "mhw.states.update_states:backfill_main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts   = "-v --tb=short"
+
+[build-system]
+requires = ["setuptools>=69.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,107 @@
+# config/climatology.yml
+# Climatology + Threshold Configuration (Hobday-style)
+# This file defines how mu(d) and theta90(d) are built and stored.
+
+climatology:
+  baseline:
+    start_year: 1991
+    end_year: 2020
+    rationale: "30-year climate normal; defensible default for contemporary monitoring."
+
+  day_of_year:
+    include_leap_day: true
+    leap_day_policy: "keep_366_and_smooth"
+    notes: "Keep DOY=366 and rely on smoothing window to stabilize thresholds."
+
+  smoothing:
+    method: "moving_window_doy"
+    window_days: 11
+    half_window: 5
+    wrap_around_year: true
+    notes: "For each DOY d, compute stats using DOY in [d-5..d+5] across baseline years."
+
+  threshold:
+    percentile: 0.90
+    name: "theta90"
+    notes: "Hobday et al. uses a high percentile threshold (commonly 90th)."
+
+  masking:
+    apply_ice_mask: true
+    # ice_source: "oisst_internal_if_available_or_nsidc"
+    ice_source_id: "nsidc_nrt_ice_cdr"
+    use_oisst_internal_ice_if_available: true
+
+    ice_threshold_percent: 15
+    notes: >
+      Ice masking is active. Baseline samples and daily detections where ice concentration
+      exceeds threshold are excluded. Uses OISST internal ice variable (same grid as SST).
+      Keep masking consistent between baseline and daily detection.
+
+  outputs:
+    format: "zarr"
+    dtype: "float32"
+    chunking:
+      # Aim for fast DOY lookup during daily refresh:
+      # mu[d,:,:] and theta90[d,:,:] should be quick to load for one DOY.
+      doy_chunk: 1
+      lat_chunk: 180
+      lon_chunk: 360
+    paths:
+      mu: "data/derived/climatology/mu.zarr"
+      theta90: "data/derived/climatology/theta90.zarr"
+      metadata: "data/derived/climatology/metadata.json"
+
+weights:
+  method: "cos_lat"
+  store_path: "data/derived/weights/weights.zarr"
+  notes: "Area-proportional weights for regular lat-lon grids: w_g = cos(latitude)."
+
+regions:
+  geojson_path: "config/regions.geojson"
+  masks_output_path: "data/derived/masks/region_masks.zarr"
+  mask_dtype: "uint8"
+  notes: "Rasterize region polygons to the OISST grid; store per region_id."
+
+mhw_definition:
+  confirm_days: 5
+  gap_days: 2
+  gap_days_notes: >
+    Hobday et al. specifies that gaps of ≤2 days between exceedance spells are bridged
+    into a single continuous event. Set to 0 to disable gap-bridging (strict mode).
+  intensity_reference: "threshold"
+  intensity_reference_notes: >
+    "threshold": I_{g,t} = T - theta90 (anomaly above 90th percentile). Default for
+    operational monitoring — zero point is the detection boundary.
+    "climatological_mean": I_{g,t} = T - mu (anomaly above climatological mean), matching
+    Hobday et al. (2016) Table 2 definition of imax. Produces larger values since mu < theta90.
+    Both references are available since mu and theta90 are precomputed.
+  candidate_days_show: true
+  candidate_threshold: 1
+  notes: "Confirmed MHW requires ≥5 consecutive exceedance days; candidate spells (1–4) can be shown as early warning."
+
+onset:
+  k_days: 3
+  onset_reference: "physical_start"
+  onset_reference_notes: >
+    "physical_start": Onset = mean intensity ramp during first k days of exceedance spell
+    (days Dtilde=1..k). Computed retroactively when A turns on. Captures initial shock.
+    Requires a rolling buffer of I values for confirm_days time steps.
+    "at_confirmation": Onset = intensity change during first k days after confirmation
+    (D=5..4+k). Forward-only, no buffer needed. Measures mid-event dynamics.
+
+risk_percentiles:
+  mode: "frozen"
+  reference_cutoff_date: null  # defaults to end of backfill; set to YYYY-MM-DD to override
+  mode_notes: >
+    "frozen": Reference distribution built once after backfill. Stable historical percentiles.
+    Rebuilt only on explicit schedule or config change.
+    "incremental": Reference grows daily as new metrics arrive. Simpler ops, but historical
+    percentile values may shift.
+
+regional_events:
+  area_frac_threshold: 0.05
+  min_consecutive_days: 5
+  notes: >
+    A regional MHW event is defined as a contiguous period where area_frac > area_frac_threshold.
+    The min_consecutive_days filter is optional but recommended to parallel the cell-level 5-day
+    confirmation logic. Setting min_consecutive_days to 1 disables the duration filter.

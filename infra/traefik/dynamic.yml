@@ -1,0 +1,35 @@
+# Traefik v3 — dynamic (file-provider) configuration
+# Reloaded automatically when saved; no restart required.
+
+http:
+  middlewares:
+    # ── Security headers applied to the FastAPI router ───────────────────────
+    secheaders:
+      headers:
+        forceSTSHeader: true
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        customResponseHeaders:
+          X-Robots-Tag: "noindex,nofollow"
+
+    # ── Rate-limit for the API (burst = 50 req, avg = 20 req/s) ─────────────
+    ratelimit-api:
+      rateLimit:
+        burst: 50
+        average: 20
+
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
+      cipherSuites:
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+        - TLS_AES_128_GCM_SHA256
+        - TLS_AES_256_GCM_SHA384
+        - TLS_CHACHA20_POLY1305_SHA256

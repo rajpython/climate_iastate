@@ -1,0 +1,45 @@
+# Traefik v3 — static configuration
+# Mounted at /etc/traefik/traefik.yml inside the traefik container.
+
+api:
+  dashboard: false          # disable the Traefik dashboard in production
+
+log:
+  level: INFO
+
+accessLog: {}               # log every request to stdout
+
+# ── Entry points ─────────────────────────────────────────────────────────────
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+
+# ── Certificate resolver (Let's Encrypt) ─────────────────────────────────────
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "rsingh@iastate.edu"
+      storage: "/letsencrypt/acme.json" # bind-mounted named volume
+      httpChallenge:
+        entryPoint: web                 # HTTP-01 challenge on port 80
+
+# ── Providers ────────────────────────────────────────────────────────────────
+providers:
+  docker:
+    exposedByDefault: false   # opt-in per service via traefik.enable=true label
+    network: mhw_net          # shared network name (see docker-compose.yml)
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true               # hot-reload dynamic config without restart

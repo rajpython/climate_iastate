@@ -1,0 +1,88 @@
+services:
+
+  # ── Traefik reverse proxy ───────────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.2
+    restart: unless-stopped
+    networks:
+      - mhw_net
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+
+  # ── Streamlit dashboard ─────────────────────────────────────────────────────
+  dashboard:
+    build: .
+    restart: unless-stopped
+    networks:
+      - mhw_net
+    command: >
+      streamlit run src/dashboard/app.py
+      --server.port=8501
+      --server.address=0.0.0.0
+    volumes:
+      - ./data:/app/data:ro
+    expose:
+      - "8501"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      # Route everything on the host except /api → dashboard
+      - "traefik.http.routers.dashboard.rule=Host(`mhw.iastate.ai`) && !PathPrefix(`/api`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.priority=1"
+      - "traefik.http.services.dashboard.loadbalancer.server.port=8501"
+      # Sticky sessions so WebSocket reconnects hit the same container
+      - "traefik.http.services.dashboard.loadbalancer.sticky.cookie=true"
+      - "traefik.http.services.dashboard.loadbalancer.sticky.cookie.name=mhw_dashboard"
+
+  # ── FastAPI REST layer ──────────────────────────────────────────────────────
+  api:
+    build: .
+    restart: unless-stopped
+    networks:
+      - mhw_net
+    command: >
+      uvicorn api.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 2
+    volumes:
+      - ./data:/app/data:rw   # rw so daily_refresh.sh can write via `docker compose exec`
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      # /api/* → API service (strip the /api prefix before forwarding)
+      - "traefik.http.routers.api.rule=Host(`mhw.iastate.ai`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.api.priority=10"
+      - "traefik.http.middlewares.api-strip.stripprefix.prefixes=/api"
+      - "traefik.http.routers.api.middlewares=api-strip@docker,secheaders@file,ratelimit-api@file"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+
+networks:
+  mhw_net:
+    name: mhw_net   # explicit name so traefik.yml `provider.docker.network: mhw_net` resolves correctly
+    driver: bridge
+
+volumes:
+  letsencrypt:

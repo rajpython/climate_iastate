@@ -1,0 +1,28 @@
+# Python build artifacts
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Data directories (large binary files — managed outside version control)
+data/raw/
+data/derived/
+outputs/
+
+# OS and IDE
+.DS_Store
+.vscode/
+.idea/
+.playwright-mcp/
+
+# Jupyter
+.ipynb_checkpoints/

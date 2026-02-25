@@ -1,0 +1,39 @@
+# ── large data trees ─────────────────────────────────────────────────────────
+data/
+outputs/
+
+# ── virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Python cache ─────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# ── notebooks & docs ─────────────────────────────────────────────────────────
+notebooks/
+docs/
+
+# ── tests (not needed in image) ──────────────────────────────────────────────
+tests/
+.pytest_cache/
+
+# ── editor / OS artefacts ────────────────────────────────────────────────────
+.DS_Store
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# ── CI / Infra (not needed inside container) ─────────────────────────────────
+.github/
+infra/
+scripts/

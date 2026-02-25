@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  # ── Unit tests (no on-disk data required) ───────────────────────────────────
+  test:
+    name: pytest unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install api + dev dependencies
+        # geo extra omitted — not required for unit tests and adds ~5 min to CI
+        run: pip install -e ".[api,dev]"
+
+      - name: Run tests
+        # Integration tests (test_aggregates, test_api, TestGoaRiskIntegration)
+        # are automatically skipped when on-disk parquet files are absent —
+        # see tests/conftest.py skip guards.
+        run: pytest tests/ -v
+
+  # ── Docker build (main branch only — verifies Dockerfile is valid) ──────────
+  docker-build:
+    name: docker compose build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    # Building the full image with geo deps takes ~8 min; run after tests pass
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Provide stub .streamlit/config.toml so the COPY in Dockerfile succeeds
+      # (the real file is committed; this step is a no-op if it already exists)
+      - name: Ensure .streamlit/config.toml exists
+        run: |
+          mkdir -p .streamlit
+          [ -f .streamlit/config.toml ] || cp /dev/null .streamlit/config.toml
+
+      - name: Build Docker image
+        run: docker compose build --no-cache

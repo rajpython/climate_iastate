@@ -1,0 +1,45 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": "goa", "name": "Gulf of Alaska" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-170, 54], [-130, 54], [-130, 62], [-170, 62], [-170, 54]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "ebs", "name": "Eastern Bering Sea" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-180, 54], [-160, 54], [-160, 62], [-180, 62], [-180, 54]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "nbs", "name": "Northern Bering Sea" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-180, 62], [-160, 62], [-160, 67], [-180, 67], [-180, 62]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "chukchi", "name": "Chukchi Sea" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-180, 67], [-155, 67], [-155, 73], [-180, 73], [-180, 67]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "beaufort", "name": "Beaufort Sea" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-155, 69], [-130, 69], [-130, 73], [-155, 73], [-155, 69]]]
+      }
+    }
+  ]
+}

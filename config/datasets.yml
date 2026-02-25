@@ -1,0 +1,146 @@
+# config/datasets.yml
+# MHW State Dashboard — Data Source Registry (MHW-focused)
+# Scope guardrail: only sources needed for MHW detection/characterization and conditioning context.
+# Primary primitive: SST (OISST). Everything else is conditioning.
+#
+# NOTE: some upstream providers change URLs over time. If any endpoint breaks,
+# use the provider landing page listed below to locate the current access path.
+
+project:
+  name: "mhw-state-dashboard"
+  objective: "Operationalize Hobday-style marine heatwave states for high-latitude regions."
+  scope: "MHW-focused (SST -> thresholds -> event states). No fisheries PDFs/biomass in MVP."
+
+sources:
+
+  # --------------------------------------------------------------------------
+  # A) SST PRIMITIVE (REQUIRED)
+  # --------------------------------------------------------------------------
+  - id: "oisst_v2_1_daily"
+    name: "NOAA OISST v2.1 Daily SST"
+    provider: "NOAA / NCEI (and mirrors)"
+    purpose: "Daily SST primitive for Hobday-style MHW detection and characterization."
+    cadence: "daily"
+    latency_hours: 24
+    coverage:
+      start_date: "1981-09-01"
+      end_date: "present"
+    variables:
+      - name: "sst"
+        units: "degC"
+        required: true
+      - name: "ice"
+        units: "fraction or percent (dataset-dependent)"
+        required: false
+        notes: "If available, can be used as an internal ice mask; optional since NSIDC ice is separate."
+    access:
+      # Preferred: ERDDAP for easy spatial/temporal subsetting (API-friendly)
+      - type: "erddap_griddap"
+        priority: 1
+        label: "NCEI ERDDAP OISST (preferred for subsetting)"
+        base_url: "https://www.ncei.noaa.gov/erddap/griddap/"
+        dataset_hint: "Search ERDDAP for OISST v2.1 daily SST dataset; dataset IDs may change."
+        landing_page: "https://www.ncei.noaa.gov/products/optimum-interpolation-sst"
+        notes: "Use ERDDAP /info endpoint first to confirm dataset_id and variable names."
+      # Mirror: AOML ERDDAP (often stable)
+      - type: "erddap_griddap"
+        priority: 2
+        label: "AOML ERDDAP OISST mirror"
+        base_url: "https://erddap.aoml.noaa.gov/hdb/erddap/griddap/"
+        landing_page: "https://erddap.aoml.noaa.gov/"
+        notes: "Use as fallback if NCEI ERDDAP changes."
+      # Alternate: PSL THREDDS/OPeNDAP
+      - type: "thredds_opendap"
+        priority: 3
+        label: "PSL THREDDS OPeNDAP"
+        base_url: "https://psl.noaa.gov/thredds/dodsC/Datasets/noaa.oisst.v2.highres/"
+        landing_page: "https://psl.noaa.gov/data/gridded/data.noaa.oisst.v2.highres.html"
+        notes: "Often organized as yearly NetCDF files; good for bulk baseline reads."
+
+  # --------------------------------------------------------------------------
+  # B) SEA ICE (OPTIONAL CONDITIONING)
+  # --------------------------------------------------------------------------
+  - id: "nsidc_nrt_ice_cdr"
+    name: "NSIDC Near-Real-Time Sea Ice Concentration CDR"
+    provider: "NSIDC"
+    purpose: "Conditioning mask/context: open-water vs ice-covered interpretation of MHW states."
+    cadence: "daily"
+    latency_hours: 24
+    coverage:
+      start_date: "varies_by_version"
+      end_date: "present"
+    variables:
+      - name: "sea_ice_concentration"
+        units: "percent or fraction (dataset-dependent)"
+        required: false
+    access:
+      - type: "https_catalog"
+        priority: 1
+        label: "NSIDC dataset landing page"
+        landing_page: "https://nsidc.org/data/g10016/versions/3"
+        notes: "Publicly accessible via HTTPS (no login required). Also available via PolarWatch ERDDAP (https://polarwatch.noaa.gov/erddap). Note: v3 retiring Jan 2026; monitor for v4 release."
+
+  # --------------------------------------------------------------------------
+  # C) CLIMATE MODE INDICES (CONDITIONING / PREDICTABILITY CONTEXT)
+  # --------------------------------------------------------------------------
+  - id: "cpc_ao_daily"
+    name: "Arctic Oscillation Index (AO)"
+    provider: "NOAA CPC"
+    purpose: "Daily regime indicator used as predictability context (not part of MHW definition)."
+    cadence: "daily"
+    variables:
+      - name: "AO"
+        units: "index"
+        required: true
+    access:
+      - type: "https_html_table"
+        priority: 1
+        landing_page: "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/daily_ao_index/ao_index.html"
+        notes: "Parse the daily AO table; store as a simple date->value series."
+
+  - id: "psl_pdo_monthly"
+    name: "Pacific Decadal Oscillation (PDO) Index"
+    provider: "NOAA PSL (and NCEI monitor)"
+    purpose: "Monthly regime indicator used as predictability context (not part of MHW definition)."
+    cadence: "monthly"
+    variables:
+      - name: "PDO"
+        units: "index"
+        required: true
+    access:
+      - type: "https_page"
+        priority: 1
+        landing_page: "https://psl.noaa.gov/data/timeseries/month/PDO/"
+        notes: "Download/parse the monthly PDO values; store as month->value series."
+      - type: "https_page"
+        priority: 2
+        landing_page: "https://www.ncei.noaa.gov/access/monitoring/pdo/"
+        notes: "Useful fallback source/validation."
+
+regions:
+  # Provide polygon files (GeoJSON) in config/regions.geojson.
+  # These region IDs must match those polygons.
+  # Add/remove regions as needed; MVP should include GOA and Bering Sea at minimum.
+  - id: "goa"
+    name: "Gulf of Alaska"
+  - id: "ebs"
+    name: "Eastern Bering Sea"
+  - id: "nbs"
+    name: "Northern Bering Sea"
+  - id: "chukchi"
+    name: "Chukchi Sea"
+  - id: "beaufort"
+    name: "Beaufort Sea"
+
+runtime_defaults:
+  sst_source_id: "oisst_v2_1_daily"
+  ice_source_id: "nsidc_nrt_ice_cdr"
+  indices:
+    ao_source_id: "cpc_ao_daily"
+    pdo_source_id: "psl_pdo_monthly"
+
+
+grid:
+  resolution_deg: 0.25
+  expected_lat_points: 720
+  expected_lon_points: 1440

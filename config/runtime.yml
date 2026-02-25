@@ -1,0 +1,13 @@
+paths:
+  raw_data: data/raw/
+  derived_data: data/derived/
+  parquet_region: data/derived/aggregates_region/
+
+grid:
+  resolution_deg: 0.25
+  expected_lat_points: 720
+  expected_lon_points: 1440
+
+refresh:
+  daily_hour_utc: 12
+  backfill_start: 1982-01-01
