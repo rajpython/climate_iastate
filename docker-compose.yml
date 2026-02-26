@@ -2,7 +2,9 @@ services:
 
   # ── Traefik reverse proxy ───────────────────────────────────────────────────
   traefik:
-    image: traefik:v3.2
+    image: traefik:v2.11
+    environment:
+      - DOCKER_API_VERSION=1.53
     restart: unless-stopped
     networks:
       - mhw_net
@@ -53,8 +55,6 @@ services:
     restart: unless-stopped
     networks:
       - mhw_net
-    environment:
-      - API_ROOT_PATH=/api
     command: >
       uvicorn api.main:app
       --host 0.0.0.0
