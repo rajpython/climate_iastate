@@ -556,6 +556,11 @@ mhw-compute-risk --region $REGION
    - Add rule: **HTTPS (443)**
    - HTTP (80) and SSH (22) should already be open by default
 
+**Status:** ✅ Completed  
+- Instance: `iastate-ai` (Ubuntu 22.04 LTS)  
+- Static IPv4 assigned: `3.137.98.10`  
+- Ports open: 22 / 80 / 443
+
 ### Part 2: Point mhw.iastate.ai to the VM (Namecheap DNS)
 
 1. Log in to https://namecheap.com → **Domain List** → click **Manage** next to `iastate.ai`
@@ -572,6 +577,9 @@ mhw-compute-risk --region $REGION
    Should return your Lightsail IP.
 
 **For future projects:** Just add another A record (e.g., Host: `chatbot`, same IP).
+
+**Status:** ✅ Completed  
+- `mhw.iastate.ai` resolves to `3.137.98.10`
 
 ### Part 3: Set Up the VM
 
@@ -601,6 +609,8 @@ docker --version
 docker compose version
 ```
 
+**Status:** ✅ Completed
+
 #### 3b. Create project directory structure
 
 ```bash
@@ -608,9 +618,15 @@ sudo mkdir -p /opt/iastate-ai/projects
 sudo chown -R ubuntu:ubuntu /opt/iastate-ai
 ```
 
+**Status:** ✅ Completed
+
 #### 3c. Traefik setup
 
 Traefik is a service inside the project's `docker-compose.yml` — there is no separate Traefik stack. The Traefik config files (`infra/traefik/traefik.yml` and `infra/traefik/dynamic.yml`) are included in the git repo and will be deployed with the project in step 3d. SSL certificates are stored in a Docker named volume (`letsencrypt`), created automatically by `docker compose up`.
+
+**Status:** ✅ Completed with adjustment  
+- Traefik v3.2 had Docker API compatibility errors.  
+- Switched to **Traefik v2.11** for stable Docker provider support.
 
 #### 3d. Deploy the MHW project
 
@@ -645,6 +661,11 @@ docker ps
 # Should show 3 containers: traefik, dashboard (mhw-*-dashboard-1), api (mhw-*-api-1)
 ```
 
+**Status:** ✅ Completed  
+- Code pulled from GitHub  
+- Data synced via `rsync`  
+- Containers running
+
 #### 3e. Verify it works
 
 ```bash
@@ -660,6 +681,11 @@ curl https://mhw.iastate.ai/api/health
 # https://mhw.iastate.ai/api/docs → Swagger UI
 ```
 
+**Status:** ✅ Partially completed  
+- Dashboard is live  
+- `https://mhw.iastate.ai/api/health` returns `{"status":"ok","version":"0.1.0"}`  
+- `/api/docs` currently fails to render (OpenAPI root_path issue; to be fixed later)
+
 #### 3f. Set up daily refresh cron
 
 ```bash
@@ -672,6 +698,8 @@ PATH=/usr/local/bin:/usr/bin:/bin
 ```
 
 Note: `daily_refresh.sh` uses `docker compose exec -T api` internally to run Python commands inside the running `api` container. The `PATH=` line in crontab ensures `docker` and `docker compose` resolve correctly (cron has minimal PATH by default).
+
+**Status:** ⏳ Pending (to be configured on VM)
 
 #### 3g. Set up monitoring (optional but recommended)
 
@@ -840,13 +868,17 @@ alias mhw-deploy='git push && ssh -i ~/.ssh/your-lightsail-key.pem ubuntu@YOUR_S
 | `config/` (YAML + GeoJSON) | `data/derived/` (159 MB zarr/parquet) |
 | `tests/` | `.venv/` |
 | `Dockerfile`, `docker-compose.yml` | `outputs/` (plots) |
-| `infra/traefik/` | `notebooks/` (optional) |
+| `infra/traefik/` | `notebooks/` (optional; not pushed to repo) |
 | `scripts/daily_refresh.sh` | |
 | `.streamlit/config.toml` | |
 | `.github/workflows/ci.yml` | |
 | `docs/` | |
 | `pyproject.toml` | |
 | `.gitignore` | |
+
+**Status:** ✅ Completed  
+- GitHub repo created: `https://github.com/rajpython/climate_iastate`  
+- Notebooks excluded from repo (gitignored)
 
 ---
 
