@@ -55,6 +55,8 @@ services:
     restart: unless-stopped
     networks:
       - mhw_net
+    environment:
+      - API_ROOT_PATH=/api
     command: >
       uvicorn api.main:app
       --host 0.0.0.0
