@@ -45,6 +45,7 @@ app = FastAPI(
     ),
     version="0.1.0",
     root_path=os.getenv("API_ROOT_PATH", ""),
+    swagger_ui_parameters={"url": "openapi.json"},
     lifespan=lifespan,
 )
 
