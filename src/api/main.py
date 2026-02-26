@@ -11,6 +11,7 @@ Docs:
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -43,6 +44,7 @@ app = FastAPI(
         "event summaries, and risk scores."
     ),
     version="0.1.0",
+    root_path=os.getenv("API_ROOT_PATH", ""),
     lifespan=lifespan,
 )
 
