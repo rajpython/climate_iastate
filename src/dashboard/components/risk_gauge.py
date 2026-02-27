@@ -22,6 +22,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from mhw.states.risk import RISK_THRESHOLDS, RISK_WEIGHTS, compute_risk_table
+from dashboard.components.labels import display_label, PCT_COLUMN_NAMES, metric_legend
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -109,7 +110,7 @@ def _make_pct_bars(row: pd.Series) -> go.Figure:
     fig = go.Figure(
         go.Bar(
             x=values,
-            y=[f"{lbl} (w={w:.0%})" for lbl, w in zip(labels, weights)],
+            y=[f"{display_label(lbl)} (w={w:.0%})" for lbl, w in zip(labels, weights)],
             orientation="h",
             marker_color=colors,
             text=[f"{v:.1f}th" for v in values],
@@ -144,7 +145,7 @@ def _make_sparkline(risk_df: pd.DataFrame, agg_df: pd.DataFrame, n_days: int = 3
             mode="lines+markers", marker_size=4,
             line={"color": "crimson", "width": 2},
             name="Risk score",
-            hovertemplate="%{x|%Y-%m-%d}: risk = %{y:.1f}<extra></extra>",
+            hovertemplate="%{x|%b %d, %Y}: risk = %{y:.1f}<extra></extra>",
         ),
         secondary_y=False,
     )
@@ -154,8 +155,8 @@ def _make_sparkline(risk_df: pd.DataFrame, agg_df: pd.DataFrame, n_days: int = 3
         go.Bar(
             x=a["date"], y=a["area_frac"],
             marker_color="rgba(70,130,180,0.35)",
-            name="area_frac",
-            hovertemplate="%{x|%Y-%m-%d}: frac = %{y:.4f}<extra></extra>",
+            name="Area Fraction",
+            hovertemplate="%{x|%b %d, %Y}: Area Fraction = %{y:.4f}<extra></extra>",
         ),
         secondary_y=True,
     )
@@ -175,7 +176,7 @@ def _make_sparkline(risk_df: pd.DataFrame, agg_df: pd.DataFrame, n_days: int = 3
         margin={"l": 50, "r": 50, "t": 40, "b": 30},
     )
     fig.update_yaxes(title_text="Composite risk (0–100)", range=[0, 105], secondary_y=False)
-    fig.update_yaxes(title_text="area_frac", range=[0, 0.5], secondary_y=True)
+    fig.update_yaxes(title_text="Area Fraction", range=[0, 0.5], secondary_y=True)
     return fig
 
 
@@ -250,11 +251,11 @@ def main() -> None:
             agg_row = agg_row.iloc[0]
             st.markdown(f"**{selected_date}**")
             mc1, mc2 = st.columns(2)
-            mc1.metric("area_frac",  f"{agg_row['area_frac']:.4f}")
-            mc2.metric("Ī (°C)",     f"{agg_row['Ibar']:.2f}")
+            mc1.metric("Area Fraction",           f"{agg_row['area_frac']:.4f}")
+            mc2.metric("Mean Intensity (°C)",     f"{agg_row['Ibar']:.2f}")
             mc3, mc4 = st.columns(2)
-            mc3.metric("D̄ (days)", f"{agg_row['Dbar']:.1f}")
-            mc4.metric("C̄ (°C·days)", f"{agg_row['Cbar']:.2f}")
+            mc3.metric("Mean Duration (days)",    f"{agg_row['Dbar']:.1f}")
+            mc4.metric("Cumul. Intensity (°C·days)", f"{agg_row['Cbar']:.2f}")
 
     with right_col:
         st.plotly_chart(_make_pct_bars(row), use_container_width=True)
@@ -267,10 +268,10 @@ def main() -> None:
             ":red[🔴 High Risk (66–100)]"
         )
         st.caption(
-            f"Weights: area_frac {RISK_WEIGHTS['area_frac']:.0%}, "
-            f"Ibar {RISK_WEIGHTS['Ibar']:.0%}, "
-            f"Dbar {RISK_WEIGHTS['Dbar']:.0%}, "
-            f"Cbar {RISK_WEIGHTS['Cbar']:.0%}.  "
+            f"Weights: Area Fraction {RISK_WEIGHTS['area_frac']:.0%}, "
+            f"Mean Intensity {RISK_WEIGHTS['Ibar']:.0%}, "
+            f"Mean Duration {RISK_WEIGHTS['Dbar']:.0%}, "
+            f"Cumul. Intensity {RISK_WEIGHTS['Cbar']:.0%}.  "
             "Reference: 2023 test-year distribution (proxy until full backfill)."
         )
 
@@ -282,10 +283,13 @@ def main() -> None:
     with st.expander("Full risk table"):
         disp = risk_df[["date", "area_frac_pct", "Ibar_pct", "Dbar_pct",
                          "Cbar_pct", "composite_risk", "risk_level"]].copy()
-        disp["date"] = disp["date"].dt.strftime("%Y-%m-%d")
+        disp["date"] = disp["date"].dt.strftime("%b %d, %Y")
         for col in ["area_frac_pct", "Ibar_pct", "Dbar_pct", "Cbar_pct", "composite_risk"]:
             disp[col] = disp[col].round(1)
+        disp = disp.rename(columns=PCT_COLUMN_NAMES)
         st.dataframe(disp, use_container_width=True, hide_index=True)
+
+    st.caption(metric_legend())
 
 
 if __name__ == "__main__":

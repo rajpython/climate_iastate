@@ -24,7 +24,7 @@ services:
     networks:
       - mhw_net
     command: >
-      streamlit run src/dashboard/app.py
+      streamlit run src/dashboard/MHW_Dashboard.py
       --server.port=8501
       --server.address=0.0.0.0
     volumes:

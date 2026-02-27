@@ -141,15 +141,15 @@ def main() -> None:
     if ao_win.empty:
         n_ao = min(window, len(ao_df))
         ao_win = ao_df.tail(n_ao).reset_index(drop=True)
-        st.info(f"AO data not available for the MHW period ({t_start.strftime('%Y-%m-%d')} → "
-                f"{t_end.strftime('%Y-%m-%d')}). Showing most recent {n_ao} AO days instead.")
+        st.info(f"AO data not available for the MHW period ({t_start.strftime('%b %d, %Y')} → "
+                f"{t_end.strftime('%b %d, %Y')}). Showing most recent {n_ao} AO days instead.")
 
     # ---- Build figure ----
     row_titles = ["AO (daily)"]
     if show_pdo and pdo_win is not None:
         row_titles.append("PDO (monthly)")
     if show_mhw and agg_win is not None:
-        row_titles += ["Area Fraction", "Mean Intensity Ī (°C)"]
+        row_titles += ["Area Fraction", "Mean Intensity (°C)"]
 
     n_rows = len(row_titles)
     row_heights = [1.0] * n_rows
@@ -171,7 +171,7 @@ def main() -> None:
             x=ao_win["date"], y=ao_win["ao"],
             marker_color=ao_colors.tolist(),
             name="AO",
-            hovertemplate="%{x|%Y-%m-%d}: AO = %{y:.3f}<extra></extra>",
+            hovertemplate="%{x|%b %d, %Y}: AO = %{y:.3f}<extra></extra>",
         ),
         row=current_row, col=1,
     )
@@ -187,7 +187,7 @@ def main() -> None:
                 x=pdo_win["date"], y=pdo_win["pdo"],
                 marker_color=pdo_colors.tolist(),
                 name="PDO",
-                hovertemplate="%{x|%Y-%m}: PDO = %{y:.3f}<extra></extra>",
+                hovertemplate="%{x|%b %Y}: PDO = %{y:.3f}<extra></extra>",
             ),
             row=current_row, col=1,
         )
@@ -206,8 +206,8 @@ def main() -> None:
                 x=agg_win["date"], y=agg_win["area_frac"],
                 mode="lines", line={"color": "tomato", "width": 1.8},
                 fill="tozeroy", fillcolor="rgba(255,99,71,0.15)",
-                name="area_frac",
-                hovertemplate="%{x|%Y-%m-%d}: area_frac = %{y:.4f}<extra></extra>",
+                name="Area Fraction",
+                hovertemplate="%{x|%b %d, %Y}: Area Fraction = %{y:.4f}<extra></extra>",
             ),
             row=current_row, col=1,
         )
@@ -222,8 +222,8 @@ def main() -> None:
             go.Scatter(
                 x=agg_win["date"], y=agg_win["Ibar"],
                 mode="lines", line={"color": "orangered", "width": 1.8},
-                name="Ī (°C)",
-                hovertemplate="%{x|%Y-%m-%d}: Ī = %{y:.3f} °C<extra></extra>",
+                name="Mean Intensity (°C)",
+                hovertemplate="%{x|%b %d, %Y}: Mean Intensity = %{y:.3f} °C<extra></extra>",
             ),
             row=current_row, col=1,
         )
@@ -234,7 +234,7 @@ def main() -> None:
         _add_event_shading(fig, agg_win["date"], active_flag, n_rows)
 
     fig.update_layout(
-        title=dict(text=f"Predictability Context — {region.upper()}  ({t_start.strftime('%Y-%m-%d')} → {t_end.strftime('%Y-%m-%d')})",
+        title=dict(text=f"Predictability Context — {region.upper()}  ({t_start.strftime('%b %d, %Y')} → {t_end.strftime('%b %d, %Y')})",
                    font={"size": 14}),
         height=220 * n_rows,
         showlegend=False,

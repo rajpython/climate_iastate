@@ -7,7 +7,7 @@ Four panels in tabs:
   🌊  Regime Analysis — AO± × PDO± box plots
 
 Run standalone:
-    streamlit run src/dashboard/pages/2_historical.py
+    streamlit run src/dashboard/pages/2_Historical.py
 """
 from __future__ import annotations
 
@@ -34,6 +34,8 @@ REGIME_COLOR = {
     "AO− / PDO−": "#2ecc71",
 }
 BLOB_YEARS = {2014, 2015, 2016}
+
+_PLOTLY_DATE = "%b %d, %Y"        # e.g. "Feb 24, 2024"
 
 # ---------------------------------------------------------------------------
 # Loaders
@@ -113,7 +115,17 @@ def _regime_df(region: str) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Page config
 # ---------------------------------------------------------------------------
-st.set_page_config(page_title="Historical Analysis", layout="wide", page_icon="📊")
+st.set_page_config(page_title="Historical Analysis", layout="wide", page_icon="")
+st.markdown("""<style>
+[data-testid="stSidebarNavItems"] li:first-child a span {
+    font-size: 1.3rem; font-weight: 700;
+}
+[data-testid="stSidebarNavItems"] img,
+[data-testid="stSidebarNavItems"] svg { display: none !important; }
+[data-testid="stSidebarNavItems"] li:not(:first-child) a span::before {
+    content: "\\2022\\00a0";
+}
+</style>""", unsafe_allow_html=True)
 st.title("📊 Historical Analysis — 1982–2024")
 
 # ---------------------------------------------------------------------------
@@ -160,13 +172,13 @@ with tab_burden:
     st.subheader(f"Annual MHW Burden — {region.upper()}  ({y_start}–{y_end})")
 
     bar_metric = st.radio(
-        "Bar metric", ["Max area_frac", "Mean area_frac", "Event days"],
+        "Bar metric", ["Peak Area Fraction", "Mean Area Fraction", "Event Days"],
         horizontal=True, key="burden_metric"
     )
     col_map = {
-        "Max area_frac":  ("max_af",      "Annual peak area fraction"),
-        "Mean area_frac": ("mean_af",     "Annual mean area fraction"),
-        "Event days":     ("event_days",  "Event days (area_frac > 0.05)"),
+        "Peak Area Fraction":  ("max_af",      "Annual peak area fraction"),
+        "Mean Area Fraction":  ("mean_af",     "Annual mean area fraction"),
+        "Event Days":          ("event_days",  "Event days (area fraction > 5%)"),
     }
     col, ylabel = col_map[bar_metric]
 
@@ -212,7 +224,12 @@ with tab_burden:
     top10 = ann_f.nlargest(10, "max_af")[
         ["year", "max_af", "mean_af", "event_days", "max_Ibar", "max_Cbar"]
     ].round(4)
-    st.subheader("Top 10 years by peak area_frac")
+    top10 = top10.rename(columns={
+        "max_af": "Peak Area Frac.", "mean_af": "Mean Area Frac.",
+        "event_days": "Event Days", "max_Ibar": "Peak Intensity (°C)",
+        "max_Cbar": "Peak Cumul. Int. (°C·days)",
+    })
+    st.subheader("Top 10 Years by Peak Area Fraction")
     st.dataframe(top10, use_container_width=True, hide_index=True)
 
 # ============================================================
@@ -229,16 +246,16 @@ with tab_explorer:
 
     # Year header metrics
     hc1, hc2, hc3, hc4, hc5 = st.columns(5)
-    hc1.metric("Event days",    int(yr_ann["event_days"]))
-    hc2.metric("Peak area_frac",f"{yr_ann['max_af']:.4f}")
-    hc3.metric("Peak Ibar (°C)",f"{yr_ann['max_Ibar']:.3f}")
-    hc4.metric("Peak Dbar (d)", f"{yr_ann['max_Dbar']:.1f}")
-    hc5.metric("Peak Cbar",     f"{yr_ann['max_Cbar']:.2f}")
+    hc1.metric("Event Days",              int(yr_ann["event_days"]))
+    hc2.metric("Peak Area Frac.",         f"{yr_ann['max_af']:.4f}")
+    hc3.metric("Peak Intensity (°C)",     f"{yr_ann['max_Ibar']:.3f}")
+    hc4.metric("Peak Duration (days)",    f"{yr_ann['max_Dbar']:.1f}")
+    hc5.metric("Peak Cumul. Int.",        f"{yr_ann['max_Cbar']:.2f}")
 
     # Year time series — area_frac + Ibar + Dbar
     fig_yr = make_subplots(rows=3, cols=1, shared_xaxes=True,
-                           subplot_titles=["Area Fraction", "Mean Intensity Ī (°C)",
-                                           "Mean Duration D̄ (days)"],
+                           subplot_titles=["Area Fraction", "Mean Intensity (°C)",
+                                           "Mean Duration (days)"],
                            vertical_spacing=0.08)
 
     active_yr = df_yr["area_frac"].values > AREA_THRESH
@@ -252,7 +269,7 @@ with tab_explorer:
             mode="lines", line={"color": color, "width": 1.6},
             fill="tozeroy" if row == 1 else None,
             fillcolor="rgba(220,20,60,0.15)" if row == 1 else None,
-            hovertemplate=f"%{{x|%Y-%m-%d}}: %{{y:.3f}}<extra></extra>",
+            hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.3f}}<extra></extra>",
         ), row=row, col=1)
 
         # Event shading
@@ -296,6 +313,10 @@ with tab_explorer:
         .reindex([m for m in month_order if m in df_yr2["month"].values])
         .round(4)
     )
+    monthly = monthly.rename(columns={
+        "event_days": "Event Days", "max_area_frac": "Peak Area Frac.",
+        "max_Ibar": "Peak Intensity (°C)", "max_Dbar": "Peak Duration (days)",
+    })
     st.subheader(f"Monthly summary — {sel_year}")
     st.dataframe(monthly, use_container_width=True)
 
@@ -308,11 +329,11 @@ with tab_dist:
     df_range = df_full[(df_full["year"] >= y_start) & (df_full["year"] <= y_end)]
 
     metrics_hist = [
-        ("area_frac", "Area Fraction",          "fraction",  "steelblue",  False),
-        ("Ibar",      "Mean Intensity Ī",       "°C",        "orangered",  True),
-        ("Dbar",      "Mean Duration D̄",       "days",      "mediumpurple",True),
-        ("Cbar",      "Cumulative C̄",          "°C·days",   "seagreen",   True),
-        ("Obar",      "Mean Onset Rate Ō",      "°C/day",    "darkorange", True),
+        ("area_frac", "Area Fraction",      "fraction",  "steelblue",  False),
+        ("Ibar",      "Mean Intensity",     "°C",        "orangered",  True),
+        ("Dbar",      "Mean Duration",      "days",      "mediumpurple",True),
+        ("Cbar",      "Cumul. Intensity",   "°C·days",   "seagreen",   True),
+        ("Obar",      "Onset Rate",         "°C/day",    "darkorange", True),
     ]
 
     st.subheader(f"Metric Distributions — {region.upper()}  ({y_start}–{y_end})")
@@ -418,10 +439,10 @@ with tab_regime:
             st.success("All 4 regimes represented ✓")
 
         plot_metrics_reg = [
-            ("area_frac", "Area Fraction",        "fraction"),
-            ("Ibar",      "Mean Intensity Ī",     "°C"),
-            ("Dbar",      "Mean Duration D̄",     "days"),
-            ("Cbar",      "Cumulative C̄",        "°C·days"),
+            ("area_frac", "Area Fraction",      "fraction"),
+            ("Ibar",      "Mean Intensity",     "°C"),
+            ("Dbar",      "Mean Duration",      "days"),
+            ("Cbar",      "Cumul. Intensity",   "°C·days"),
         ]
 
         fig_reg = make_subplots(
@@ -469,11 +490,11 @@ with tab_regime:
             if len(sub):
                 medians.append({
                     "Regime": r, "Days": len(sub),
-                    "area_frac (median)": round(sub["area_frac"].median(), 5),
-                    "Ibar median (°C)":   round(sub["Ibar"].median(), 3),
-                    "Dbar median (days)": round(sub["Dbar"].median(), 2),
-                    "Cbar median":        round(sub["Cbar"].median(), 3),
-                    "Event days (>0.05)": int((sub["area_frac"] > AREA_THRESH).sum()),
+                    "Area Frac. (median)":         round(sub["area_frac"].median(), 5),
+                    "Intensity median (°C)":       round(sub["Ibar"].median(), 3),
+                    "Duration median (days)":      round(sub["Dbar"].median(), 2),
+                    "Cumul. Int. median (°C·days)": round(sub["Cbar"].median(), 3),
+                    "Event Days (>5%)":            int((sub["area_frac"] > AREA_THRESH).sum()),
                 })
         if medians:
             st.dataframe(pd.DataFrame(medians), use_container_width=True, hide_index=True)

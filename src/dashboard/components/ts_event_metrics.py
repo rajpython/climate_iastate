@@ -27,11 +27,11 @@ _cfg = yaml.safe_load((ROOT / "config" / "climatology.yml").read_text())
 AREA_THRESH = float(_cfg["regional_events"]["area_frac_threshold"])
 
 METRIC_DEFS = [
-    ("area_frac", "Area Fraction",                  "fraction",  "steelblue"),
-    ("Ibar",      "Mean Intensity Ī",               "°C",        "orangered"),
-    ("Dbar",      "Mean Duration D̄",               "days",      "mediumpurple"),
-    ("Cbar",      "Mean Cumulative Intensity C̄",   "°C·days",   "seagreen"),
-    ("Obar",      "Mean Onset Rate Ō",              "°C/day",    "darkorange"),
+    ("area_frac", "Area Fraction",      "fraction",  "steelblue"),
+    ("Ibar",      "Mean Intensity",     "°C",        "orangered"),
+    ("Dbar",      "Mean Duration",      "days",      "mediumpurple"),
+    ("Cbar",      "Cumul. Intensity",   "°C·days",   "seagreen"),
+    ("Obar",      "Onset Rate",         "°C/day",    "darkorange"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -137,7 +137,7 @@ def main() -> None:
                 mode="lines",
                 name=label,
                 line={"color": color, "width": 1.8},
-                hovertemplate=f"%{{x|%Y-%m-%d}}: %{{y:.3f}} {ylabel}<extra></extra>",
+                hovertemplate=f"%{{x|%b %d, %Y}}: %{{y:.3f}} {ylabel}<extra></extra>",
             ),
             row=row, col=1,
         )
@@ -183,27 +183,32 @@ def main() -> None:
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Window",         f"{window} days")
-    c2.metric("Event days (>0.05)", event_days)
+    c2.metric("Event Days", event_days)
     c3.metric("Any-active days",    active_days)
     c4.metric("Inactive days",      inactive_days)
 
     if event_days > 0:
         peak = df_win.loc[df_win["area_frac"].idxmax()]
         st.markdown(
-            f"**Peak event day:** {peak['date'].strftime('%Y-%m-%d')} — "
-            f"area_frac = **{peak['area_frac']:.4f}**, "
-            f"Ī = {peak['Ibar']:.2f} °C, "
-            f"D̄ = {peak['Dbar']:.1f} days, "
-            f"C̄ = {peak['Cbar']:.2f} °C·days"
+            f"**Peak event day:** {peak['date'].strftime('%b %d, %Y')} — "
+            f"Area Fraction = **{peak['area_frac']:.4f}**, "
+            f"Mean Intensity = {peak['Ibar']:.2f} °C, "
+            f"Mean Duration = {peak['Dbar']:.1f} days, "
+            f"Cumul. Intensity = {peak['Cbar']:.2f} °C·days"
         )
 
     # Recent tail table
     with st.expander("Last 14 days (data table)"):
         tail14 = df_win.tail(14).copy()
-        tail14["date"] = tail14["date"].dt.strftime("%Y-%m-%d")
+        tail14["date"] = tail14["date"].dt.strftime("%b %d, %Y")
         for col in ["area_frac", "Ibar", "Dbar", "Cbar", "Obar"]:
             tail14[col] = tail14[col].round(4)
+        from dashboard.components.labels import DISPLAY_NAMES
+        tail14 = tail14.rename(columns=DISPLAY_NAMES)
         st.dataframe(tail14, use_container_width=True, hide_index=True)
+
+    from dashboard.components.labels import metric_legend
+    st.caption(metric_legend())
 
 
 if __name__ == "__main__":

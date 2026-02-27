@@ -699,7 +699,10 @@ PATH=/usr/local/bin:/usr/bin:/bin
 
 Note: `daily_refresh.sh` uses `docker compose exec -T api` internally to run Python commands inside the running `api` container. The `PATH=` line in crontab ensures `docker` and `docker compose` resolve correctly (cron has minimal PATH by default).
 
-**Status:** ⏳ Pending (to be configured on VM)
+**Status:** ✅ Completed  
+- Cron installed on VM  
+- Manual run of `scripts/daily_refresh.sh` succeeded for all 5 regions  
+- States, aggregates, and risk outputs updated; dashboard restarted successfully
 
 #### 3g. Set up monitoring (optional but recommended)
 
@@ -876,9 +879,68 @@ alias mhw-deploy='git push && ssh -i ~/.ssh/your-lightsail-key.pem ubuntu@YOUR_S
 | `pyproject.toml` | |
 | `.gitignore` | |
 
-**Status:** ✅ Completed  
-- GitHub repo created: `https://github.com/rajpython/climate_iastate`  
+**Status:** ✅ Completed
+- GitHub repo created: `https://github.com/rajpython/climate_iastate`
 - Notebooks excluded from repo (gitignored)
+
+---
+
+## Step 14: Documentation, Label Standardization & UI Polish ✅ Completed
+
+### 14a: User Guide & PDF
+
+**Deliverables:**
+- `docs/user_guide.md` — Comprehensive user guide covering Operational page (4 panels), Historical page (4 panels), API quickstart, and FAQ
+- `docs/user_guide.pdf` — Print-ready PDF generated via WeasyPrint
+- `scripts/build_pdf.py` — Markdown → HTML → PDF pipeline
+- `src/dashboard/pages/3_User_Guide.py` — In-app guide page that renders the markdown in Streamlit
+
+**FAQ highlights:**
+- Risk score methodology (percentile-based, full 1982–present distribution, region-specific but not season-conditioned)
+- AO/PDO interpretation guide
+- Dashboard update frequency and data latency
+- "The Blob" (2013–2016) context
+
+### 14b: Dashboard Label Standardization
+
+**Problem:** Technical column names (`area_frac`, `Ibar`, `Dbar`, `Cbar`, `Obar`) and macron symbols (`Ī`, `D̄`, `C̄`) appeared throughout the dashboard UI.
+
+**Solution:** Created `src/dashboard/components/labels.py` — a central display-name mapping module imported by all components and pages.
+
+| Internal name | Display label | Unit |
+|---------------|--------------|------|
+| `area_frac` | Area Fraction | (fraction) |
+| `Ibar` | Mean Intensity | °C |
+| `Dbar` | Mean Duration | days |
+| `Cbar` | Cumul. Intensity | °C·days |
+| `Obar` | Onset Rate | °C/day |
+
+**Files updated (6):**
+- `ts_event_metrics.py` — METRIC_DEFS, metric cards, peak summary, table columns, legend caption
+- `risk_gauge.py` — percentile bars, sparkline legend, metric cards, weights caption, risk table columns
+- `predictability_panel.py` — row titles, trace names, hover templates
+- `1_Operational.py` — metric cards, weights caption
+- `2_Historical.py` — radio options, top-10 table, Event Explorer, distributions, regime analysis
+- `MHW_Dashboard.py` — landing page panel descriptions
+
+### 14c: Sidebar Cosmetics
+
+**Changes:**
+- Entry point renamed: `app.py` → `MHW_Dashboard.py` (larger, bolder sidebar label)
+- Subpages renamed: `1_operational.py` → `1_Operational.py`, `2_historical.py` → `2_Historical.py`, `3_Guide.py` → `3_User_Guide.py`
+- `page_icon=""` set on all subpages to suppress emoji bullets in sidebar
+- CSS injected in all 4 page files for persistence across navigation:
+  - App name: `font-size: 1.3rem; font-weight: 700`
+  - Emoji icons: `display: none !important`
+  - Subpage bullets: `::before { content: "•\00a0" }`
+
+### 14d: Credits & Data Acknowledgment
+
+- Credits added to `docs/user_guide.md` and `README.md`: Dr. Rajesh Singh, Iowa State University
+- Data sources acknowledged: NOAA OISST v2.1, CPC Arctic Oscillation, PSL Pacific Decadal Oscillation
+- `README.md` expanded with dashboard pages table, project structure, data sources section
+
+**Status:** ✅ Completed
 
 ---
 

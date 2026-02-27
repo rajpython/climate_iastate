@@ -7,7 +7,7 @@ Four panels in tabs, sharing a single region selector from the sidebar:
   🚦  Risk Gauge
 
 Run standalone:
-    streamlit run src/dashboard/pages/1_operational.py
+    streamlit run src/dashboard/pages/1_Operational.py
 """
 from __future__ import annotations
 
@@ -55,10 +55,30 @@ from mhw.states.risk import compute_risk_table, save_risk_table
 
 RISK_DIR = Path(__file__).parents[3] / "data" / "derived" / "risk"
 
+# Human-friendly date formatting
+_DATE_FMT = "%b %d, %Y"          # e.g. "Feb 24, 2024"
+_PLOTLY_DATE = "%b %d, %Y"       # Plotly d3 format
+_PLOTLY_MONTH = "%b %Y"          # Plotly d3 format (month only)
+
+
+def _fmt(d) -> str:
+    """Human-friendly date string, e.g. 'Feb 24, 2024'."""
+    return pd.Timestamp(d).strftime(_DATE_FMT)
+
 # ---------------------------------------------------------------------------
 # Page config
 # ---------------------------------------------------------------------------
-st.set_page_config(page_title="Operational Dashboard", layout="wide", page_icon="🌊")
+st.set_page_config(page_title="Operational Dashboard", layout="wide", page_icon="")
+st.markdown("""<style>
+[data-testid="stSidebarNavItems"] li:first-child a span {
+    font-size: 1.3rem; font-weight: 700;
+}
+[data-testid="stSidebarNavItems"] img,
+[data-testid="stSidebarNavItems"] svg { display: none !important; }
+[data-testid="stSidebarNavItems"] li:not(:first-child) a span::before {
+    content: "\\2022\\00a0";
+}
+</style>""", unsafe_allow_html=True)
 st.title("🌊 Operational Dashboard")
 
 # ---------------------------------------------------------------------------
@@ -112,9 +132,10 @@ with tab_map:
         if not reg_files:
             reg_files = available   # fallback: show whatever is available
 
-        labels = [f"{r['region'].upper()}  {r['start']} → {r['end']}" for r in reg_files]
+        labels = [f"{r['region'].upper()}  {_fmt(r['start'])} → {_fmt(r['end'])}" for r in reg_files]
         choice = st.selectbox("Period", range(len(labels)),
-                              format_func=lambda i: labels[i], key="map_period")
+                              format_func=lambda i: labels[i],
+                              key=f"map_period_{region}")
         info   = reg_files[choice]
         data   = load_states(info["path"])
         dates  = data["dates"]
@@ -127,7 +148,7 @@ with tab_map:
                                       index=1, key="map_metric")
             date_idx = st.slider("Date", 0, len(dates) - 1, len(dates) - 1,
                                  key="map_date")
-            st.caption(f"**{dates[date_idx]}**")
+            st.caption(f"**{_fmt(dates[date_idx])}**")
 
         values = data[metric_key][date_idx]
         label, colorscale, vmin, vmax, fmt = avail_metrics[metric_key]
@@ -162,7 +183,7 @@ with tab_map:
             ),
         ))
         fig.update_layout(
-            title=f"{label} — {info['region'].upper()} — {dates[date_idx]}",
+            title=f"{label} — {info['region'].upper()} — {_fmt(dates[date_idx])}",
             map=dict(
                 style="open-street-map",
                 center={"lat": float(data["lats"].mean()),
@@ -210,7 +231,7 @@ with tab_ts:
             fig.add_trace(go.Scatter(
                 x=df_win["date"], y=df_win[col], mode="lines",
                 line={"color": color, "width": 1.8},
-                hovertemplate=f"%{{x|%Y-%m-%d}}: %{{y:.3f}} {ylabel}<extra></extra>",
+                hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.3f}} {ylabel}<extra></extra>",
                 name=title,
             ), row=row, col=1)
             fig.update_yaxes(title_text=ylabel, row=row, col=1,
@@ -234,9 +255,9 @@ with tab_ts:
         ev_days = int((df_win["area_frac"] > AREA_THRESH).sum())
         peak    = df_win.loc[df_win["area_frac"].idxmax()]
         c1, c2, c3 = st.columns(3)
-        c1.metric("Event days (>0.05)", ev_days)
-        c2.metric("Peak area_frac", f"{peak['area_frac']:.4f}")
-        c3.metric("Peak date", str(peak["date"].date()))
+        c1.metric("Event Days", ev_days)
+        c2.metric("Peak Area Fraction", f"{peak['area_frac']:.4f}")
+        c3.metric("Peak date", _fmt(peak["date"]))
 
 # ============================================================
 # TAB 3 — Predictability Context
@@ -265,7 +286,7 @@ with tab_pred:
             ao_win = ao_df.tail(min(win_days, len(ao_df))).reset_index(drop=True)
             st.info(f"AO data not available for MHW period. Showing most recent {win_days} AO days.")
 
-        row_titles = ["AO (daily)", "PDO (monthly)", "Area Fraction", "Mean Intensity Ī (°C)"]
+        row_titles = ["AO (daily)", "PDO (monthly)", "Area Fraction", "Mean Intensity (°C)"]
         n_rows = len(row_titles)
         fig = make_subplots(rows=n_rows, cols=1, shared_xaxes=True,
                             subplot_titles=row_titles, vertical_spacing=0.07)
@@ -273,7 +294,7 @@ with tab_pred:
         ao_colors = np.where(ao_win["ao"].values >= 0, "steelblue", "tomato")
         fig.add_trace(go.Bar(x=ao_win["date"], y=ao_win["ao"],
                              marker_color=ao_colors.tolist(), name="AO",
-                             hovertemplate="%{x|%Y-%m-%d}: %{y:.3f}<extra></extra>"),
+                             hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.3f}}<extra></extra>"),
                       row=1, col=1)
         _zero_line(fig, 1)
         fig.update_yaxes(title_text="AO", row=1, col=1, title_font={"size": 9})
@@ -282,7 +303,7 @@ with tab_pred:
             pdo_colors = np.where(pdo_win["pdo"].values >= 0, "darkorange", "royalblue")
             fig.add_trace(go.Bar(x=pdo_win["date"], y=pdo_win["pdo"],
                                  marker_color=pdo_colors.tolist(), name="PDO",
-                                 hovertemplate="%{x|%Y-%m}: %{y:.3f}<extra></extra>"),
+                                 hovertemplate=f"%{{x|{_PLOTLY_MONTH}}}: %{{y:.3f}}<extra></extra>"),
                           row=2, col=1)
             _zero_line(fig, 2)
             fig.update_yaxes(title_text="PDO", row=2, col=1, title_font={"size": 9})
@@ -293,7 +314,7 @@ with tab_pred:
                 x=agg_win["date"], y=agg_win["area_frac"], mode="lines",
                 line={"color": "tomato", "width": 1.8},
                 fill="tozeroy", fillcolor="rgba(255,99,71,0.15)",
-                hovertemplate="%{x|%Y-%m-%d}: %{y:.4f}<extra></extra>"),
+                hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.4f}}<extra></extra>"),
                 row=3, col=1)
             fig.add_hline(y=AREA_THRESH, line_dash="dash", line_color="darkred",
                           line_width=1, row=3, col=1)
@@ -302,7 +323,7 @@ with tab_pred:
             fig.add_trace(go.Scatter(
                 x=agg_win["date"], y=agg_win["Ibar"], mode="lines",
                 line={"color": "orangered", "width": 1.8},
-                hovertemplate="%{x|%Y-%m-%d}: %{y:.3f} °C<extra></extra>"),
+                hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.3f}} °C<extra></extra>"),
                 row=4, col=1)
             fig.update_yaxes(title_text="°C", row=4, col=1, title_font={"size": 9})
 
@@ -313,6 +334,9 @@ with tab_pred:
             height=220 * n_rows, showlegend=False, template="plotly_white",
             bargap=0.05, margin={"l": 60, "r": 20, "t": 60, "b": 40},
         )
+        # Force shared x-axis to the requested window (Plotly auto-expands
+        # when subplots mix daily and monthly data with different end dates)
+        fig.update_xaxes(range=[str(t_start), str(t_end)])
         st.plotly_chart(fig, use_container_width=True, key="pred_chart")
 
         pc1, pc2, pc3, pc4 = st.columns(4)
@@ -342,7 +366,7 @@ with tab_risk:
 
         row_r = risk_df[risk_df["date"].dt.date == sel_date]
         if row_r.empty:
-            st.warning(f"No risk data for {sel_date}.")
+            st.warning(f"No risk data for {_fmt(sel_date)}.")
         else:
             row_r = row_r.iloc[0]
             score  = float(row_r["composite_risk"])
@@ -356,11 +380,11 @@ with tab_risk:
                     if not agg_row.empty:
                         agg_row = agg_row.iloc[0]
                         mc1, mc2 = st.columns(2)
-                        mc1.metric("area_frac", f"{agg_row['area_frac']:.4f}")
-                        mc2.metric("Ī (°C)",    f"{agg_row['Ibar']:.2f}")
+                        mc1.metric("Area Fraction",           f"{agg_row['area_frac']:.4f}")
+                        mc2.metric("Mean Intensity (°C)",     f"{agg_row['Ibar']:.2f}")
                         mc3, mc4 = st.columns(2)
-                        mc3.metric("D̄ (days)",   f"{agg_row['Dbar']:.1f}")
-                        mc4.metric("C̄ (°C·days)",f"{agg_row['Cbar']:.2f}")
+                        mc3.metric("Mean Duration (days)",    f"{agg_row['Dbar']:.1f}")
+                        mc4.metric("Cumul. Intensity (°C·days)", f"{agg_row['Cbar']:.2f}")
 
             with p_col:
                 st.plotly_chart(_make_pct_bars(row_r), use_container_width=True, key="risk_pct_bars")
@@ -371,10 +395,10 @@ with tab_risk:
                     ":red[🔴 High Risk (66–100)]"
                 )
                 st.caption(
-                    f"Weights: area_frac {RISK_WEIGHTS['area_frac']:.0%}, "
-                    f"Ibar {RISK_WEIGHTS['Ibar']:.0%}, "
-                    f"Dbar {RISK_WEIGHTS['Dbar']:.0%}, "
-                    f"Cbar {RISK_WEIGHTS['Cbar']:.0%}. "
+                    f"Weights: Area Fraction {RISK_WEIGHTS['area_frac']:.0%}, "
+                    f"Mean Intensity {RISK_WEIGHTS['Ibar']:.0%}, "
+                    f"Mean Duration {RISK_WEIGHTS['Dbar']:.0%}, "
+                    f"Cumul. Intensity {RISK_WEIGHTS['Cbar']:.0%}. "
                     "Reference: full 1982–2024 backfill distribution."
                 )
 
