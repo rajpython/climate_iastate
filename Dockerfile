@@ -27,6 +27,7 @@ RUN pip install -e ".[geo,dashboard,api]"
 
 # ── Config files baked into image (not data — that is bind-mounted) ──────────
 COPY config/ ./config/
+COPY docs/ ./docs/
 COPY .streamlit/ ./.streamlit/
 
 # ── Runtime directories (populated by bind-mount or manual copy) ─────────────
