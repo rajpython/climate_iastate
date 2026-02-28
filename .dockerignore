@@ -21,6 +21,8 @@ build/
 # ── notebooks & docs ─────────────────────────────────────────────────────────
 notebooks/
 docs/
+!docs/user_guide.md
+!docs/user_guide.pdf
 
 # ── tests (not needed in image) ──────────────────────────────────────────────
 tests/
