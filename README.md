@@ -68,6 +68,7 @@ docs/             # User guide, wireframe, scientific spec, plans
 
 - **[User Guide](docs/user_guide.md)** ([PDF](docs/user_guide.pdf)) — How to use the dashboard and API
 - **[Scientific Specification](mhw_README.md)** — Full methodology, equations, and data pipeline
+- **[Runtime Architecture](docs/architecture_runtime.md)** — Entry points, data artifacts, refresh flow, and service runtime
 - **[Dashboard Wireframe](docs/dashboard_wireframe.md)** — UI layout specification
 - **[Development Plan](docs/plans/sequential_coding_plan.md)** — Step-by-step build log
 
