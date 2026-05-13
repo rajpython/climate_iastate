@@ -1,6 +1,7 @@
 """FastAPI smoke tests using TestClient — no ERDDAP, reads on-disk parquet only."""
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 DAILY_STATE_FIELDS = {"date", "area_frac", "Ibar", "Dbar", "Cbar", "Obar"}
@@ -16,7 +17,13 @@ EVENT_FIELDS = {
 }
 REGION_FIELDS = {"region_id", "start_date", "end_date", "n_days"}
 
-EXPECTED_ROWS = 15_706
+BACKFILL_START = pd.Timestamp("1982-01-01")
+
+
+def _expected_rows_from_dates(data) -> int:
+    """One row per day from BACKFILL_START to the latest date in the response."""
+    latest = max(pd.to_datetime(d["date"]) for d in data)
+    return (latest - BACKFILL_START).days + 1
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +59,8 @@ def test_daily_states_goa(api_client):
     resp = api_client.get("/states/region/goa")
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data) == EXPECTED_ROWS, f"Expected {EXPECTED_ROWS} rows, got {len(data)}"
+    expected = _expected_rows_from_dates(data)
+    assert len(data) == expected, f"Expected {expected} rows, got {len(data)}"
     # Spot-check first record for required fields
     assert DAILY_STATE_FIELDS.issubset(data[0].keys())
 

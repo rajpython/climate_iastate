@@ -31,9 +31,11 @@ _SIDEBAR_CSS = """<style>
 st.markdown(_SIDEBAR_CSS, unsafe_allow_html=True)
 
 st.title("🌊 Marine Heatwave State Dashboard")
+st.subheader(
+    "Sub-arctic to Arctic marine waters around Alaska — Gulf of Alaska, Bering Sea, Chukchi, and Beaufort"
+)
 st.markdown(
     """
-    Gulf of Alaska (GOA) and adjacent high-latitude North Pacific and Arctic regions.
     **Select a page from the sidebar.**
 
     ---
@@ -46,7 +48,7 @@ st.markdown(
     | 🌐 **Predictability** | AO/PDO indices alongside MHW event metrics |
     | 🚦 **Risk Gauge** | Composite percentile-based risk score with 30-day trend |
 
-    ### Page 2 — Historical (1982–2024)
+    ### Page 2 — Historical (1982–present)
     | Panel | Description |
     |---|---|
     | 📊 **Annual Burden** | Year-by-year MHW activity bar chart with Blob annotation |
@@ -56,6 +58,9 @@ st.markdown(
     """
 )
 
-st.info("Navigate with the **sidebar** (← left) — use ▸ to expand if hidden.")
+st.info(
+    "Navigate with the **sidebar** (← left) — use ▸ to expand if hidden.  \n"
+    "Prefer dark mode? Use the **top-right ⋮ menu → Settings → Theme**."
+)
 
 st.sidebar.success("Select a page above.")

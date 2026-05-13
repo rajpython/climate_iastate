@@ -47,9 +47,23 @@ def load_aggregates(region: str) -> pd.DataFrame | None:
     return df.sort_values("date").reset_index(drop=True)
 
 
+#: Canonical region ordering — south to north (sub-arctic Pacific → Arctic).
+#: GOA leads as the largest U.S. fisheries footprint among the five.
+#: Matches the order in config/regions.geojson; any unknown region falls to the end.
+REGION_ORDER = ["goa", "ebs", "nbs", "chukchi", "beaufort"]
+
+
+def _region_key(r: str) -> tuple:
+    """Sort regions by canonical south-to-north order; unknowns fall to the end alphabetically."""
+    return (REGION_ORDER.index(r), r) if r in REGION_ORDER else (len(REGION_ORDER), r)
+
+
 @st.cache_data(show_spinner=False, ttl=3600)
 def list_regions() -> list[str]:
-    return sorted(p.stem.replace("region_daily_", "") for p in AGG_DIR.glob("region_daily_*.parquet"))
+    return sorted(
+        (p.stem.replace("region_daily_", "") for p in AGG_DIR.glob("region_daily_*.parquet")),
+        key=_region_key,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -100,9 +114,10 @@ def main() -> None:
         "60 days":  60,
         "90 days":  90,
         "180 days": 180,
+        "1 year":   365,
         "Full period": n_days_total,
     }
-    window_label = st.sidebar.selectbox("Display window", list(window_options.keys()), index=2)
+    window_label = st.sidebar.selectbox("Display window", list(window_options.keys()), index=4)
     window = window_options[window_label]
     df_win = df.tail(window).reset_index(drop=True)
 

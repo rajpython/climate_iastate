@@ -1,6 +1,6 @@
 # Marine Heatwave State Dashboard
 
-A live monitoring dashboard for marine heatwaves in high-latitude North Pacific and Arctic waters.
+A live monitoring dashboard for marine heatwaves in the sub-arctic to Arctic waters around Alaska — Gulf of Alaska, Bering Sea (Eastern and Northern), Chukchi, and Beaufort.
 
 **Live dashboard**: [mhw.iastate.ai](https://mhw.iastate.ai)
 **API docs**: [mhw.iastate.ai/api/docs](https://mhw.iastate.ai/api/docs)
@@ -12,7 +12,7 @@ This project operationalizes the Hobday et al. (2016) hierarchical MHW definitio
 - Detects and characterizes marine heatwaves in near-real-time using NOAA OISST v2.1
 - Tracks intensity, duration, cumulative exposure, and onset rate at 0.25° resolution
 - Provides climate regime context via Arctic Oscillation (AO) and Pacific Decadal Oscillation (PDO) indices
-- Generates composite risk scores against 43 years of historical data (1982–present)
+- Generates composite risk scores against 40+ years of historical data (1982–present)
 
 ## Dashboard Pages
 
@@ -45,6 +45,24 @@ uvicorn api.main:app --reload --port 8000
 # Run tests
 pytest tests/
 ```
+
+### Keeping local data fresh
+
+The repo ships dashboard code only — derived data (`data/raw/`, `data/derived/`) is
+generated locally and gitignored. To extend an existing local backfill through the
+current date (recommended monthly):
+
+```bash
+bash scripts/monthly_refresh.sh                 # extend through today UTC
+bash scripts/monthly_refresh.sh 2026-06-30      # or extend through a specific date
+```
+
+The script auto-detects the latest date already on disk, runs the state engine,
+aggregates regional metrics, recomputes risk percentile tables, and refreshes the
+AO/PDO indices. Set a recurring calendar reminder (monthly is plenty) to run it.
+
+In production, `scripts/daily_refresh.sh` runs inside Docker Compose on a 14:00 UTC
+cron and keeps `mhw.iastate.ai` current automatically.
 
 ## Project Structure
 
@@ -89,4 +107,4 @@ Hobday, A.J. et al. (2016). A hierarchical approach to defining marine heatwaves
 
 ---
 
-Developed by Dr. Rajesh Singh, Professor, Department of Economics, Iowa State University (rsingh@iastate.edu).
+Developed by Rajesh Singh, Professor, Department of Economics, Iowa State University (rsingh@iastate.edu).

@@ -28,3 +28,9 @@ outputs/
 .ipynb_checkpoints/
 notebooks/
 *.ipynb
+
+# Local-only working folders (never pushed)
+ResearhAgent/
+docs/wakefield_presentation/
+.claude/
+plan/

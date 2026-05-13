@@ -214,9 +214,9 @@ with tab_ts:
     else:
         n_total = len(agg_df)
         window_opts = {"30 days": 30, "60 days": 60, "90 days": 90,
-                       "180 days": 180, "Full record": n_total}
+                       "180 days": 180, "1 year": 365, "Full record": n_total}
         window_label = st.selectbox("Window", list(window_opts.keys()),
-                                    index=2, key="ts_window")
+                                    index=4, key="ts_window")
         window = window_opts[window_label]
         df_win = agg_df.tail(window).reset_index(drop=True)
 
@@ -267,7 +267,7 @@ with tab_pred:
         st.error("AO data not found.")
     else:
         window_pred = st.selectbox("Window", ["90 days", "180 days", "1 year", "All"],
-                                   index=1, key="pred_window")
+                                   index=2, key="pred_window")
         win_days = {"90 days": 90, "180 days": 180, "1 year": 365, "All": 99999}[window_pred]
 
         # Anchor time window on MHW data when available
@@ -399,7 +399,7 @@ with tab_risk:
                     f"Mean Intensity {RISK_WEIGHTS['Ibar']:.0%}, "
                     f"Mean Duration {RISK_WEIGHTS['Dbar']:.0%}, "
                     f"Cumul. Intensity {RISK_WEIGHTS['Cbar']:.0%}. "
-                    "Reference: full 1982–2024 backfill distribution."
+                    "Reference: full 1982–present backfill distribution."
                 )
 
             st.markdown("---")

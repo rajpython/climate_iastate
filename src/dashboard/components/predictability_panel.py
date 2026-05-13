@@ -62,7 +62,12 @@ def load_aggregates(region: str) -> pd.DataFrame | None:
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def list_regions() -> list[str]:
-    return sorted(p.stem.replace("region_daily_", "") for p in AGG_DIR.glob("region_daily_*.parquet"))
+    # South-to-north canonical order; see ts_event_metrics.REGION_ORDER for rationale.
+    from dashboard.components.ts_event_metrics import _region_key
+    return sorted(
+        (p.stem.replace("region_daily_", "") for p in AGG_DIR.glob("region_daily_*.parquet")),
+        key=_region_key,
+    )
 
 
 # ---------------------------------------------------------------------------

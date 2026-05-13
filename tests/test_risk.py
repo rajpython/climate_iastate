@@ -11,8 +11,13 @@ import pytest
 
 from mhw.states.risk import RISK_THRESHOLDS, RISK_WEIGHTS, _pct_rank, compute_risk_table
 
-EXPECTED_ROWS = 15_706
+BACKFILL_START = pd.Timestamp("1982-01-01")
 VALID_RISK_LEVELS = {"Normal", "Elevated", "High Risk"}
+
+
+def _expected_row_count(df: pd.DataFrame) -> int:
+    end = pd.to_datetime(df["date"]).max()
+    return (end - BACKFILL_START).days + 1
 
 
 # ---------------------------------------------------------------------------
@@ -148,9 +153,11 @@ class TestComputeRiskTable:
 
 class TestGoaRiskIntegration:
     def test_row_count_and_composite_range(self, goa_risk):
-        """GOA risk table must have 15,706 rows and composite_risk ∈ [0, 100]."""
-        assert len(goa_risk) == EXPECTED_ROWS, (
-            f"Expected {EXPECTED_ROWS} rows, got {len(goa_risk)}"
+        """GOA risk table must be continuous from 1982-01-01 and composite_risk ∈ [0, 100]."""
+        expected = _expected_row_count(goa_risk)
+        assert len(goa_risk) == expected, (
+            f"Expected {expected} rows ({BACKFILL_START.date()} → "
+            f"{pd.to_datetime(goa_risk['date']).max().date()}), got {len(goa_risk)}"
         )
         assert goa_risk["composite_risk"].between(0.0, 100.0).all(), (
             "composite_risk must be in [0, 100]"

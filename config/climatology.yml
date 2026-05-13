@@ -100,8 +100,9 @@ risk_percentiles:
 
 regional_events:
   area_frac_threshold: 0.05
-  min_consecutive_days: 5
   notes: >
-    A regional MHW event is defined as a contiguous period where area_frac > area_frac_threshold.
-    The min_consecutive_days filter is optional but recommended to parallel the cell-level 5-day
-    confirmation logic. Setting min_consecutive_days to 1 disables the duration filter.
+    A regional MHW event day is any day where area_frac > area_frac_threshold.
+    Cell-level Hobday confirmation (5+ consecutive exceedance days per cell) is
+    already applied upstream when computing area_frac, so a regional-level
+    persistence rule on top would be redundant: every cell contributing to
+    area_frac is already in a 5+ day confirmed MHW at the cell level.

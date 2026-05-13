@@ -12,9 +12,15 @@ import pytest
 PROJECT_ROOT = Path(__file__).parents[1]
 AGG_DIR = PROJECT_ROOT / "data" / "derived" / "aggregates_region"
 
-EXPECTED_ROWS = 15_706
+BACKFILL_START = pd.Timestamp("1982-01-01")
 REQUIRED_COLS = {"date", "area_frac", "Ibar", "Dbar", "Cbar", "Obar"}
 FLOAT_COLS = ["area_frac", "Ibar", "Dbar", "Cbar", "Obar"]
+
+
+def _expected_row_count(df: pd.DataFrame) -> int:
+    """One row per day from BACKFILL_START to the file's latest date (continuity check)."""
+    end = pd.to_datetime(df["date"]).max()
+    return (end - BACKFILL_START).days + 1
 
 
 # ---------------------------------------------------------------------------
@@ -28,8 +34,10 @@ class TestGoaSchema:
         )
 
     def test_row_count(self, goa_agg):
-        assert len(goa_agg) == EXPECTED_ROWS, (
-            f"Expected {EXPECTED_ROWS} rows, got {len(goa_agg)}"
+        expected = _expected_row_count(goa_agg)
+        assert len(goa_agg) == expected, (
+            f"Expected {expected} rows ({BACKFILL_START.date()} → "
+            f"{pd.to_datetime(goa_agg['date']).max().date()}), got {len(goa_agg)}"
         )
 
     def test_date_parseable(self, goa_agg):
@@ -76,15 +84,17 @@ class TestGoaInvariants:
 
 @pytest.mark.parametrize("region", ["goa", "ebs", "nbs", "chukchi", "beaufort"])
 def test_all_regions_schema(region):
-    """Every region parquet must have 15,706 rows, required columns, area_frac ∈ [0,1]."""
+    """Every region parquet must be continuous from 1982-01-01, have required columns,
+    and area_frac ∈ [0,1]."""
     path = AGG_DIR / f"region_daily_{region}.parquet"
     if not path.exists():
         pytest.skip(f"Parquet not found (run mhw-backfill first): {path}")
 
     df = pd.read_parquet(path)
-
-    assert len(df) == EXPECTED_ROWS, (
-        f"[{region}] Expected {EXPECTED_ROWS} rows, got {len(df)}"
+    expected = _expected_row_count(df)
+    assert len(df) == expected, (
+        f"[{region}] Expected {expected} rows "
+        f"({BACKFILL_START.date()} → {pd.to_datetime(df['date']).max().date()}), got {len(df)}"
     )
     assert REQUIRED_COLS.issubset(set(df.columns)), (
         f"[{region}] Missing columns: {REQUIRED_COLS - set(df.columns)}"

@@ -254,10 +254,28 @@ def run_state_engine(
     out_O = np.zeros((n_days, n_lat, n_lon), dtype=np.float32)
 
     # --- Open remote connection if needed ---
-    need_remote = any(
-        not (use_cache and _year_cache_path(region_id, yr).exists())
-        for yr in years
-    )
+    # A current-year cache is considered stale (and will be re-fetched in
+    # fetch_year) when its last day lags today by more than 2 days. Mirror
+    # that check here so we open the remote connection up front when needed.
+    today = date.today()
+    stale_threshold = np.datetime64(today, "D") - np.timedelta64(2, "D")
+
+    def _cache_usable(yr: int) -> bool:
+        if not use_cache:
+            return False
+        cache = _year_cache_path(region_id, yr)
+        if not cache.exists():
+            return False
+        if yr != today.year:
+            return True
+        try:
+            with xr.open_dataset(cache) as ds:
+                last = ds["time"].values[-1].astype("datetime64[D]")
+        except Exception:
+            return False
+        return last >= stale_threshold
+
+    need_remote = any(not _cache_usable(yr) for yr in years)
     remote_ds = None
     if need_remote:
         if verbose:

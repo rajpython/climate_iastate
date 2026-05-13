@@ -43,14 +43,15 @@ _TIMEOUT = 30  # seconds
 # AO — fetch & parse
 # ---------------------------------------------------------------------------
 
-def fetch_ao(years_back: int = 2) -> pd.DataFrame:
+def fetch_ao(years_back: int | None = None) -> pd.DataFrame:
     """Fetch AO daily index from CPC FTP.
 
     Parameters
     ----------
-    years_back : int
-        How many years of history to retain in the returned DataFrame.
-        Full history is downloaded; older rows are dropped.
+    years_back : int | None
+        How many years of history to retain. Pass ``None`` (default) to keep
+        the full record back to ~1950, which is what the dashboard's regime
+        analysis needs.
 
     Returns
     -------
@@ -85,13 +86,15 @@ def fetch_ao(years_back: int = 2) -> pd.DataFrame:
 # PDO — fetch & parse
 # ---------------------------------------------------------------------------
 
-def fetch_pdo(years_back: int = 5) -> pd.DataFrame:
+def fetch_pdo(years_back: int | None = None) -> pd.DataFrame:
     """Fetch PDO monthly index from NOAA PSL.
 
     Parameters
     ----------
-    years_back : int
-        How many years of history to retain in the returned DataFrame.
+    years_back : int | None
+        How many years of history to retain. Pass ``None`` (default) to keep
+        the full record back to 1854, which is what the dashboard's regime
+        analysis needs.
 
     Returns
     -------
@@ -151,18 +154,20 @@ def save_parquet(df: pd.DataFrame, fname: str) -> Path:
 def plot_indices_plotly(
     ao: pd.DataFrame,
     pdo: pd.DataFrame,
-    ao_years: int = 2,
-    pdo_years: int = 5,
+    ao_years: int | None = None,
+    pdo_years: int | None = None,
 ) -> Path:
     """Render AO daily + PDO monthly time series with Plotly and save as HTML."""
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
 
+    ao_label  = f"last {ao_years} yr"  if ao_years  else "full record"
+    pdo_label = f"last {pdo_years} yr" if pdo_years else "full record"
     fig = make_subplots(
         rows=2, cols=1,
         subplot_titles=(
-            f"Arctic Oscillation (AO) — daily, last {ao_years} yr",
-            f"Pacific Decadal Oscillation (PDO) — monthly, last {pdo_years} yr",
+            f"Arctic Oscillation (AO) — daily, {ao_label}",
+            f"Pacific Decadal Oscillation (PDO) — monthly, {pdo_label}",
         ),
         vertical_spacing=0.14,
     )
@@ -232,12 +237,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Fetch AO daily and PDO monthly climate indices.",
     )
     parser.add_argument(
-        "--ao-years", type=int, default=2, metavar="N",
-        help="Years of AO history to retain (default: 2)",
+        "--ao-years", type=int, default=None, metavar="N",
+        help="Years of AO history to retain (default: full record from ~1950)",
     )
     parser.add_argument(
-        "--pdo-years", type=int, default=5, metavar="N",
-        help="Years of PDO history to retain (default: 5)",
+        "--pdo-years", type=int, default=None, metavar="N",
+        help="Years of PDO history to retain (default: full record from 1854)",
     )
     parser.add_argument(
         "--plot", action="store_true",

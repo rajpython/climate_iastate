@@ -1,11 +1,12 @@
 # 🌊 Climate-Ready Fisheries: Marine Heatwave State Dashboard
-## Project Concept & Implementation Plan
+## Sub-arctic North Pacific and Arctic shelf seas adjacent to Alaska — Gulf of Alaska, Bering Sea, Chukchi, and Beaufort
+*Project concept & implementation plan*
 
 ---
 
 ## 1. Project Overview
 
-High-latitude fisheries are increasingly exposed to persistent and extreme **Marine Heatwaves (MHWs)**. These events introduce non-stationarity into marine ecosystems and challenge traditional fisheries management frameworks.
+High-latitude fisheries are increasingly exposed to persistent and extreme **Marine Heatwaves (MHWs)**. This project monitors MHWs across the sub-arctic North Pacific and Arctic shelf seas adjacent to Alaska. These events introduce non-stationarity into marine ecosystems and challenge traditional fisheries management frameworks.
 
 This project operationalizes the Hobday et al. hierarchical MHW definition into a **live, state-based dashboard** that:
 
@@ -74,6 +75,20 @@ mhw-state-dashboard/
 ```
 
 > **Note:** Files under `src/api/`, `src/dashboard/`, `scripts/`, and `tests/` are created in later implementation steps. The tree above shows the full planned layout.
+
+---
+
+## 1.2 Region Selection
+
+The dashboard covers five regions: Gulf of Alaska (GOA), Eastern Bering Sea (EBS), Northern Bering Sea (NBS), Chukchi Sea, and Beaufort Sea. These were chosen for four reasons.
+
+**Alignment with NOAA AFSC and NPFMC convention.** GOA / EBS / NBS / Chukchi / Beaufort is the standard sub-area regionalization used by NOAA's Alaska Fisheries Science Center (AFSC) and the North Pacific Fishery Management Council (NPFMC) for stock assessments, ecosystem status reports, and climate-vulnerability analyses. Aligning with this convention makes the dashboard's outputs directly comparable with the stock-assessment community's existing work.
+
+**Sub-arctic to Arctic climate gradient.** The five regions span ~54°N–73°N — from the warm sub-arctic Gulf of Alaska, through the seasonally ice-influenced Bering Sea, to the year-round Arctic Chukchi and Beaufort. The same physical MHW signal carries very different ecological and management consequences along this gradient; the regionalization preserves that variation.
+
+**Four correspond to recognized Large Marine Ecosystems (LMEs).** NOAA's LME framework designates the Gulf of Alaska (LME #2), East Bering Sea (LME #1), Chukchi Sea (LME #54), and Beaufort Sea (LME #55) as distinct ecosystem-management units. The Northern Bering Sea is formally a sub-region of the East Bering Sea LME, but is treated separately here because it is a well-documented biogeographic transition zone — and because of the 2017–2019 NBS sea-ice failures and the ecosystem disruption that followed, which NOAA's NBS-focused research has surfaced as a distinct climate-vulnerability problem.
+
+**Practical fit with the OISST grid.** Region polygons are defined as lat/lon bounding boxes in `config/regions.geojson` — a good approximation of LME extents for masking against the 0.25° OISST grid.
 
 ---
 
@@ -452,10 +467,20 @@ Time series of:
 ---
 
 ### Page 2: Historical & Non-Stationarity View
-- Panel 1 — Annual MHW Days (1982–Present)
-- Panel 2 — Extreme Event Explorer
-- Panel 3 — Distribution of Cumulative Exposure
-- Panel 4 — Regime Comparison (PDO/AO phases)
+
+**Panel 1 — Annual MHW Burden (1982–present)**
+Bar chart with one bar per year. User selects the displayed metric (Peak Area Fraction / Mean Area Fraction / Event Days). Bars colored by quantile rank against the region's own historical distribution of the selected metric: top 10% → red, 50th–90th percentile → orange, bottom 50% → blue. Coloring is year-neutral; numeric cutoffs displayed in the legend.
+
+**Panel 2 — Event Explorer**
+Year selector → for the chosen year, shows five year-level metric cards (Event Days, Peak Area Fraction, Peak Intensity, Peak Duration, Peak Cumulative Intensity), three stacked time-series subplots (area fraction, $\bar I$, $\bar D$) with shaded bands marking days where area fraction > 5%, and a monthly summary table.
+
+**Panel 3 — Metric Distributions**
+Histograms of daily values of $\bar I$, $\bar D$, $\bar C$, $\bar O$, and area fraction across the full record, with vertical percentile rulers (25th, 50th, 75th, 90th, 95th).
+
+**Panel 4 — Regime Comparison (AO × PDO phases)**
+Box plots and a summary table comparing MHW metrics across the four AO × PDO regime combinations. Both the box plots and the median table restrict to **event days only** (area fraction > 5%) to avoid the distribution-collapse-to-zero problem that arises when including the ~80% of days with no regional MHW activity. The summary table includes an "Event rate" column (event days / total days in regime) — a clean diagnostic for whether a given climate regime hosts more MHWs.
+
+The page header displays the latest date each data source extends through (MHW, AO, PDO), so "present" always has an explicit, dated meaning.
 
 ---
 

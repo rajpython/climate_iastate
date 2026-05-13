@@ -1,4 +1,4 @@
-"""Page 2 — Historical Analysis (1982–2024).
+"""Page 2 — Historical Analysis (1982–present).
 
 Four panels in tabs:
   📊  Annual MHW Burden bar chart
@@ -33,8 +33,6 @@ REGIME_COLOR = {
     "AO− / PDO+": "#e67e22",
     "AO− / PDO−": "#2ecc71",
 }
-BLOB_YEARS = {2014, 2015, 2016}
-
 _PLOTLY_DATE = "%b %d, %Y"        # e.g. "Feb 24, 2024"
 
 # ---------------------------------------------------------------------------
@@ -74,8 +72,12 @@ def _load_pdo() -> pd.DataFrame | None:
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def _list_regions() -> list[str]:
-    return sorted(p.stem.replace("region_daily_", "")
-                  for p in AGG_DIR.glob("region_daily_*.parquet"))
+    # South-to-north canonical order; see ts_event_metrics.REGION_ORDER for rationale.
+    from dashboard.components.ts_event_metrics import _region_key
+    return sorted(
+        (p.stem.replace("region_daily_", "") for p in AGG_DIR.glob("region_daily_*.parquet")),
+        key=_region_key,
+    )
 
 
 @st.cache_data(show_spinner="Building annual summary …", ttl=3600)
@@ -126,7 +128,41 @@ st.markdown("""<style>
     content: "\\2022\\00a0";
 }
 </style>""", unsafe_allow_html=True)
-st.title("📊 Historical Analysis — 1982–2024")
+st.title("📊 Historical Analysis — 1982–present")
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
+def _data_through_dates() -> dict:
+    """Latest date present in each data source the dashboard reads."""
+    out: dict = {}
+    goa = AGG_DIR / "region_daily_goa.parquet"
+    if goa.exists():
+        out["agg"] = pd.to_datetime(
+            pd.read_parquet(goa, columns=["date"])["date"]
+        ).max()
+    ao_path = RAW_DIR / "ao_daily.parquet"
+    if ao_path.exists():
+        out["ao"] = pd.to_datetime(
+            pd.read_parquet(ao_path, columns=["date"])["date"]
+        ).max()
+    pdo_path = RAW_DIR / "pdo_monthly.parquet"
+    if pdo_path.exists():
+        out["pdo"] = pd.to_datetime(
+            pd.read_parquet(pdo_path, columns=["date"])["date"]
+        ).max()
+    return out
+
+
+_dates = _data_through_dates()
+_parts = []
+if "agg" in _dates:
+    _parts.append(f"📅 **MHW data through {_dates['agg'].strftime('%b %d, %Y')}**")
+if "ao" in _dates:
+    _parts.append(f"AO through {_dates['ao'].strftime('%b %d, %Y')}")
+if "pdo" in _dates:
+    _parts.append(f"PDO through {_dates['pdo'].strftime('%b %Y')}")
+if _parts:
+    st.caption(" · ".join(_parts))
 
 # ---------------------------------------------------------------------------
 # Shared sidebar
@@ -182,43 +218,70 @@ with tab_burden:
     }
     col, ylabel = col_map[bar_metric]
 
+    # Quantile-based, year-neutral coloring on the displayed metric.
+    # Cutoffs are computed against the region's full historical distribution
+    # (`ann`), not the year-filtered slice (`ann_f`), so colors always reflect
+    # each year's true historical rank:
+    #   top 10% (≥ 90th pct) → red, 50th–90th pct → orange, bottom 50% → blue.
+    q50 = float(np.quantile(ann[col].values, 0.50))
+    q90 = float(np.quantile(ann[col].values, 0.90))
     bar_colors = [
-        "#e74c3c" if y in BLOB_YEARS else
-        "#f39c12" if ann_f.loc[ann_f["year"] == y, "max_af"].values[0] > 0.30 else
-        "#3498db"
-        for y in ann_f["year"]
+        "#e74c3c" if v >= q90 else        # top 10%
+        "#f39c12" if v >= q50 else        # 50th–90th percentile
+        "#3498db"                         # bottom 50%
+        for v in ann_f[col].values
     ]
 
     fig_b = go.Figure()
+    # Main bar trace — colored, not in legend
     fig_b.add_trace(go.Bar(
         x=ann_f["year"], y=ann_f[col],
         marker_color=bar_colors, width=0.7,
         hovertemplate="Year %{x}: %{y:.4f}<extra></extra>",
+        showlegend=False,
     ))
+    # Dummy traces purely for legend swatches (off-canvas x values)
+    legend_entries = [
+        ("#e74c3c", f"Top 10% (≥ {q90:.3g})"),
+        ("#f39c12", f"50th–90th pct ({q50:.3g} ≤ x < {q90:.3g})"),
+        ("#3498db", f"Bottom 50% (< {q50:.3g})"),
+    ]
+    for color, name in legend_entries:
+        fig_b.add_trace(go.Bar(
+            x=[None], y=[None],
+            marker_color=color, name=name,
+            hoverinfo="skip",
+        ))
     if col in ("max_af", "mean_af"):
         fig_b.add_hline(y=AREA_THRESH, line_dash="dash", line_color="red",
                         line_width=1.2, annotation_text="event threshold",
                         annotation_font_size=10)
 
-    # Blob annotation
-    blob_in_range = BLOB_YEARS & set(ann_f["year"])
-    if blob_in_range:
-        mid_blob = sorted(blob_in_range)[len(blob_in_range) // 2]
-        fig_b.add_annotation(
-            x=mid_blob, y=ann_f.loc[ann_f["year"] == mid_blob, col].values[0],
-            text="Pacific Blob", showarrow=True, arrowhead=2,
-            yshift=12, font={"color": "#c0392b", "size": 11},
-        )
-
     fig_b.update_layout(
         yaxis_title=ylabel,
         xaxis_title="Year",
         xaxis={"tickmode": "linear", "dtick": 2},
-        height=420,
+        height=440,
         template="plotly_white",
-        legend_title="Red=Blob  Orange=High  Blue=Normal",
+        showlegend=True,
+        legend={
+            "title": {"text": f"<b>{bar_metric} — rank in {region.upper()} history</b>",
+                       "font": {"size": 11}},
+            "orientation": "h",
+            "x": 0.0, "xanchor": "left",
+            "y": 1.10, "yanchor": "bottom",
+            "bgcolor": "rgba(255,255,255,0.85)",
+            "bordercolor": "#cccccc", "borderwidth": 1,
+            "font": {"size": 10},
+        },
+        margin={"t": 90},
     )
     st.plotly_chart(fig_b, use_container_width=True)
+    st.caption(
+        "Colors are quantile-based against this region's full 1982–present "
+        "history of the displayed metric. Cutoffs update automatically when you "
+        "change region or metric."
+    )
 
     # Summary table (top 10 years)
     top10 = ann_f.nlargest(10, "max_af")[
@@ -445,6 +508,19 @@ with tab_regime:
             ("Cbar",      "Cumul. Intensity",   "°C·days"),
         ]
 
+        # Box plots and the median table both restrict to event days
+        # (area_frac > regional-event threshold). Including non-event days
+        # would dilute every distribution with zeros and make the box plots
+        # and medians all read as zero — not useful.
+        event_df = regime_df[regime_df["area_frac"] > AREA_THRESH]
+
+        st.caption(
+            f"Box plots and medians below are computed over **event days only** "
+            f"(area_frac > {AREA_THRESH:.0%}). Non-event days are excluded so the "
+            "distributions reflect heatwave severity in each regime, not the "
+            "proportion of zero-activity days."
+        )
+
         fig_reg = make_subplots(
             rows=1, cols=4,
             subplot_titles=[m[1] for m in plot_metrics_reg],
@@ -453,7 +529,7 @@ with tab_regime:
 
         for col_i, (col, title, unit) in enumerate(plot_metrics_reg, start=1):
             for reg_i, regime in enumerate(REGIME_ORDER, start=1):
-                sub = regime_df.loc[regime_df["regime"] == regime, col].values
+                sub = event_df.loc[event_df["regime"] == regime, col].values
                 if len(sub) == 0:
                     continue
                 fig_reg.add_trace(go.Box(
@@ -482,22 +558,42 @@ with tab_regime:
         )
         st.plotly_chart(fig_reg, use_container_width=True)
 
-        # Regime median table
-        st.subheader("Median values by regime")
+        # Regime median table — medians over event days only, so they reflect
+        # event severity rather than being diluted to zero by quiet days.
+        st.subheader("Median values by regime (event days only)")
         medians = []
         for r in REGIME_ORDER:
-            sub = regime_df[regime_df["regime"] == r]
-            if len(sub):
-                medians.append({
-                    "Regime": r, "Days": len(sub),
-                    "Area Frac. (median)":         round(sub["area_frac"].median(), 5),
-                    "Intensity median (°C)":       round(sub["Ibar"].median(), 3),
-                    "Duration median (days)":      round(sub["Dbar"].median(), 2),
-                    "Cumul. Int. median (°C·days)": round(sub["Cbar"].median(), 3),
-                    "Event Days (>5%)":            int((sub["area_frac"] > AREA_THRESH).sum()),
-                })
+            all_days   = regime_df[regime_df["regime"] == r]
+            event_only = all_days[all_days["area_frac"] > AREA_THRESH]
+            if len(all_days) == 0:
+                continue
+            medians.append({
+                "Regime": r,
+                "Total days":  len(all_days),
+                "Event days":  len(event_only),
+                "Event rate":  f"{len(event_only) / len(all_days):.1%}",
+                "Area Frac. (median)":         (
+                    round(event_only["area_frac"].median(), 4) if len(event_only) else None
+                ),
+                "Intensity median (°C)":       (
+                    round(event_only["Ibar"].median(), 3) if len(event_only) else None
+                ),
+                "Duration median (days)":      (
+                    round(event_only["Dbar"].median(), 2) if len(event_only) else None
+                ),
+                "Cumul. Int. median (°C·days)": (
+                    round(event_only["Cbar"].median(), 3) if len(event_only) else None
+                ),
+            })
         if medians:
             st.dataframe(pd.DataFrame(medians), use_container_width=True, hide_index=True)
+            st.caption(
+                "*Event days* = days when regional area fraction exceeded "
+                f"{AREA_THRESH:.0%}. Medians of area fraction, intensity, "
+                "duration, and cumulative intensity are computed across those "
+                "event days only. *Event rate* tells you how often the region "
+                "was in a regional-scale MHW given the climate regime."
+            )
 
         # Phase timeline
         st.markdown("---")
