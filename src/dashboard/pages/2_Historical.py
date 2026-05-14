@@ -257,6 +257,25 @@ with tab_burden:
                         line_width=1.2, annotation_text="event threshold",
                         annotation_font_size=10)
 
+    # Text-only historical-context annotation: the 2014–2016 "Pacific Blob"
+    # marine heatwave. Does NOT affect bar coloring — colors remain quantile-
+    # based per the legend above. On regions where the Blob barely registered
+    # (e.g., Chukchi, Beaufort), the arrow lands on small bars — which is
+    # itself informative: it shows the Blob period wasn't extreme there.
+    BLOB_YEARS = {2014, 2015, 2016}
+    blob_in_range = BLOB_YEARS & set(ann_f["year"])
+    if blob_in_range:
+        mid_blob = sorted(blob_in_range)[len(blob_in_range) // 2]
+        fig_b.add_annotation(
+            x=mid_blob,
+            y=ann_f.loc[ann_f["year"] == mid_blob, col].values[0],
+            text="Pacific Blob",
+            showarrow=True,
+            arrowhead=2,
+            yshift=12,
+            font={"color": "#c0392b", "size": 11},
+        )
+
     fig_b.update_layout(
         yaxis_title=ylabel,
         xaxis_title="Year",
