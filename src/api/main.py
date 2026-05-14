@@ -39,7 +39,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="MHW State API",
     description=(
-        "Marine Heatwave State Dashboard — REST API for GOA and adjacent regions.\n\n"
+        "Marine Heatwave State Dashboard — REST API for the sub-arctic to Arctic "
+        "marine waters around Alaska (Gulf of Alaska, Bering Sea, Chukchi, Beaufort).\n\n"
         "Serves aggregated daily metrics, per-cell map payloads, climate indices, "
         "event summaries, and risk scores."
     ),
