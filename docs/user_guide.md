@@ -121,6 +121,8 @@ Each bar is colored by where the year ranks in the region's full historical dist
 
 The legend above the chart shows the actual numeric cutoffs, which adapt automatically when you change region or metric. The coloring is year-neutral (no hardcoded "Blob years" highlighting): each year gets whatever rank its actual values earn within that region's history. For some regions the Blob years (2014--2016) come out red on Peak Area Fraction (e.g., GOA and EBS); for others, like Chukchi and Beaufort, the Blob barely registered and those years are blue, while different years (2018--2019 for Chukchi; 2012 for Beaufort) are the extremes.
 
+A small *Pacific Blob* text annotation labels the 2014--2016 period on the chart as a historical-context marker. The label is text-only — it does not affect bar coloring. On regions where the Blob registered as extreme (GOA, EBS), the arrow lands on a tall red bar; on regions where it didn't (Chukchi, Beaufort), the same arrow lands on a small blue bar, which itself visualizes the regional contrast.
+
 A top-10-years summary table appears below the chart, sorted by Peak Area Fraction.
 
 #### Tab 2: Event Explorer
@@ -175,18 +177,20 @@ A programmatic API is available for researchers who want to access the data dire
 - **ReDoc**: [mhw.iastate.ai/api/redoc](https://mhw.iastate.ai/api/redoc)
 - **Health check**: [mhw.iastate.ai/api/health](https://mhw.iastate.ai/api/health)
 
-Key endpoints include:
+All data endpoints are versioned under `/api/v1/`. The service-level health check stays unversioned at `/api/health`.
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/regions` | List available regions |
-| `GET /api/states/region/{region_id}` | Daily aggregate time series for a region |
-| `GET /api/events/{region_id}` | Detected MHW events for a region |
-| `GET /api/map/mhw?region_id=...&date=...&metric=...` | Grid-level state map for a specific date |
-| `GET /api/indices/ao` | Arctic Oscillation daily values |
-| `GET /api/indices/pdo` | Pacific Decadal Oscillation monthly values |
+| `GET /api/v1/regions` | List available regions |
+| `GET /api/v1/regions/{region_id}` | Single region metadata (date range, row count) |
+| `GET /api/v1/regions/{region_id}/states` | Daily aggregate time series |
+| `GET /api/v1/regions/{region_id}/events` | Detected MHW events for a region |
+| `GET /api/v1/regions/{region_id}/map?date=...&metric=...` | Grid-level state map for a specific date |
+| `GET /api/v1/indices/ao` | Arctic Oscillation daily values |
+| `GET /api/v1/indices/pdo` | Pacific Decadal Oscillation monthly values |
+| `GET /api/health` | Service health (unversioned) |
 
-All responses are JSON. See the Swagger UI for full parameter details and query options.
+All responses are JSON with snake_case field names. The regional aggregate fields are `area_frac`, `mean_intensity`, `mean_duration`, `cumul_intensity`, and `onset_rate` (internally these correspond to the Hobday-paper symbols I, D, C, O). Categorical fields use typed enums (`MapMetric`, `IndexName`, `IndexFrequency`, `RiskLevel`) so OpenAPI consumers can codegen against them. See the Swagger UI for full parameter details and query options.
 
 ---
 
@@ -202,7 +206,7 @@ The percentage of ocean grid cells in a region that are currently experiencing a
 Those regions are covered by sea ice from roughly November through June. Ice-covered cells are masked out of the MHW analysis because SST under ice is not physically meaningful for heatwave detection.
 
 **What is the "Blob"?**
-An exceptionally large and persistent MHW in the northeast Pacific from 2014 to 2016, driven by a persistent atmospheric ridge. It caused widespread marine ecosystem disruption. The Annual Burden chart no longer pre-flags 2014--2016 as "Blob years": instead, bar coloring is purely quantile-based on the displayed metric, so the Blob shows up red automatically on regions where it actually was extreme (e.g., GOA and EBS) and stays blue on regions where it wasn't (e.g., Chukchi and Beaufort).
+An exceptionally large and persistent MHW in the northeast Pacific from 2014 to 2016, driven by a persistent atmospheric ridge. It caused widespread marine ecosystem disruption. On the Annual Burden chart, the period is labeled with a *Pacific Blob* text annotation as historical context, but the bar **coloring is not Blob-specific**: it is quantile-based on the displayed metric, so the Blob shows up red automatically on regions where it actually was extreme (GOA, EBS) and stays blue on regions where it wasn't (Chukchi, Beaufort). The label is a calendar marker; the color is the verdict.
 
 **Can I download the raw data?**
 Use the REST API endpoints to retrieve daily aggregate and grid-level data in JSON format. The full backfill dataset (1982--present) is available via the API.
