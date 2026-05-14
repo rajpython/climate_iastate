@@ -8,16 +8,27 @@
 #
 # The system's /etc/cron.daily/logrotate cron picks it up automatically once
 # installed; no separate scheduling needed.
+#
+# Notes on the directives below (logrotate disallows inline comments — every
+# explanatory line has to be on its own line, prefixed with #):
+#
+#   weekly        - rotate once a week
+#   rotate 12     - retain 12 old versions (~3 months of history)
+#   compress      - gzip rotated files
+#   missingok     - don't error if the log file is absent
+#   notifempty    - skip rotation if the log is empty this week
+#   copytruncate  - copy current log to .1 then truncate the original, so
+#                   cron jobs keep writing to the same file descriptor and
+#                   no service restart is needed
+#   su ubuntu...  - rotate as the ubuntu user so the new log retains the
+#                   right ownership for the cron jobs to keep writing
 
 /opt/iastate-ai/projects/mhw/outputs/cron.log {
-    weekly             # rotate once a week
-    rotate 12          # retain 12 old versions (~3 months of history)
-    compress           # gzip rotated files
-    missingok          # don't error if the log file is absent
-    notifempty         # skip rotation if the log is empty this week
-    copytruncate       # copy current log to .1, then truncate the original
-                       # (so the cron jobs keep writing to the same file
-                       # descriptor; no need to restart any service)
-    su ubuntu ubuntu   # rotate as the ubuntu user so the new log has the
-                       # right ownership for the cron jobs to keep writing
+    weekly
+    rotate 12
+    compress
+    missingok
+    notifempty
+    copytruncate
+    su ubuntu ubuntu
 }
