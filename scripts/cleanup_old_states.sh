@@ -11,6 +11,12 @@
 # states_<region>_2024-01-01_2024-12-31.zarr — are NEVER touched, because
 # the script only looks at zarrs whose start date matches the current year.
 #
+# Files are deleted via `docker compose exec -T api rm -rf` because the
+# zarr files are written by the api container (running as root inside the
+# container) and the host's ubuntu user lacks permission to remove them
+# directly. The data directory is bind-mounted into the container at
+# /app/data, so the container's `rm` can reach the same files.
+#
 # Cron registration (weekly Sunday at 16:00 UTC, 2 hours after the daily
 # refresh and 1 hour after the monthly indices refresh — no conflicts):
 #
@@ -27,6 +33,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
 STATES_DIR="data/derived/states_grid"
+CONTAINER_STATES_DIR="/app/data/derived/states_grid"
 CURRENT_YEAR="$(date -u +%Y)"
 DRY_RUN="${DRY_RUN:-0}"
 
@@ -39,11 +46,10 @@ fi
 
 log "=== Cleanup current-year state zarrs in $STATES_DIR (year=$CURRENT_YEAR, dry_run=$DRY_RUN) ==="
 
-cd "$STATES_DIR"
-total_deleted=0
-
+# Collect all obsolete zarr basenames across all regions, then batch the rm.
+to_delete=()
 for region in goa ebs nbs chukchi beaufort; do
-    pattern="states_${region}_${CURRENT_YEAR}-01-01_*.zarr"
+    pattern="${STATES_DIR}/states_${region}_${CURRENT_YEAR}-01-01_*.zarr"
     # shellcheck disable=SC2086
     matching=$(ls -1 -d $pattern 2>/dev/null | sort -r || true)
     if [ -z "$matching" ]; then
@@ -55,20 +61,32 @@ for region in goa ebs nbs chukchi beaufort; do
         continue
     fi
     newest=$(echo "$matching" | head -n 1)
-    log "[$region] keeping ${newest}; removing $((count - 1)) older daily snapshots"
+    log "[$region] keeping ${newest##*/}; queuing $((count - 1)) older snapshots for removal"
     while IFS= read -r old; do
+        basename_old="${old##*/}"
         if [ "$DRY_RUN" = "1" ]; then
-            log "  [dry-run] would rm -rf $old"
+            log "  [dry-run] would rm -rf ${basename_old}"
         else
-            rm -rf "$old"
-            log "  rm -rf $old"
+            to_delete+=("${CONTAINER_STATES_DIR}/${basename_old}")
+            log "  queued ${basename_old}"
         fi
-        total_deleted=$((total_deleted + 1))
     done <<< "$(echo "$matching" | tail -n +2)"
 done
 
 if [ "$DRY_RUN" = "1" ]; then
-    log "=== Dry-run complete. ${total_deleted} obsolete zarrs would be removed. ==="
-else
-    log "=== Cleanup complete. ${total_deleted} obsolete zarrs were removed. ==="
+    log "=== Dry-run complete. ==="
+    exit 0
 fi
+
+if [ "${#to_delete[@]}" -eq 0 ]; then
+    log "=== Nothing to delete. ==="
+    exit 0
+fi
+
+# Single docker exec for all deletions — avoids the ~200ms-per-call overhead
+# of one exec per file. The container runs `rm` as root so it can delete the
+# zarr internals regardless of who created them.
+log "Executing batch rm via docker compose exec -T api (${#to_delete[@]} paths) ..."
+docker compose exec -T api rm -rf "${to_delete[@]}"
+
+log "=== Cleanup complete. ${#to_delete[@]} obsolete zarrs were removed. ==="
