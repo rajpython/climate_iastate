@@ -1,14 +1,23 @@
-"""Routes for regional state aggregates and event detection."""
+"""Routes for regional state aggregates and event detection (v1).
+
+URL conventions (under /v1 router prefix added in main.py):
+    GET /regions                       List all regions
+    GET /regions/{id}                  Single region metadata
+    GET /regions/{id}/states           Daily aggregate time series
+    GET /regions/{id}/events           Regional MHW event summaries
+
+Parquet columns (Ibar/Dbar/Cbar/Obar) follow Hobday-paper notation; the API
+exposes them as mean_intensity / mean_duration / cumul_intensity / onset_rate
+to keep the JSON contract snake_case.
+"""
 from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Query
-
 import yaml
+from fastapi import APIRouter, HTTPException, Query
 
 from api.schema import DailyState, EventSummary, RegionInfo
 
@@ -41,6 +50,16 @@ def _load_agg(region: str) -> pd.DataFrame:
     return df.sort_values("date").reset_index(drop=True)
 
 
+def _region_info(region: str) -> RegionInfo:
+    df = _load_agg(region)
+    return RegionInfo(
+        region_id=region,
+        start_date=df["date"].min(),
+        end_date=df["date"].max(),
+        n_days=len(df),
+    )
+
+
 def _detect_events(df: pd.DataFrame) -> list[EventSummary]:
     """Detect MHW events from aggregates using area_frac > AREA_THRESH."""
     events: list[EventSummary] = []
@@ -62,7 +81,6 @@ def _detect_events(df: pd.DataFrame) -> list[EventSummary]:
             else:
                 gap_count += 1
                 if gap_count > GAP_DAYS:
-                    # Close event at last active row
                     end_idx = i - gap_count
                     seg = df.loc[start_idx:end_idx]
                     if len(seg) >= 5:
@@ -70,18 +88,17 @@ def _detect_events(df: pd.DataFrame) -> list[EventSummary]:
                         event_id += 1
                         events.append(EventSummary(
                             event_id=event_id,
-                            start_date=str(seg["date"].iloc[0]),
-                            end_date=str(seg["date"].iloc[-1]),
+                            start_date=seg["date"].iloc[0],
+                            end_date=seg["date"].iloc[-1],
                             duration_days=len(seg),
-                            peak_date=str(peak["date"]),
+                            peak_date=peak["date"],
                             peak_area_frac=round(float(peak["area_frac"]), 4),
-                            peak_Ibar=round(float(peak["Ibar"]), 3),
-                            mean_Cbar=round(float(seg["Cbar"].mean()), 3),
+                            peak_intensity=round(float(peak["Ibar"]), 3),
+                            mean_cumul_intensity=round(float(seg["Cbar"].mean()), 3),
                         ))
                     in_event = False
                     gap_count = 0
 
-    # Close any open event at end of series
     if in_event:
         seg = df.loc[start_idx:]
         if len(seg) >= 5:
@@ -89,13 +106,13 @@ def _detect_events(df: pd.DataFrame) -> list[EventSummary]:
             event_id += 1
             events.append(EventSummary(
                 event_id=event_id,
-                start_date=str(seg["date"].iloc[0]),
-                end_date=str(seg["date"].iloc[-1]),
+                start_date=seg["date"].iloc[0],
+                end_date=seg["date"].iloc[-1],
                 duration_days=len(seg),
-                peak_date=str(peak["date"]),
+                peak_date=peak["date"],
                 peak_area_frac=round(float(peak["area_frac"]), 4),
-                peak_Ibar=round(float(peak["Ibar"]), 3),
-                mean_Cbar=round(float(seg["Cbar"].mean()), 3),
+                peak_intensity=round(float(peak["Ibar"]), 3),
+                mean_cumul_intensity=round(float(seg["Cbar"].mean()), 3),
             ))
 
     return events
@@ -108,19 +125,16 @@ def _detect_events(df: pd.DataFrame) -> list[EventSummary]:
 @router.get("/regions", response_model=list[RegionInfo])
 def list_regions():
     """List all regions that have aggregated daily data."""
-    result = []
-    for region in _list_regions():
-        df = _load_agg(region)
-        result.append(RegionInfo(
-            region_id=region,
-            start_date=str(df["date"].min()),
-            end_date=str(df["date"].max()),
-            n_days=len(df),
-        ))
-    return result
+    return [_region_info(r) for r in _list_regions()]
 
 
-@router.get("/states/region/{region_id}", response_model=list[DailyState])
+@router.get("/regions/{region_id}", response_model=RegionInfo)
+def get_region(region_id: str):
+    """Return metadata for a single region (date range and row count)."""
+    return _region_info(region_id)
+
+
+@router.get("/regions/{region_id}/states", response_model=list[DailyState])
 def get_daily_states(
     region_id: str,
     start: date | None = Query(None, description="Start date YYYY-MM-DD"),
@@ -137,22 +151,22 @@ def get_daily_states(
 
     return [
         DailyState(
-            date=str(r["date"]),
+            date=r["date"],
             area_frac=round(float(r["area_frac"]), 4),
-            Ibar=round(float(r["Ibar"]), 3),
-            Dbar=round(float(r["Dbar"]), 2),
-            Cbar=round(float(r["Cbar"]), 3),
-            Obar=round(float(r["Obar"]), 3),
+            mean_intensity=round(float(r["Ibar"]), 3),
+            mean_duration=round(float(r["Dbar"]), 2),
+            cumul_intensity=round(float(r["Cbar"]), 3),
+            onset_rate=round(float(r["Obar"]), 3),
         )
         for _, r in df.iterrows()
     ]
 
 
-@router.get("/events/{region_id}", response_model=list[EventSummary])
+@router.get("/regions/{region_id}/events", response_model=list[EventSummary])
 def get_events(
     region_id: str,
-    start: date | None = Query(None),
-    end:   date | None = Query(None),
+    start: date | None = Query(None, description="Start date YYYY-MM-DD"),
+    end:   date | None = Query(None, description="End date YYYY-MM-DD"),
     min_duration: int  = Query(5, ge=1, description="Minimum event duration in days"),
 ):
     """Detect and return MHW events for a region."""

@@ -42,9 +42,10 @@ app = FastAPI(
         "Marine Heatwave State Dashboard — REST API for the sub-arctic to Arctic "
         "marine waters around Alaska (Gulf of Alaska, Bering Sea, Chukchi, Beaufort).\n\n"
         "Serves aggregated daily metrics, per-cell map payloads, climate indices, "
-        "event summaries, and risk scores."
+        "and event summaries. All data endpoints are versioned under `/v1`. The "
+        "service-level `/health` endpoint is unversioned."
     ),
-    version="0.1.0",
+    version="1.0.0",
     root_path=os.getenv("API_ROOT_PATH", ""),
     swagger_ui_parameters={"url": "openapi.json"},
     lifespan=lifespan,
@@ -58,11 +59,11 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
-# Routers
+# Routers — all data endpoints are mounted under /v1
 # ---------------------------------------------------------------------------
-app.include_router(states_router,  tags=["States"])
-app.include_router(maps_router,    tags=["Maps"])
-app.include_router(indices_router, tags=["Indices"])
+app.include_router(states_router,  prefix="/v1", tags=["Regions"])
+app.include_router(maps_router,    prefix="/v1", tags=["Maps"])
+app.include_router(indices_router, prefix="/v1", tags=["Indices"])
 
 
 # ---------------------------------------------------------------------------

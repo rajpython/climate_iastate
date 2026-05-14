@@ -11,7 +11,7 @@ import pandas as pd
 import xarray as xr
 from fastapi import APIRouter, HTTPException, Query
 
-from api.schema import MapCell, MapPayload
+from api.schema import MapCell, MapMetric, MapPayload
 
 router = APIRouter()
 
@@ -99,38 +99,40 @@ def _land_mask(region: str, lats: np.ndarray, lons: np.ndarray) -> np.ndarray | 
 # Endpoint
 # ---------------------------------------------------------------------------
 
-@router.get("/map/mhw", response_model=MapPayload)
+@router.get("/regions/{region_id}/map", response_model=MapPayload)
 def get_map(
-    region: str = Query(..., description="Region ID, e.g. 'goa'"),
-    date:   date = Query(..., description="Date YYYY-MM-DD"),
-    metric: str  = Query("I", description="State variable: A, I, D, C, or x"),
+    region_id: str,
+    date:   date     = Query(..., description="Date YYYY-MM-DD"),
+    metric: MapMetric = Query(MapMetric.INTENSITY,
+                              description="State variable: I, D, C, A, or x"),
 ):
     """Return per-cell metric values for a region/date as a list of {lat,lon,value}."""
-    if metric not in METRIC_UNITS:
+    metric_value = metric.value
+    if metric_value not in METRIC_UNITS:
         raise HTTPException(
             status_code=422,
             detail=f"metric must be one of {list(METRIC_UNITS)}"
         )
 
-    zarr_path = _find_zarr(region, date)
+    zarr_path = _find_zarr(region_id, date)
     if zarr_path is None:
         raise HTTPException(
             status_code=404,
-            detail=f"No state zarr found for region='{region}' covering {date}"
+            detail=f"No state zarr found for region='{region_id}' covering {date}"
         )
 
     data = _load_zarr(zarr_path)
 
-    if metric not in data:
-        raise HTTPException(status_code=404, detail=f"Metric '{metric}' not in zarr")
+    if metric_value not in data:
+        raise HTTPException(status_code=404, detail=f"Metric '{metric_value}' not in zarr")
 
     if date not in data["dates"]:
         raise HTTPException(status_code=404, detail=f"Date {date} not in zarr")
 
     t_idx = data["dates"].index(date)
-    values = data[metric][t_idx]  # (n_lat, n_lon)
+    values = data[metric_value][t_idx]  # (n_lat, n_lon)
 
-    land = _land_mask(region, data["lats"], data["lons"])
+    land = _land_mask(region_id, data["lats"], data["lons"])
 
     cells: list[MapCell] = []
     for i, lat in enumerate(data["lats"]):
@@ -144,9 +146,9 @@ def get_map(
                                      value=round(v, 4)))
 
     return MapPayload(
-        region=region,
-        date=str(date),
+        region=region_id,
+        date=date,
         metric=metric,
-        units=METRIC_UNITS[metric],
+        units=METRIC_UNITS[metric_value],
         cells=cells,
     )

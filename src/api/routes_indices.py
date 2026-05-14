@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query
 
-from api.schema import IndexPayload, IndexRecord
+from api.schema import IndexFrequency, IndexName, IndexPayload, IndexRecord
 
 router = APIRouter()
 
@@ -48,10 +48,10 @@ def get_ao(
         raise HTTPException(status_code=404, detail="No AO data in requested range")
 
     return IndexPayload(
-        index="ao",
-        frequency="daily",
+        index=IndexName.AO,
+        frequency=IndexFrequency.DAILY,
         records=[
-            IndexRecord(date=str(r["date"]), value=round(float(r["ao"]), 4))
+            IndexRecord(date=r["date"], value=round(float(r["ao"]), 4))
             for _, r in df.iterrows()
         ],
     )
@@ -72,10 +72,10 @@ def get_pdo(
         raise HTTPException(status_code=404, detail="No PDO data in requested range")
 
     return IndexPayload(
-        index="pdo",
-        frequency="monthly",
+        index=IndexName.PDO,
+        frequency=IndexFrequency.MONTHLY,
         records=[
-            IndexRecord(date=str(r["date"]), value=round(float(r["pdo"]), 4))
+            IndexRecord(date=r["date"], value=round(float(r["pdo"]), 4))
             for _, r in df.iterrows()
         ],
     )

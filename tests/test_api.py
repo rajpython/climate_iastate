@@ -4,7 +4,14 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-DAILY_STATE_FIELDS = {"date", "area_frac", "Ibar", "Dbar", "Cbar", "Obar"}
+DAILY_STATE_FIELDS = {
+    "date",
+    "area_frac",
+    "mean_intensity",
+    "mean_duration",
+    "cumul_intensity",
+    "onset_rate",
+}
 EVENT_FIELDS = {
     "event_id",
     "start_date",
@@ -12,8 +19,8 @@ EVENT_FIELDS = {
     "duration_days",
     "peak_date",
     "peak_area_frac",
-    "peak_Ibar",
-    "mean_Cbar",
+    "peak_intensity",
+    "mean_cumul_intensity",
 }
 REGION_FIELDS = {"region_id", "start_date", "end_date", "n_days"}
 
@@ -42,7 +49,7 @@ def test_health(api_client):
 # ---------------------------------------------------------------------------
 
 def test_list_regions(api_client):
-    resp = api_client.get("/regions")
+    resp = api_client.get("/v1/regions")
     assert resp.status_code == 200
     regions = resp.json()
     assert len(regions) >= 1
@@ -56,7 +63,7 @@ def test_list_regions(api_client):
 # ---------------------------------------------------------------------------
 
 def test_daily_states_goa(api_client):
-    resp = api_client.get("/states/region/goa")
+    resp = api_client.get("/v1/regions/goa/states")
     assert resp.status_code == 200
     data = resp.json()
     expected = _expected_rows_from_dates(data)
@@ -67,14 +74,14 @@ def test_daily_states_goa(api_client):
 
 def test_daily_states_date_filter(api_client):
     """2023 is not a leap year → exactly 365 records expected."""
-    resp = api_client.get("/states/region/goa?start=2023-01-01&end=2023-12-31")
+    resp = api_client.get("/v1/regions/goa/states?start=2023-01-01&end=2023-12-31")
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) == 365, f"Expected 365 days for 2023, got {len(data)}"
 
 
 def test_daily_states_unknown_region_404(api_client):
-    resp = api_client.get("/states/region/atlantis")
+    resp = api_client.get("/v1/regions/atlantis/states")
     assert resp.status_code == 404
 
 
@@ -83,7 +90,7 @@ def test_daily_states_unknown_region_404(api_client):
 # ---------------------------------------------------------------------------
 
 def test_events_goa(api_client):
-    resp = api_client.get("/events/goa")
+    resp = api_client.get("/v1/regions/goa/events")
     assert resp.status_code == 200
     events = resp.json()
     for e in events:
@@ -92,7 +99,7 @@ def test_events_goa(api_client):
 
 
 def test_events_min_duration(api_client):
-    resp = api_client.get("/events/goa?min_duration=30")
+    resp = api_client.get("/v1/regions/goa/events?min_duration=30")
     assert resp.status_code == 200
     events = resp.json()
     for e in events:
@@ -102,7 +109,7 @@ def test_events_min_duration(api_client):
 
 
 def test_events_unknown_region_404(api_client):
-    resp = api_client.get("/events/atlantis")
+    resp = api_client.get("/v1/regions/atlantis/events")
     assert resp.status_code == 404
 
 
@@ -112,7 +119,7 @@ def test_events_unknown_region_404(api_client):
 
 def test_ao_index(api_client):
     """AO endpoint must return 200 (file exists) or 503 (not yet fetched)."""
-    resp = api_client.get("/indices/ao")
+    resp = api_client.get("/v1/indices/ao")
     assert resp.status_code in (200, 503), (
         f"Unexpected status {resp.status_code} for /indices/ao"
     )
@@ -125,7 +132,7 @@ def test_ao_index(api_client):
 
 def test_pdo_index(api_client):
     """PDO endpoint must return 200 (file exists) or 503 (not yet fetched)."""
-    resp = api_client.get("/indices/pdo")
+    resp = api_client.get("/v1/indices/pdo")
     assert resp.status_code in (200, 503), (
         f"Unexpected status {resp.status_code} for /indices/pdo"
     )
