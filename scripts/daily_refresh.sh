@@ -50,6 +50,13 @@ for region in "${REGIONS[@]}"; do
         mhw-compute-risk --region "$region"
 done
 
+# Prune yesterday's daily-snapshot state zarrs so the Live MHW Map dropdown
+# always shows exactly one current-year zarr per region. Non-fatal — if the
+# cleanup somehow errors, still proceed to the dashboard restart below.
+log "Cleaning up obsolete daily-snapshot state zarrs …"
+bash "${SCRIPT_DIR}/cleanup_old_states.sh" \
+    || log "WARNING: cleanup_old_states.sh exited non-zero (continuing)"
+
 log "Restarting dashboard (clears Streamlit @st.cache_data) …"
 docker compose restart dashboard
 

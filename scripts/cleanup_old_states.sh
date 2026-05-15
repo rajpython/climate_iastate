@@ -17,10 +17,12 @@
 # directly. The data directory is bind-mounted into the container at
 # /app/data, so the container's `rm` can reach the same files.
 #
-# Cron registration (weekly Sunday at 16:00 UTC, 2 hours after the daily
-# refresh and 1 hour after the monthly indices refresh — no conflicts):
+# This script is invoked automatically at the end of daily_refresh.sh, so
+# in production it runs once per day immediately before the dashboard
+# restart. A standalone weekly cron entry is therefore not needed.
 #
-#   0 16 * * 0 cd /opt/iastate-ai/projects/mhw && bash scripts/cleanup_old_states.sh >> outputs/cron.log 2>&1
+# Manual invocation (e.g., for an ad-hoc cleanup):
+#   bash scripts/cleanup_old_states.sh
 #
 # Dry-run mode (preview without deleting):
 #   DRY_RUN=1 bash scripts/cleanup_old_states.sh
