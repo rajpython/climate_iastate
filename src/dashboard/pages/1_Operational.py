@@ -131,6 +131,10 @@ with tab_map:
         reg_files = [r for r in available if r["region"] == region]
         if not reg_files:
             reg_files = available   # fallback: show whatever is available
+        # Most-recent zarr first so the selectbox defaults to the latest period.
+        # Combined with the date slider's default-to-last-day below, the map
+        # opens on today's data and the user scrolls backwards from there.
+        reg_files = sorted(reg_files, key=lambda r: r["end"], reverse=True)
 
         labels = [f"{r['region'].upper()}  {_fmt(r['start'])} → {_fmt(r['end'])}" for r in reg_files]
         choice = st.selectbox("Period", range(len(labels)),
