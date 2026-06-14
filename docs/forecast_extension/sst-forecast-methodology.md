@@ -241,6 +241,24 @@ improvement; negative means worse. **We will report skill honestly per region an
 lead, and only promote products that beat both baselines** — and we will say plainly
 where they do not.
 
+### Are the fitted coefficients defensible?
+
+Held-out skill is the ultimate test, but we also check the model is well-specified
+rather than accidentally lucky:
+
+- **Memory (φ) maps and timescales.** We map φ per cell and convert it to a
+  decorrelation timescale `τ = −Δt / ln(φ)`. These should be physically sensible
+  (days-to-weeks for SST anomalies, longer where mixed layers are deep), not noise.
+  Cells with implausible or unstable estimates are flagged.
+- **Residual whiteness.** AR(1) assumes the leftover "shocks" are uncorrelated. We
+  test the residual autocorrelation (e.g. Ljung–Box test / residual ACF). Strong
+  leftover autocorrelation signals AR(1) is too simple — see §10.
+- **Residual normality.** The probability step (§5, Step 3) assumes a Gaussian
+  spread. We check residual skew/kurtosis, especially near the ice edge, and treat
+  extreme probabilities as qualitative where normality is poor.
+- **Estimation uncertainty.** φ and σ_ε are themselves estimates; we report their
+  sampling uncertainty so a "65%" is not read as more precise than the data support.
+
 ---
 
 ## 9. Assumptions and limitations (read this section)
@@ -268,15 +286,58 @@ where they do not.
 
 ---
 
-## 10. Why these methods (and not something more complex)
+## 10. Why these baselines — and how far they are trusted
 
-Damped persistence and AR(1) are the **standard low-cost baselines** in the
-marine-heatwave forecasting literature precisely because they are hard to beat at
-short range and trivial to understand and reproduce. Building them first gives us:
+Two things must be stated precisely.
 
-1. A genuinely useful product quickly, on data we already hold.
-2. An honest, quantified **skill bar** that any future dynamical or seasonal product
-   must clear to justify its added complexity.
+**What the literature supports.** Persistence, damped persistence, and climatology
+are the *standard reference baselines* in SST and marine-heatwave forecasting — the
+benchmarks new methods are measured against (e.g. probabilistic extreme-SST/MHW
+forecasting in Chesapeake Bay; seasonal MHW forecasting more broadly). The choice of
+AR(1) is not arbitrary: midlatitude SST anomalies have long been modelled as a
+first-order autoregressive ("red noise") process — the ocean surface integrating
+white-noise atmospheric forcing — the Frankignoul & Hasselmann (1977) result. So
+damped persistence/AR(1) is the *physically grounded* baseline for SST anomalies,
+not merely a convenient one.
+
+**What it does not support.** These baselines are *not* unbeatable. The same
+literature shows dynamical and machine-learning models routinely beat persistence
+and climatology, with the largest gains at longer leads; the gap is smallest in the
+first ~2 weeks, where calibrated forecasts only modestly exceed damped persistence.
+(An earlier draft of this document said the baselines were "hard to beat" — that
+overstated the evidence and has been corrected.) We do **not** assume our baselines
+are skillful for these specific Alaska regions; we will *demonstrate* it with the
+backtest in §8, region by region and lead by lead, and report where they fail.
+
+We therefore build them first for three honest reasons: (1) a genuinely useful
+product quickly, on data we already hold; (2) full transparency and reproducibility;
+and (3) a quantified **skill bar** that any future dynamical or seasonal product
+must clear to justify its added complexity.
+
+### Why AR(1) first, and when ARIMA
+
+The roadmap lists ARIMA among candidate methods; the MVP deliberately starts with
+AR(1) and treats richer models as an *evidence-gated escalation*, not a default.
+
+- **The "I" (differencing) is generally inappropriate here.** ARIMA's integration
+  term is for non-stationary series with stochastic trends (unit roots). Our series
+  is the *anomaly* (temperature minus climatology), which is mean-reverting and
+  stationary by construction — it does not wander like a random walk. Differencing a
+  mean-reverting series over-differences it and injects spurious structure. So d = 0.
+- **Higher-order AR / MA terms are justified only if diagnostics demand them.** At
+  daily resolution SST anomalies can carry structure beyond lag-1 (the red-noise
+  approximation is cleaner at monthly scales). If the §8 residual tests show leftover
+  autocorrelation, a low fixed-order AR(p) or ARMA is the principled next step — and
+  it must also improve *out-of-sample* Brier skill, not just in-sample fit.
+- **We avoid free, per-cell ARIMA order selection.** Auto-selecting an order for each
+  of thousands of cells across five regions is computationally heavy, prone to
+  overfitting, and produces patchy, hard-to-interpret maps where the model order
+  jumps cell to cell. AR(1) also gives a clean closed-form multi-step forecast
+  variance — exactly what the probability step needs.
+
+In short: AR(1) by default because it is grounded, robust, interpretable, and
+analytically clean; escalate to a low-order ARMA only where the diagnostics and the
+backtest jointly earn it.
 
 ---
 
@@ -333,6 +394,19 @@ mhw-forecast --region ebs --leads 14,30 --method ar1
 
 - Hobday, A. J., et al. (2016). *A hierarchical approach to defining marine
   heatwaves.* Progress in Oceanography.
+- Frankignoul, C., & Hasselmann, K. (1977). *Stochastic climate models, Part II:
+  Application to sea-surface temperature anomalies and thermocline variability.*
+  Tellus, 29(4). (Red-noise / AR(1) basis for SST anomalies.)
 - Jacox, M. G., et al. (2022). *Global seasonal forecasts of marine heatwaves.*
-  Nature. (Source of the anomaly → exceedance-probability construction.)
+  Nature. (Anomaly → exceedance-probability construction; baseline benchmarking.)
+- *Probabilistic extreme SST and marine heatwave forecasts in Chesapeake Bay: a
+  forecast model, skill assessment, and potential value.* Frontiers in Marine
+  Science (2022). (Damped-persistence & climatology baselines for probabilistic MHW
+  skill assessment.)
 - NOAA OISST v2.1 — Optimum Interpolation Sea Surface Temperature.
+
+> Note on verification: the literature establishes these baselines as the standard
+> reference and gives AR(1) a physical basis, but it also shows they are commonly
+> beaten by dynamical/ML methods. Their skill for the specific regions here is an
+> empirical claim to be settled by this project's own backtest (§8), not asserted
+> from the literature.
