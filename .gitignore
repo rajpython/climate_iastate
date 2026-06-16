@@ -32,5 +32,6 @@ notebooks/
 # Local-only working folders (never pushed)
 ResearhAgent/
 docs/wakefield_presentation/
+docs/tmp/
 .claude/
 plan/

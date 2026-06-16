@@ -9,6 +9,7 @@ risks.
 **Status:** Discovery passes 1 + 2 complete (2026-06-16). Primary source, access,
 grid, cadence, latency, variables, validation target, storage, and the regrid
 dependency are all resolved. Remaining open items are narrow and flagged ⬜.
+**Layer-3 (forecasting) scoping added as §9.**
 
 ---
 
@@ -86,11 +87,25 @@ validate an EBS bottom-temperature / cold-pool product end-to-end ourselves.
   GOA 1990–2023; AI 1991–2024.
 - **Source:** AFSC summer bottom-trawl surveys (Groundfish + Shellfish Assessment).
 
-### Dataset C — NOAA CEFI regional MOM6 (NEP)  **(WATCH-LIST)**
+### Dataset C — NOAA CEFI regional MOM6 (NEP)  **(WATCH-LIST — but the one public *forecast* feed)**
 - **Portal:** https://psl.noaa.gov/cefi_portal/  •  Cookbook:
   `noaa-cefi-portal.github.io/cefi-cookbook/` (Python/R OPeNDAP, query generator).
-- **Product type:** historical MOM6 simulation **1993–2019** (see latency, §4).
-- **Status:** Alaska validation "still underway" (collaborator). Watch; not Phase 1.
+- **Products:** historical MOM6 simulation (1993–2019, §4) **plus a forecast arm** —
+  **1-year seasonal forecasts, initialised 4×/yr**, GFDL **SPEAR** global model downscaled
+  to regional MOM6. The **Northeast Pacific (NEP)** domain spans **Baja California → the
+  Chukchi**, i.e. it **covers the Bering Sea and Gulf of Alaska**. Per the portal, NEP
+  **hindcast + reforecast data are public (as of Jan 2025)**; the NEP **operational**
+  forecast is "coming soon."
+- **Access (public):** PSL THREDDS, **AWS S3**, **Google Cloud Storage**, OPeNDAP + direct
+  download.
+- **Why it matters:** this is the **only public *forecast* feed covering our region** —
+  more accessible than the Bering10K reforecast (which is not a public download, §9.4).
+- **The binding caveat is validation, not access:** this is the same MOM6 product Erin
+  flagged as **Alaska validation "still underway."** So for the Bering: the *public-forecast*
+  model (CEFI/MOM6) is not yet validated here, while the *validated* model (Bering10K) has
+  no public forecast feed. Public ≠ usable-with-confidence.
+- ⬜ Verify: does the CEFI NEP product carry **bottom temperature** (`tob`)? Operational vs
+  reforecast-only status for NEP? Bering/GOA validation skill?
 
 *(Copernicus Marine retained only as a distant fallback; not pursued given A is open
 and validated.)*
@@ -215,16 +230,152 @@ just before the `t` rows; likely `temp_bottom5m`, confirm before coding `io`.
 ### Open items to carry into `feat/bottom-ocean-state`
 1. ⬜ Exact Level-2 bottom-temp short name from the variable spreadsheet (Drive `…gFvG`;
    likely `temp_bottom5m`).
-2. ⬜ Current live catalog path / ERDDAP dataset ID for K20_CORECFS bottom temp (server
-   reorganized since the 2021 doc).
-3. ⬜ Weekly-climatology design for bottom temp (vs. daily-engine reuse).
+2. ⬜ Current live catalog path / ERDDAP dataset ID for K20_CORECFS bottom temp. Partial:
+   a working `files/` path exists, e.g.
+   `data.pmel.noaa.gov/aclim/thredds/catalog/files/B10K-K20nobio_CORECFS_daily.html`.
+3. ⬜ Bottom-temp climatology cadence. Note a **daily** physics-only variant
+   (`B10K-K20nobio_CORECFS_daily`) is on the public server → daily Hobday-engine reuse may
+   be feasible after all; weigh vs the weekly `average` product.
 4. ⬜ `pyresample` install + a one-cell regrid sanity check on the box (conda-free path).
 5. ⬜ GOA-CLIM access (only when GOA bottom state is in scope).
 
 ---
 
-*Discovery sources (passes 1–2, 2026-06-16): Bering10K dataset doc (Kearney 2021,
+## 9. Layer 3 — Forecasting (scope)
+
+*Discovery, 2026-06-16. Scopes whether and how a bottom-state **forecast** (beyond the
+historical product of §§1–8) is feasible self-service. The §§1–8 hindcast is the
+foundation; this section is the forward-looking layer.*
+
+### 9.1 Is EBS bottom temperature seasonally forecastable? — Yes, with published skill
+- **Kearney et al. 2021** (*JGR Oceans*, "Seasonal predictability of sea ice and bottom
+  temperature across the eastern Bering Sea shelf") — **now read in full** (open-access
+  CC-BY). It downscaled NMME global reforecasts (CFSv2, CanCM4) through Bering10K for
+  1982–2010, initialised every month, and assessed skill via anomaly correlation
+  coefficient (ACC; 0.5 ≈ threshold for synoptic skill) vs a **persistence** baseline.
+  Findings, verbatim where it matters:
+  - **Summer bottom temperature is predictable at leads up to ~4 months** *when initialised
+    in the ice-free window (≈April–October)* — ACC near 1.0 at 1-month lead, staying high
+    through summer until the next ice season.
+  - **"The majority of the prediction skill derives from the persistence signal, and a
+    persistence forecast is comparably skillful to the dynamic forecast."** The dynamic
+    model's gain is **marginal** (≈1–2 months in specific init windows, mostly
+    May-initialised 1–3-month leads); "considered independently, neither CFS nor CanCM4
+    outperformed the persistence forecast."
+  - **Sea ice is a prediction *barrier*:** forecasts initialised before/during the ice
+    season (Oct–Feb) lose skill — neither dynamic nor persistence predicts summer bottom
+    temperature across the ice season. Sea-ice extent itself is barely predictable beyond
+    persistence (low Pacific-sector predictability).
+  - **Damped persistence ≈ persistence** for ice-crossing leads (a useful config note).
+- **Mechanism = real physical memory:** the cold pool forms each winter via brine
+  rejection under sea ice and *persists* into summer. That memory is what makes
+  spring→summer prediction work — sea-*surface* temperature has no equivalent.
+- **Cox et al. 2026** (*JGR Oceans*) predicts the wintertime Bering ice edge with a
+  **Linear Inverse Model (LIM)** — one of the exact method families in our SST research
+  proposal. The two tracks share methods.
+
+### 9.2 The authors' own recommendation — *use persistence* (this is Route A)
+Kearney 2021's Discussion concludes (paraphrasing closely): running a dynamically
+downscaled multimodel forecast operationally is **high-cost**; adding a **persistence
+forecast** to the hindcast framework (which already updates ~3×/yr to within weeks of real
+time) is **simple**; and given the dynamic model's only *marginal* skill gain, **"the
+persistence forecast is the more efficient choice… capable of providing a skillful,
+spatially resolved prediction of the cold pool as early as April"** — early enough for the
+NPFMC management/quota cycle. **The domain authority recommends precisely what our engine
+does.** They flag **linear inverse modeling (LIM)** as the natural next step *beyond*
+persistence — which is our SST proposal's method family and the Cox et al. 2026 ice-edge
+paper. The two tracks converge on the same toolkit.
+
+### 9.3 Two routes
+- **Route A — our own statistical engine on bottom-temp anomalies (FAVOURED, self-service).**
+  The source-agnostic engine (`src/mhw/forecast/`) applies unchanged: forecast a bottom-temp
+  anomaly field (persistence / damped persistence / AR(1)) vs a bottom-temp threshold →
+  exceedance probability → cold-pool-probability map + regional outlook. The field's own
+  product is persistence-based and Kearney 2021 supplies the skill benchmark and scientific
+  cover. **Uses only public data we already have (§§1–8) — no NOAA ask.**
+- **Route B — ingest the dynamical seasonal forecast (DEFERRED, collaboration).** Heavier,
+  and gated by access (§9.4); the dynamical run's value is a skill *ceiling*, not a
+  prerequisite. Revisit via collaboration once Route A is proven.
+
+### 9.4 Access status — *now resolved from the paper's Data Availability Statement*
+- **Hindcast + observed index:** public, confirmed (§§1–2). Bonus: a **daily** physics-only
+  hindcast variant (`B10K-K20nobio_CORECFS_daily`) is on the public server.
+- **The dynamical reforecast output:** **only the *summarized* output behind the figures is
+  public** — Zenodo **10.5281/zenodo.4735496** (Kearney et al. 2021, *Supporting data*).
+  The **full gridded reforecast ensemble** (1,044 sims × 2 parent models) is **not**
+  published as a downloadable product. *(This corrects an earlier overstatement: it's not
+  that it's "locked away" — the authors simply archived summaries, not the full ensemble.)*
+- **No public *Bering10K* forecast feed** — Kearney 2021 was a **retrospective** reforecast
+  (1982–2010); the validated Bering10K model has no operational public forecast output.
+  **However — correcting an earlier overstatement — public NOAA forecast data *for our
+  region* does exist elsewhere:** the **CEFI regional MOM6 (NEP)** forecast arm (Dataset C)
+  — 1-yr SPEAR-driven seasonal forecasts, NEP reforecast public since Jan 2025, operational
+  "coming soon", on PSL THREDDS / AWS / GCS — and **NMME** global seasonal forecasts
+  (NCEI/IRI, ~1°) usable as coarse predictors. The constraint on these is **validation for
+  the Bering, not access** (CEFI/MOM6 Alaska validation is "still underway").
+- **Why Route B is deprioritised — by the science, not just access:** the authors
+  themselves conclude the dynamic forecast isn't worth the cost over persistence (§9.2).
+  So even with full access, Route B adds little. **Route A is self-service** — we generate
+  the persistence forecast ourselves from the public hindcast + climatology.
+- **If Route B is ever revisited, it's a *capability* collaboration, not a data grab:** the
+  CFSv2→downscaling chain is not reproducible without dynamical-modeling infrastructure, so
+  it would mean co-production with ACLIM/AFSC (Holsman, Kearney) — a joint product with
+  authorship/ownership implications — pursued only if the *relationship* (not the skill) is
+  the goal.
+
+### 9.5 Connection to the research program & the gate
+Bottom-state forecasting is the **bottom-temperature analogue of the SST forecast-skill
+study** and lives under the *same* governing research proposal and the *same* deployment
+gate (BSS > 0 vs climatology **and** persistence; calibration; field significance). The
+method-survey work package already spans these families (persistence, AR, LIM). No new
+governance needed — it extends the existing program.
+
+### 9.6 Why this may be the *stronger* forecast story
+- Genuine **seasonal predictability** (~4-month skill) from ice-driven memory — SST
+  persistence decays in weeks.
+- Our statistical approach **matches established operational practice** → lower novelty
+  risk, easier to defend to a Council.
+- A **probabilistic cold-pool outlook ahead of the summer survey** is directly useful to
+  the snow-crab / groundfish ESR audience.
+
+### 9.7 Open items / next steps (Layer 3)
+1. ✓ *Resolved.* Route B output is not publicly archived beyond figure summaries (Zenodo
+   `4735496`); no live forecast feed. Route B = capability collaboration only (§9.4).
+2. ✓ *Resolved.* Kearney 2021 read in full; configuration captured below.
+3. ⬜ Spec a bottom-temp **persistence / damped-persistence** backtest reusing `baselines`
+   / `exceedance` / `backtest`, following Kearney 2021's design so results are comparable:
+   - **Target:** summer cold pool (paper's window ≈ **June 1–Aug 1**); init from the
+     ice-free side (**≈April–May**) — *do not* expect skill across the Oct–Feb ice barrier.
+   - **Bottom temp** = mean over the **bottom 5 m** of each cell; **threshold = 2 °C** for
+     cold-pool area.
+   - **Baseline** = persistence of the hindcast anomaly from the month before init across
+     all leads; **metric** = ACC vs lead-dependent climatology (ACC ≈ 0.5 = skill floor),
+     alongside our BSS gate.
+   - **Truth:** Bering10K hindcast (1982–2010+) as primary, plus the **AFSC observed**
+     cold-pool index and the **survey-replicated** series (§6).
+4. ⬜ Later: **LIM as the "beyond-persistence" step** (Kearney's own suggestion). Region-
+   specific template now in hand — **Cox & Penland 2026** applies LIM to the wintertime
+   Bering **ice edge**, benchmarked against **persistence and AR(1)**, with **public MATLAB
+   code** (Zenodo `10.5281/zenodo.18461482`, NOAA-PSL, public domain → port to Python).
+   Folds into the SST research program's method survey. **Scope caveat — method reference,
+   not a recipe:** Cox forecasts ice-edge *latitude* at *weather-to-subseasonal* leads
+   (skill ~5–9 days, Jan–Mar) — a different variable, timescale, and *season* (inside the
+   ice barrier) than our seasonal cold-pool product. Two transferable lessons regardless:
+   (a) persistence is again beaten only marginally (~1 day by LIM/AR1) → baselines-first
+   holds; (b) **"forecasts of opportunity"** — condition forecast *confidence* on the
+   atmospheric state (ALBSA index) — a defensible state-dependent uncertainty pattern for
+   the dashboard.
+5. ⬜ *Candidate separate product (park, don't bundle):* a short-lead (days) **ice-edge**
+   forecast is itself ESR / crab-fisher-relevant (Cox's motivation is navigation safety in
+   ice) and Cox 2026 is a near-drop-in blueprint with public code. Different product from
+   the cold pool, **same audience** (snow crab / Erin). Not part of the cold-pool increment.
+
+---
+
+*Discovery sources (passes 1–3, 2026-06-16): Bering10K dataset doc (Kearney 2021,
 Zenodo 4586950) + variable spreadsheet (Drive); PMEL ACLIM THREDDS/ERDDAP/LAS;
 `afsc-gap-products/coldpool` (Zenodo 10.5281/zenodo.16915337); NOAA CEFI portal
-(psl.noaa.gov/cefi_portal); CEFI two-pager (`CEFI.pdf`); Frontiers 2025 EBS
-bottom-temp skill assessment; Kearney et al. 2020 (GMD); local `pyproject.toml`.*
+(psl.noaa.gov/cefi_portal); CEFI two-pager (`CEFI.pdf`); Kearney et al. 2021 (JGR
+Oceans, seasonal predictability); Cox et al. 2026 (JGR Oceans, ice-edge LIM);
+Frontiers 2025 EBS bottom-temp skill assessment; Kearney et al. 2020 (GMD); local
+`pyproject.toml`.*
