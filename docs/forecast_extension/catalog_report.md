@@ -222,17 +222,30 @@ just before the `t` rows; likely `temp_bottom5m`, confirm before coding `io`.
 
 ## 8. Recommendation
 
-- **Go / no-go:** **GO on Bering10K ROMS `B10K-K20_CORECFS` (public hindcast) as the
-  Phase-1 EBS source.** Open, validated in region, fresher than MOM6, with two
-  observational validation routes in hand.
-- **First increment:** **bottom temperature → EBS cold-pool area index.**
+- **Go / no-go:** **GO.**
+- **Model choice — present BOTH, as separate labelled options (decision, 2026-06-17).**
+  Rather than pick one model, surface **both** side-by-side for users to compare:
+  - **Bering10K ROMS** (`B10K-K20_CORECFS`) — weekly, **1970–present**, ACLIM-validated, the
+    self-service hindcast + persistence path (Route A); EBS/Bering domain.
+  - **MOM6 NEP10k** (CEFI) — **1993–2019** hindcast, COBALT, cold-pool product built-in and
+    AFSC-validated, plus the public **forecast** arm; Baja→Chukchi domain.
+  This is cheap *because* the engine is **source-agnostic**: two `io` adapters feed the same
+  `exceedance`/`regional` machinery; two regrids (both ~10 km curvilinear → 0.25°). Each
+  panel is **labelled** with provenance, period, and lagged/recent-historical status — and
+  where the two models **disagree, that divergence is itself the uncertainty signal**
+  (two independent models bracketing the truth). Honest-by-construction, and it sidesteps a
+  premature "winner" call while validation matures.
+- **First increment:** **bottom temperature → EBS cold-pool area index** (computed the same
+  way from each model's bottom-temp field).
 - **Validation:** modeled cold pool vs **AFSC observed index** (Zenodo `16915337`) and vs
   the **ACLIM survey-replicated** series; benchmark against the 2025 Frontiers assessment.
 - **Grid strategy:** **`pyresample`/`scipy` regrid → 0.25°** (pip, no conda); or use ACLIM
   Level 3 regional indices and skip regridding for regional products. Bottom temp is 2-D.
 - **Temporal strategy:** **weekly** — build a weekly bottom-temp climatology/threshold; do
   *not* assume the daily DOY engine transfers unchanged.
-- **MOM6/CEFI:** watch-list only, revisit when Alaska MOM6 validation lands.
+- **MOM6/CEFI NEP10k:** promoted from watch-list to a **co-presented option** (above); its
+  *forecast*-arm skill for the Bering is still the open validation question, so label its
+  forecast outputs accordingly.
 - **GOA:** deferred to GOA-CLIM; out of scope for the first increment.
 
 ### Open items to carry into `feat/bottom-ocean-state`
