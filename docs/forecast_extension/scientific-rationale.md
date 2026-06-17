@@ -1,6 +1,9 @@
-# scientific-rationale.md
-
 # Scientific Rationale for Marine Heatwave Forecast Extension
+
+> **Role of this doc:** the **conceptual foundation / "why"** for the forecast
+> extension. Roadmap: `forecast-extension-plan.md`; bottom-state build plan:
+> `forecast-implementation-document.md`; discovery: `catalog_report.md`.
+> *Last refreshed 2026-06-17.*
 
 ## Purpose
 
@@ -129,13 +132,17 @@ For many management applications, cold-pool conditions may be more informative t
 
 ---
 
-# Why MOM6?
+# Why a regional ocean model (Bering10K ROMS / MOM6)?
 
-MOM6 is not introduced because it is a superior forecasting tool.
+Regional ocean models are not introduced because they are superior forecasting tools.
 
-MOM6 is introduced because it provides access to ocean states that are unavailable from SST products.
+They are introduced because they provide access to ocean states that are unavailable
+from SST products. Two are used, presented side-by-side as labelled options: **Bering10K
+ROMS** (the ACLIM-validated Bering/EBS model) and **MOM6-COBALT-NEP10k** (the CEFI
+model, with a public forecast arm). Where they disagree, the divergence is itself an
+honest uncertainty signal.
 
-Examples include:
+Examples of the states they expose include:
 
 * Bottom temperature
 * Water-column temperature structure
