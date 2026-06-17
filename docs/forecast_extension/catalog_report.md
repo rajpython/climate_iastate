@@ -104,8 +104,16 @@ validate an EBS bottom-temperature / cold-pool product end-to-end ourselves.
   flagged as **Alaska validation "still underway."** So for the Bering: the *public-forecast*
   model (CEFI/MOM6) is not yet validated here, while the *validated* model (Bering10K) has
   no public forecast feed. Public ≠ usable-with-confidence.
-- ⬜ Verify: does the CEFI NEP product carry **bottom temperature** (`tob`)? Operational vs
-  reforecast-only status for NEP? Bering/GOA validation skill?
+- ✓ **Verified — yes, NEP carries bottom temperature.** GFDL's MOM6-COBALT-NEP10k v1.0
+  description states the model "simulates the **Bering Sea summer cold pool**" and its
+  headline application is "estimating the extent of the Bering Sea summer cold pool… using
+  **AFSC bottom-trawl survey data**." So bottom temperature is produced *and* the model's
+  flagship demo is **our exact product** (cold pool vs AFSC survey). Domain EBS+GOA+CCS,
+  10 km, hindcast 1993–2019. Residual checks (non-blocking): (a) confirm the exact var name
+  `tob` in the NEP THREDDS variable table (cookbook example was NW-Atlantic, not eyeballed
+  for NEP); (b) does the **forecast/reforecast** arm carry `tob` (vs hindcast only); (c)
+  Erin's "validation still underway" most likely refers to **forecast skill** — the
+  hindcast cold pool is already AFSC-validated per GFDL.
 
 *(Copernicus Marine retained only as a distant fallback; not pursued given A is open
 and validated.)*
