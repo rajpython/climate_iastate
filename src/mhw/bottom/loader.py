@@ -10,6 +10,7 @@ from __future__ import annotations
 import warnings
 from datetime import date
 
+import numpy as np
 import xarray as xr
 
 from mhw.bottom.sources import BottomSource, BERING10K_K20_CORECFS
@@ -47,16 +48,12 @@ def load_bottom_temp(
     Returns
     -------
     xr.DataArray
-        Dims ``(time, y, x)``; carries ``lat``/``lon`` (2-D) coords and the
-        ``source_id`` attribute. Values are °C; NaN over land.
+        Dims ``(time, y, x)``; always carries 2-D ``lat``/``lon`` coords over
+        ``(y, x)`` and the ``source_id`` attribute. Values are °C; NaN over land.
     """
     ds = ds if ds is not None else open_bottom_dataset(source)
 
     da = ds[source.temp_var]
-    da = da.assign_coords(
-        lat=ds[source.lat_coord],
-        lon=ds[source.lon_coord],
-    )
 
     if start is not None or end is not None:
         da = da.sel({source.time_coord: slice(
@@ -64,9 +61,29 @@ def load_bottom_temp(
             None if end is None else str(end),
         )})
 
-    # Normalise dim names to (time, y, x) regardless of source convention.
-    y_dim, x_dim = ds[source.lat_coord].dims  # e.g. (eta_rho, xi_rho)
-    da = da.rename({source.time_coord: "time", y_dim: "y", x_dim: "x"})
+    lat = ds[source.lat_coord]
+    lon = ds[source.lon_coord]
+
+    # Normalise to (time, y, x) with 2-D lat/lon, regardless of native grid:
+    #   * curvilinear sources (Bering10K ROMS) carry 2-D lat/lon over (eta, xi);
+    #   * rectilinear sources (CEFI MOM6 NEP `regrid`) carry 1-D lat/lon along
+    #     their own dims — broadcast to 2-D so the downstream regrid sees one
+    #     uniform contract.
+    if lat.ndim == 2:
+        y_dim, x_dim = lat.dims
+        da = da.rename({source.time_coord: "time", y_dim: "y", x_dim: "x"})
+        lat2d, lon2d = np.asarray(lat.values), np.asarray(lon.values)
+    elif lat.ndim == 1:
+        y_dim, x_dim = lat.dims[0], lon.dims[0]
+        da = da.rename({source.time_coord: "time", y_dim: "y", x_dim: "x"})
+        lon2d, lat2d = np.meshgrid(np.asarray(lon.values), np.asarray(lat.values))
+    else:
+        raise ValueError(
+            f"{source.lat_coord!r} has ndim={lat.ndim}; expected 1 (rectilinear) "
+            "or 2 (curvilinear)."
+        )
+
+    da = da.assign_coords(lat=(("y", "x"), lat2d), lon=(("y", "x"), lon2d))
     da.attrs["source_id"] = source.id
     da.attrs["source_label"] = source.label
     da.attrs.setdefault("units", "Celsius")
