@@ -19,6 +19,7 @@ dependencies = [
     "pyarrow>=14.0.0",
     "pyyaml>=6.0.0",
     "erddapy>=2.1.0",
+    "pyreadr>=0.5.0",  # read AFSC coldpool .rda (observed cold-pool index) without R
 ]
 
 [project.optional-dependencies]
@@ -54,6 +55,7 @@ dev = [
 [project.scripts]
 mhw-fetch-sst = "mhw.fetch.oisst:main"
 mhw-fetch-indices = "mhw.fetch.indices:main"
+mhw-fetch-coldpool = "mhw.fetch.coldpool:main"
 mhw-build-masks = "mhw.regions.masks:main"
 mhw-build-climatology = "mhw.climatology.build_mu_theta:main"
 mhw-plot-climatology = "mhw.climatology.build_mu_theta:plot_main"

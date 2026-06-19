@@ -17,6 +17,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.routes_coldpool import router as coldpool_router
 from api.routes_indices import router as indices_router
 from api.routes_maps import router as maps_router
 from api.routes_states import router as states_router
@@ -61,9 +62,10 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Routers — all data endpoints are mounted under /v1
 # ---------------------------------------------------------------------------
-app.include_router(states_router,  prefix="/v1", tags=["Regions"])
-app.include_router(maps_router,    prefix="/v1", tags=["Maps"])
-app.include_router(indices_router, prefix="/v1", tags=["Indices"])
+app.include_router(states_router,   prefix="/v1", tags=["Regions"])
+app.include_router(maps_router,     prefix="/v1", tags=["Maps"])
+app.include_router(indices_router,  prefix="/v1", tags=["Indices"])
+app.include_router(coldpool_router, prefix="/v1", tags=["Cold Pool"])
 
 
 # ---------------------------------------------------------------------------

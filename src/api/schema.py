@@ -116,3 +116,28 @@ class IndexPayload(BaseModel):
     index:     IndexName
     frequency: IndexFrequency
     records:   list[IndexRecord]
+
+
+# ---------------------------------------------------------------------------
+# Cold pool — AFSC observed index (EBS bottom-trawl survey, validation target)
+# ---------------------------------------------------------------------------
+
+class ColdPoolRecord(BaseModel):
+    year:                int
+    area_lte2_km2:       float | None  # headline cold-pool index: area ≤ 2 °C
+    area_lte1_km2:       float | None
+    area_lte0_km2:       float | None
+    area_lteminus1_km2:  float | None
+    mean_bottom_temp:    float | None  # °C, survey gear (bottom) temperature
+    mean_surface_temp:   float | None  # °C
+
+
+class ColdPoolPayload(BaseModel):
+    source:    str = "AFSC EBS bottom-trawl survey (observed)"
+    region:    str = "ebs"
+    units:     str = "km2 (areas); degC (temperatures)"
+    note:      str = (
+        "Observed survey-derived cold-pool index; annual, summer survey. "
+        "Lagged (not near-real-time). Validation target for modelled bottom temperature."
+    )
+    records:   list[ColdPoolRecord]
