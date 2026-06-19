@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -37,11 +38,31 @@ _THRESHOLDS = {
 }
 
 
+_MODEL_DIR = ROOT / "data" / "derived" / "cold_pool"
+_MODEL_SOURCES = {
+    "Bering10K ROMS": "coldpool_model_bering10k.parquet",
+    "CEFI MOM6 NEP": "coldpool_model_mom6_nep.parquet",
+}
+
+
 @st.cache_data(show_spinner="Loading cold-pool index …", ttl=3600)
 def load_coldpool() -> pd.DataFrame | None:
     if not _PARQUET.exists():
         return None
     return pd.read_parquet(_PARQUET).sort_values("year").reset_index(drop=True)
+
+
+@st.cache_data(show_spinner="Loading modelled cold pool …", ttl=3600)
+def load_model_coldpool(fname: str) -> pd.DataFrame | None:
+    p = _MODEL_DIR / fname
+    if not p.exists():
+        return None
+    return pd.read_parquet(p).sort_values("year").reset_index(drop=True)
+
+
+def _zscore(s: pd.Series) -> pd.Series:
+    sd = s.std()
+    return (s - s.mean()) / sd if sd and sd > 0 else s * 0.0
 
 
 def main() -> None:
@@ -65,6 +86,10 @@ def main() -> None:
     yr_min, yr_max = int(df["year"].min()), int(df["year"].max())
     yr_range = st.sidebar.slider("Year range", yr_min, yr_max, (yr_min, yr_max))
     show_bt = st.sidebar.checkbox("Overlay mean bottom temperature", value=True)
+
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Model comparison")
+    model_choice = st.sidebar.selectbox("Overlay modelled source", ["(none)"] + list(_MODEL_SOURCES))
 
     d = df[(df["year"] >= yr_range[0]) & (df["year"] <= yr_range[1])].copy()
 
@@ -127,6 +152,62 @@ def main() -> None:
         bargap=0.15, margin={"l": 60, "r": 20, "t": 50, "b": 40},
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    # ---- Model vs observed ----
+    if model_choice != "(none)":
+        mdf = load_model_coldpool(_MODEL_SOURCES[model_choice])
+        if mdf is None:
+            st.warning(
+                f"{model_choice} modelled cold pool not built yet. "
+                "Run: `mhw-build-coldpool-model --source bering10k`"
+            )
+        else:
+            st.markdown(f"### Model vs observed — {model_choice}")
+            st.caption(
+                "Modelled cold pool is computed over a depth-masked EBS-shelf **domain** "
+                "(not strata-matched to the survey), so its **absolute area runs larger** "
+                "than the observed index. The fair comparisons are the **interannual pattern** "
+                "(shown standardized) and **mean bottom temperature** (absolute °C). Note the "
+                "model also covers years the survey missed (e.g. 2020)."
+            )
+            cmp = df.merge(mdf, on="year", suffixes=("_obs", "_mod"))
+            cmp = cmp[(cmp["year"] >= yr_range[0]) & (cmp["year"] <= yr_range[1])]
+
+            cfig = make_subplots(
+                rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+                subplot_titles=("Cold-pool area ≤2 °C — standardized (z-score)",
+                                "Mean bottom temperature (°C)"),
+            )
+            cfig.add_trace(go.Scatter(x=cmp["year"], y=_zscore(cmp["area_lte2_km2_obs"]),
+                           mode="lines+markers", name="Observed",
+                           line={"color": "black", "width": 2}), row=1, col=1)
+            cfig.add_trace(go.Scatter(x=cmp["year"], y=_zscore(cmp["area_lte2_km2_mod"]),
+                           mode="lines+markers", name=model_choice,
+                           line={"color": "steelblue", "width": 2, "dash": "dash"}), row=1, col=1)
+            cfig.update_yaxes(title_text="z-score", row=1, col=1)
+
+            cfig.add_trace(go.Scatter(x=cmp["year"], y=cmp["mean_bottom_temp_obs"],
+                           mode="lines+markers", name="Observed (BT)", showlegend=False,
+                           line={"color": "black", "width": 2}), row=2, col=1)
+            cfig.add_trace(go.Scatter(x=cmp["year"], y=cmp["mean_bottom_temp_mod"],
+                           mode="lines+markers", name="Model (BT)", showlegend=False,
+                           line={"color": "firebrick", "width": 2, "dash": "dash"}), row=2, col=1)
+            cfig.add_hline(y=2.0, line_dash="dot", line_color="gray", line_width=1, row=2, col=1)
+            cfig.update_yaxes(title_text="°C", row=2, col=1)
+            cfig.update_layout(height=560, template="plotly_white",
+                               margin={"l": 60, "r": 20, "t": 50, "b": 40},
+                               legend={"orientation": "h", "y": 1.08})
+            st.plotly_chart(cfig, use_container_width=True)
+
+            cc = cmp.dropna(subset=["area_lte2_km2_obs", "area_lte2_km2_mod",
+                                    "mean_bottom_temp_obs", "mean_bottom_temp_mod"])
+            if len(cc) >= 3:
+                r_area = float(np.corrcoef(cc["area_lte2_km2_obs"], cc["area_lte2_km2_mod"])[0, 1])
+                r_bt = float(np.corrcoef(cc["mean_bottom_temp_obs"], cc["mean_bottom_temp_mod"])[0, 1])
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Pearson r — area ≤2 °C", f"{r_area:.2f}")
+                m2.metric("Pearson r — mean bottom temp", f"{r_bt:.2f}")
+                m3.metric("Overlapping years", f"{len(cc)}")
 
     # ---- Provenance ----
     last_update = str(df["last_update"].iloc[-1])[:10] if "last_update" in df else "—"

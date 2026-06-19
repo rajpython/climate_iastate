@@ -1,0 +1,169 @@
+"""Modelled EBS cold-pool index from regional ocean-model bottom temperature.
+
+Derives an annual cold-pool series (area below temperature thresholds + mean shelf
+bottom temperature) from a regional model's summer bottom-temperature field, on the
+EBS **shelf** (the deep Bering basin is cold year-round and is *not* the cold pool, so
+a depth mask is essential). Source-agnostic: works for any
+:class:`~mhw.bottom.sources.BottomSource` via :mod:`mhw.bottom.loader`.
+
+Comparability caveat (read before trusting absolute areas)
+----------------------------------------------------------
+The AFSC *observed* index is computed over the exact bottom-trawl **survey strata**
+(~495,000 km²) at **survey time**. This modelled index uses a depth-masked EBS-shelf
+*domain* and a fixed summer week, so **absolute areas run larger than observed** and
+are not strata-matched. The defensible comparisons are therefore (1) the **interannual
+pattern** and (2) **mean shelf bottom temperature** (an intensive quantity, far less
+sensitive to the exact footprint). Strata-matched comparison (the ACLIM
+survey-replicated series) is the rigorous next step.
+
+CLI: mhw-build-coldpool-model --source bering10k --start 1982 --end 2024
+"""
+from __future__ import annotations
+
+import argparse
+import warnings
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+
+from mhw.bottom.loader import load_bottom_temp, open_bottom_dataset
+from mhw.bottom.regrid import regrid_curvilinear_to_regular
+from mhw.bottom.sources import SOURCES, BottomSource, BERING10K_K20_CORECFS
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DERIVED = PROJECT_ROOT / "data" / "derived" / "cold_pool"
+
+# EBS-shelf analysis grid (0.25°) and parameters.
+EBS_LATS = np.arange(54.0, 63.0, 0.25)
+EBS_LONS = np.arange(-179.0, -157.0, 0.25)
+SHELF_MAX_DEPTH_M = 200.0
+THRESHOLDS_C = (2.0, 1.0, 0.0, -1.0)
+_THRESH_COL = {2.0: "area_lte2_km2", 1.0: "area_lte1_km2", 0.0: "area_lte0_km2", -1.0: "area_lteminus1_km2"}
+SURVEY_TARGET_MD = "07-04"   # representative survey-time week (mid-survey)
+_KM_PER_DEG = 111.0
+
+
+# ---------------------------------------------------------------------------
+# Pure helpers (network-free, unit-testable)
+# ---------------------------------------------------------------------------
+
+def cell_area_km2(tgt_lats: np.ndarray, tgt_lons: np.ndarray, dlat: float = 0.25, dlon: float = 0.25) -> np.ndarray:
+    """Per-cell area (km²) of a regular grid, cosine-latitude weighted."""
+    lat_km = dlat * _KM_PER_DEG
+    lon_km = dlon * _KM_PER_DEG * np.cos(np.deg2rad(tgt_lats))
+    return (lat_km * lon_km)[:, None] * np.ones((1, tgt_lons.size))
+
+
+def coldpool_area_km2(temp_grid: np.ndarray, shelf: np.ndarray, areas: np.ndarray, threshold: float) -> float:
+    """Total shelf area (km²) where bottom temperature ≤ *threshold* (NaN-safe)."""
+    sel = shelf & np.isfinite(temp_grid) & (temp_grid <= threshold)
+    return float(np.sum(areas[sel]))
+
+
+def mean_shelf_bottom_temp(temp_grid: np.ndarray, shelf: np.ndarray, areas: np.ndarray) -> float:
+    """Area-weighted mean bottom temperature (°C) over valid shelf cells."""
+    sel = shelf & np.isfinite(temp_grid)
+    if not sel.any():
+        return float("nan")
+    return float(np.sum(temp_grid[sel] * areas[sel]) / np.sum(areas[sel]))
+
+
+# ---------------------------------------------------------------------------
+# Model ingest
+# ---------------------------------------------------------------------------
+
+def shelf_mask_from_model(ds: xr.Dataset, source: BottomSource,
+                          tgt_lats=EBS_LATS, tgt_lons=EBS_LONS,
+                          max_depth_m: float = SHELF_MAX_DEPTH_M) -> np.ndarray:
+    """Regrid the model bottom depth and return a boolean shelf mask (≤ max_depth_m).
+
+    Bering10K exposes bottom depth as the ``z_w`` bottom interface; if no depth
+    variable is found, fall back to 'all valid cells are shelf' (caller is warned).
+    """
+    depth2d = lat2d = lon2d = None
+    if "z_w" in ds:
+        depth2d = (-ds["z_w"].isel({source.time_coord: 0, "s_w": 0})).values
+    lat2d = ds[source.lat_coord].values
+    lon2d = ds[source.lon_coord].values
+    if depth2d is None:
+        warnings.warn(f"{source.id}: no bottom-depth variable; shelf mask = full domain.")
+        return np.ones((tgt_lats.size, tgt_lons.size), dtype=bool)
+    depth_g = regrid_curvilinear_to_regular(lat2d, lon2d, depth2d, tgt_lats, tgt_lons, fill_nearest=False)
+    return np.isfinite(depth_g) & (depth_g <= max_depth_m)
+
+
+def _nearest_summer_field(source: BottomSource, ds: xr.Dataset, year: int,
+                          target_md: str = SURVEY_TARGET_MD) -> np.ndarray | None:
+    """Load the model bottom-temp field for the week nearest *year*-*target_md*."""
+    da = load_bottom_temp(source, start=f"{year}-05-15", end=f"{year}-09-15", ds=ds)
+    if da.sizes["time"] == 0:
+        return None
+    target = np.datetime64(f"{year}-{target_md}")
+    idx = int(np.abs(da["time"].values - target).argmin())
+    return da.isel(time=idx)
+
+
+def build_model_coldpool_series(
+    source: BottomSource = BERING10K_K20_CORECFS,
+    start: int = 1982,
+    end: int = 2024,
+    target_md: str = SURVEY_TARGET_MD,
+) -> pd.DataFrame:
+    """Compute the annual modelled EBS cold-pool series for *source*."""
+    ds = open_bottom_dataset(source)
+    shelf = shelf_mask_from_model(ds, source)
+    areas = cell_area_km2(EBS_LATS, EBS_LONS)
+    print(f"{source.id}: shelf cells ≤{SHELF_MAX_DEPTH_M:.0f} m = {int(shelf.sum())} "
+          f"(~{areas[shelf].sum():,.0f} km²)")
+
+    rows = []
+    for year in range(start, end + 1):
+        field = _nearest_summer_field(source, ds, year, target_md)
+        if field is None:
+            continue
+        grid = regrid_curvilinear_to_regular(
+            field.lat.values, field.lon.values, field.values, EBS_LATS, EBS_LONS, fill_nearest=False)
+        row = {"year": year, "source": source.id,
+               "mean_bottom_temp": round(mean_shelf_bottom_temp(grid, shelf, areas), 4)}
+        for thr in THRESHOLDS_C:
+            row[_THRESH_COL[thr]] = round(coldpool_area_km2(grid, shelf, areas, thr), 1)
+        rows.append(row)
+        print(f"  {year}: ≤2 °C = {row['area_lte2_km2']:,.0f} km²  "
+              f"mean BT = {row['mean_bottom_temp']:.2f} °C")
+    return pd.DataFrame(rows)
+
+
+def save_parquet(df: pd.DataFrame, source: BottomSource) -> Path:
+    DERIVED.mkdir(parents=True, exist_ok=True)
+    out = DERIVED / f"coldpool_model_{source.id}.parquet"
+    df.to_parquet(out, index=False)
+    print(f"  Saved → {out}")
+    return out
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Build the modelled EBS cold-pool series from a regional ocean model.")
+    p.add_argument("--source", default="bering10k", choices=sorted(SOURCES), help="Bottom source id")
+    p.add_argument("--start", type=int, default=1982, help="First year")
+    p.add_argument("--end", type=int, default=2024, help="Last year")
+    return p.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    source = SOURCES[args.source]
+    df = build_model_coldpool_series(source, start=args.start, end=args.end)
+    if df.empty:
+        print("No years produced — check connectivity / year range.")
+        return
+    save_parquet(df, source)
+
+
+if __name__ == "__main__":
+    main()

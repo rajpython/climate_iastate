@@ -56,6 +56,7 @@ dev = [
 mhw-fetch-sst = "mhw.fetch.oisst:main"
 mhw-fetch-indices = "mhw.fetch.indices:main"
 mhw-fetch-coldpool = "mhw.fetch.coldpool:main"
+mhw-build-coldpool-model = "mhw.bottom.coldpool:main"
 mhw-build-masks = "mhw.regions.masks:main"
 mhw-build-climatology = "mhw.climatology.build_mu_theta:main"
 mhw-plot-climatology = "mhw.climatology.build_mu_theta:plot_main"

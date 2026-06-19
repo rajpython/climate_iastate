@@ -43,3 +43,19 @@ def test_cold_pool_empty_range_404(api_client):
     if resp.status_code == 503:
         pytest.skip("cold-pool parquet not fetched")
     assert resp.status_code == 404
+
+
+def test_cold_pool_modelled_ok(api_client):
+    resp = api_client.get("/v1/cold-pool/modelled", params={"source": "bering10k"})
+    if resp.status_code == 503:
+        pytest.skip("modelled cold-pool not built (run mhw-build-coldpool-model)")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "Bering10K" in body["source"]
+    assert body["records"]
+    assert COLDPOOL_FIELDS <= set(body["records"][0])
+
+
+def test_cold_pool_modelled_unknown_source_404(api_client):
+    resp = api_client.get("/v1/cold-pool/modelled", params={"source": "not_a_model"})
+    assert resp.status_code == 404
