@@ -87,7 +87,26 @@ validate an EBS bottom-temperature / cold-pool product end-to-end ourselves.
   GOA 1990–2023; AI 1991–2024.
 - **Source:** AFSC summer bottom-trawl surveys (Groundfish + Shellfish Assessment).
 
-### Dataset C — NOAA CEFI regional MOM6 (NEP)  **(WATCH-LIST — but the one public *forecast* feed)**
+### Dataset C — NOAA CEFI regional MOM6 (NEP)  **(now a live, current source — promoted)**
+
+> **⚠ Verification correction (2026-06-18) — supersedes the "1993–2019 / `tob`" claims below.**
+> Verified directly against the live CEFI THREDDS catalog (not the GMD paper, which froze the
+> v1.0 run at 1993–2019). Findings:
+> - **Hindcast is current to June 2025**, not 2019. Latest release `r20250912` covers
+>   `199301-202506`. Path:
+>   `…/regional_mom6/cefi_portal/northeast_pacific/full_domain/hindcast/monthly/regrid/r20250912/`.
+>   This is **fresher than Bering10K** (~2024-08).
+> - **Bottom-temp variable is `btm_temp`** ("Bottom Temperature", degC) — *not* `tob`.
+>   File: `btm_temp.nep.full.hcast.monthly.regrid.r20250912.199301-202506.nc`.
+> - **`regrid` product is on a REGULAR lat/lon grid** (lat=815, lon=341) — already
+>   rectilinear, so no curvilinear regrid needed (a `raw` curvilinear product also exists).
+> - **Forecast arm is published** in the catalog (`seasonal_forecast`, `seasonal_reforecast`,
+>   `decadal_forecast` dirs exist), not "coming soon" as the portal landing text implies.
+>   Whether the forecast arm carries `btm_temp` + its init cadence is the open question taken
+>   to the AFSC/CEFI contacts (`outreach/holsman-data-availability.md`).
+> So MOM6 NEP is no longer a "watch-list" item on currency grounds — **validation for the
+> Bering is the only remaining gate.** sources.py `MOM6_NEP` updated to match.
+
 - **Portal:** https://psl.noaa.gov/cefi_portal/  •  Cookbook:
   `noaa-cefi-portal.github.io/cefi-cookbook/` (Python/R OPeNDAP, query generator).
 - **Products:** historical MOM6 simulation (1993–2019, §4) **plus a forecast arm** —
@@ -109,9 +128,9 @@ validate an EBS bottom-temperature / cold-pool product end-to-end ourselves.
   headline application is "estimating the extent of the Bering Sea summer cold pool… using
   **AFSC bottom-trawl survey data**." So bottom temperature is produced *and* the model's
   flagship demo is **our exact product** (cold pool vs AFSC survey). Domain EBS+GOA+CCS,
-  10 km, hindcast 1993–2019. Residual checks (non-blocking): (a) confirm the exact var name
-  `tob` in the NEP THREDDS variable table (cookbook example was NW-Atlantic, not eyeballed
-  for NEP); (b) does the **forecast/reforecast** arm carry `tob` (vs hindcast only); (c)
+  10 km, hindcast **1993→2025-06** (corrected). Residual checks: (a) ✓ *resolved* — bottom-temp
+  var is **`btm_temp`** (not `tob`), confirmed live in the NEP regrid hindcast; (b) ⬜ does the
+  **forecast/reforecast** arm carry `btm_temp` (dirs exist; contents not yet enumerated); (c)
   Erin's "validation still underway" most likely refers to **forecast skill** — the
   hindcast cold pool is already AFSC-validated per GFDL.
 
@@ -159,7 +178,9 @@ just before the `t` rows; likely `temp_bottom5m`, confirm before coding `io`.
 
 - **Bering10K K20_CORECFS:** CFSv2 forcing runs to ~recent; hindcast refreshed **~3×/yr**
   → effective lag on the order of months. Genuinely "recent historical," not real-time.
-- **CEFI MOM6:** historical sim ends **2019** → multi-year lag; clearly not NRT.
+- **CEFI MOM6:** ~~historical sim ends 2019~~ **corrected 2026-06-18: hindcast extended to
+  2025-06** (release r20250912) — lag of months, *fresher* than Bering10K. See the Dataset C
+  verification note.
 - **Implication:** bottom-state panels are a **recent-historical / lagged** product, *not*
   near-real-time like the OISST SST monitor. Dashboard copy and API must say so; update
   cadence ≈ the ROMS ~3×/yr refresh.
@@ -227,8 +248,9 @@ just before the `t` rows; likely `temp_bottom5m`, confirm before coding `io`.
   Rather than pick one model, surface **both** side-by-side for users to compare:
   - **Bering10K ROMS** (`B10K-K20_CORECFS`) — weekly, **1970–present**, ACLIM-validated, the
     self-service hindcast + persistence path (Route A); EBS/Bering domain.
-  - **MOM6 NEP10k** (CEFI) — **1993–2019** hindcast, COBALT, cold-pool product built-in and
-    AFSC-validated, plus the public **forecast** arm; Baja→Chukchi domain.
+  - **MOM6 NEP10k** (CEFI) — **1993-01→2025-06** hindcast (release r20250912; `btm_temp`,
+    regular grid), COBALT, cold-pool product built-in and AFSC-validated, plus the published
+    **forecast** arm; Baja→Chukchi domain. (Corrected 2026-06-18 — see Dataset C note.)
   This is cheap *because* the engine is **source-agnostic**: two `io` adapters feed the same
   `exceedance`/`regional` machinery; two regrids (both ~10 km curvilinear → 0.25°). Each
   panel is **labelled** with provenance, period, and lagged/recent-historical status — and

@@ -90,8 +90,9 @@ deployment gated behind the research cell (`sst-forecast-research-proposal.md`).
 - **B2 — Bottom ocean-state integration** *(`feat/bottom-ocean-state`)*. Bottom
   temperature climatology/anomaly, bottom-MHW detection (reuse Hobday engine), EBS
   cold-pool extent, historical rankings. **Model decision: present BOTH** Bering10K
-  ROMS (validated, weekly, 1970–present) **and** MOM6 NEP10k (CEFI; 1993–2019,
-  cold-pool built-in, public forecast arm) as separate labelled options. Validation:
+  ROMS (validated, weekly, 1970–present) **and** MOM6 NEP10k (CEFI; 1993→2025-06,
+  `btm_temp`, cold-pool built-in, published forecast arm) as separate labelled options.
+  Validation:
   AFSC observed cold-pool index + ACLIM survey-replicated series. See
   `forecast-implementation-document.md`. Regions: EBS first, then GOA (GOA-CLIM).
 

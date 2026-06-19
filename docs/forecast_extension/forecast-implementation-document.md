@@ -33,7 +33,7 @@ Per the 2026-06-17 decision, surface **two** models side-by-side rather than pic
 | Source | Period / cadence | Grid | Role | Notes |
 |--------|------------------|------|------|-------|
 | **Bering10K ROMS** (`B10K-K20_CORECFS`) | weekly, **1970–present**, ~3×/yr refresh | ~10 km curvilinear | validated EBS/Bering; self-service hindcast + persistence | PMEL THREDDS/ERDDAP; daily physics-only variant exists |
-| **MOM6 NEP10k** (CEFI) | **1993–2019** hindcast + public **forecast** arm | ~10 km | cold-pool product built-in, AFSC-validated; Baja→Chukchi | PSL THREDDS / AWS S3 / GCS; forecast-skill validation for Bering still open |
+| **MOM6 NEP10k** (CEFI) | **1993→2025-06** hindcast (rel. r20250912) + published **forecast** arm | regular lat/lon (815×341) | cold-pool product built-in, AFSC-validated; `btm_temp`; Baja→Chukchi | PSL THREDDS / AWS S3 / GCS; *fresher than Bering10K*; forecast-skill validation for Bering still open |
 
 The source-agnostic engine makes this cheap: **two `io` adapters** feed the same
 `exceedance`/`regional` machinery. Each dashboard panel is **labelled** with
@@ -44,12 +44,15 @@ provenance, period, and lagged/recent-historical status; where the two models
 
 # Engineering realities (resolved in discovery — see `catalog_report.md`)
 
-- **Grid:** both sources are ~10 km curvilinear → **regrid to the existing 0.25° grid**
-  via **`pyresample`/`scipy`** (repo is pyenv/pip, **no conda** → `xesmf`/`esmpy`
-  avoided). Bottom temperature is a 2-D field. ⬜ confirm `pyresample` install + a
-  one-cell sanity check on the box.
-- **Latency:** bottom state is a **lagged / recent-historical** product (Bering10K
-  ~6–12 mo; MOM6 to 2019), **not** near-real-time. Dashboard copy and API must say so.
+- **Grid:** **Bering10K** is ~10 km **curvilinear** → regrid to the existing 0.25° grid via
+  `pyresample`/`scipy` (repo is pyenv/pip, **no conda** → `xesmf`/`esmpy` avoided). **MOM6
+  NEP `regrid` product is already REGULAR** lat/lon (815×341) — a simple regular→0.25°
+  block-average, no curvilinear handling (a `raw` curvilinear MOM6 product also exists).
+  Bottom temperature is a 2-D field. ⬜ confirm `pyresample` install + a sanity check; ⬜ add
+  a 1-D-coord branch to `loader.load_bottom_temp` for the regular MOM6 product.
+- **Latency:** bottom state is a **lagged / recent-historical** product (Bering10K to
+  ~2024-08; **MOM6 NEP to 2025-06** — corrected, *fresher* than Bering10K), **not**
+  near-real-time. Dashboard copy and API must say so.
 - **Cadence / baseline:** Bering10K is **weekly** → build a **weekly** bottom-temp
   climatology/threshold (or use the daily physics-only variant). Reconcile the
   baseline period (SST climatology is 1991–2020 daily DOY; ROMS hindcast from 1970,

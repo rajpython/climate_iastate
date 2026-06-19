@@ -34,6 +34,9 @@ class BottomSource:
 # mean", °C); temp(ocean_time, eta_rho=258, xi_rho=182); lat_rho/lon_rho 2-D;
 # ocean_time weekly 1970-01-18 .. 2024-08-18. The scalar `s_rho` collides with the
 # `s_rho` dimension on decode, so it (and siblings) must be dropped on open.
+# Re-verified 2026-06-18: collection still resolves; ocean_time = 2837 weekly steps,
+# consistent with a ~2024-08 end — no newer public release found (so CEFI MOM6's
+# 2025-06 hindcast is currently the *fresher* of the two bottom-temp sources).
 BERING10K_K20_CORECFS = BottomSource(
     id="bering10k",
     label="Bering10K ROMS (ACLIM)",
@@ -53,23 +56,41 @@ BERING10K_K20_CORECFS = BottomSource(
 )
 
 
-# --- MOM6 NEP10k (CEFI) — co-presented option; descriptor to be confirmed --------
-# Placeholder: CEFI regional MOM6 carries bottom temperature (`tob`); NEP domain
-# Baja->Chukchi; PSL THREDDS / AWS S3 / GCS. URL + exact var/coord names still to be
-# confirmed against the live CEFI catalog (forecast-arm coverage of `tob` is open).
+# --- MOM6 NEP10k (CEFI) — co-presented option ------------------------------------
+# Verified live against the CEFI THREDDS server (2026-06-18). The regridded hindcast
+# carries bottom temperature as `btm_temp` (long_name "Bottom Temperature", deg C) —
+# NOT `tob` as earlier guessed. Latest release r20250912 covers 1993-01..2025-06 (390
+# monthly steps), i.e. *fresher* than the Bering10K hindcast (~2024-08). The `regrid`
+# product is on a REGULAR lat/lon grid (lat=815, lon=341), so — unlike Bering10K's
+# curvilinear rho-grid — lat/lon here are 1-D. The forecast arm is published
+# (seasonal_forecast / seasonal_reforecast / decadal_forecast dirs exist); whether it
+# carries btm_temp and its init cadence is the open question (see
+# docs/forecast_extension/outreach/holsman-data-availability.md).
+#   NOTE: loader.load_bottom_temp assumes 2-D curvilinear lat/lon (it unpacks
+#   lat.dims -> (y, x)); this rectilinear product needs a 1-D-coord branch in the
+#   loader before it will open. A `latest/` alias folder also exists alongside the
+#   dated releases if a rolling pointer is preferred over the pinned r20250912.
 MOM6_NEP = BottomSource(
     id="mom6_nep",
     label="MOM6 NEP10k (CEFI)",
-    opendap_url="",                 # TODO: confirm against psl.noaa.gov CEFI catalog
-    temp_var="tob",
+    opendap_url=(
+        "https://psl.noaa.gov/thredds/dodsC/Projects/CEFI/regional_mom6/cefi_portal/"
+        "northeast_pacific/full_domain/hindcast/monthly/regrid/r20250912/"
+        "btm_temp.nep.full.hcast.monthly.regrid.r20250912.199301-202506.nc"
+    ),
+    temp_var="btm_temp",
     lat_coord="lat",
     lon_coord="lon",
     time_coord="time",
     drop_vars=(),
     cadence="monthly",
-    period="1993-2019 hindcast (+ public forecast arm)",
+    period="1993-01..2025-06 hindcast (release r20250912); forecast arm published",
     lagged=True,
-    notes="CEFI cold-pool product AFSC-validated; forecast-arm tob coverage TBD.",
+    notes=(
+        "Regular lat/lon grid (815x341), already rectilinear. btm_temp = Bottom "
+        "Temperature (degC). Forecast-arm btm_temp coverage TBD; Bering validation "
+        "underway."
+    ),
 )
 
 
