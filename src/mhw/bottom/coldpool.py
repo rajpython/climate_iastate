@@ -74,6 +74,9 @@ def mean_shelf_bottom_temp(temp_grid: np.ndarray, shelf: np.ndarray, areas: np.n
 # Model ingest
 # ---------------------------------------------------------------------------
 
+SHELF_MASK_CACHE = DERIVED / "ebs_shelf_mask.npz"
+
+
 def shelf_mask_from_model(ds: xr.Dataset, source: BottomSource,
                           tgt_lats=EBS_LATS, tgt_lons=EBS_LONS,
                           max_depth_m: float = SHELF_MAX_DEPTH_M) -> np.ndarray:
@@ -94,12 +97,40 @@ def shelf_mask_from_model(ds: xr.Dataset, source: BottomSource,
     return np.isfinite(depth_g) & (depth_g <= max_depth_m)
 
 
+def build_shelf_mask(force: bool = False) -> np.ndarray:
+    """Return the shared EBS-shelf mask on the 0.25° grid, building+caching if needed.
+
+    The mask is derived **once** from Bering10K bathymetry (its high-resolution ROMS
+    grid is the most authoritative depth we have) and reused for *every* model source,
+    so each model's cold-pool area is computed over the **identical** shelf footprint —
+    which makes the two models directly comparable to each other.
+    """
+    if SHELF_MASK_CACHE.exists() and not force:
+        return np.load(SHELF_MASK_CACHE)["shelf"]
+    ds = open_bottom_dataset(BERING10K_K20_CORECFS)
+    shelf = shelf_mask_from_model(ds, BERING10K_K20_CORECFS)
+    DERIVED.mkdir(parents=True, exist_ok=True)
+    np.savez(SHELF_MASK_CACHE, shelf=shelf, lats=EBS_LATS, lons=EBS_LONS)
+    return shelf
+
+
 def _nearest_summer_field(source: BottomSource, ds: xr.Dataset, year: int,
-                          target_md: str = SURVEY_TARGET_MD) -> np.ndarray | None:
-    """Load the model bottom-temp field for the week nearest *year*-*target_md*."""
+                          target_md: str = SURVEY_TARGET_MD, monthly: bool = False):
+    """Return the model bottom-temp field for *year*.
+
+    ``monthly=False`` (default): the single time step nearest *target_md* (a weekly
+    snapshot for Bering10K, the July month for MOM6). ``monthly=True``: the **July
+    monthly mean** — used to put weekly Bering10K on the same cadence as monthly MOM6
+    for a like-for-like model-vs-model comparison.
+    """
     da = load_bottom_temp(source, start=f"{year}-05-15", end=f"{year}-09-15", ds=ds)
     if da.sizes["time"] == 0:
         return None
+    if monthly:
+        jul = da.sel(time=da["time"].dt.month == 7)
+        if jul.sizes["time"] == 0:
+            return None
+        return jul.mean("time")
     target = np.datetime64(f"{year}-{target_md}")
     idx = int(np.abs(da["time"].values - target).argmin())
     return da.isel(time=idx)
@@ -110,17 +141,25 @@ def build_model_coldpool_series(
     start: int = 1982,
     end: int = 2024,
     target_md: str = SURVEY_TARGET_MD,
+    monthly: bool = False,
 ) -> pd.DataFrame:
-    """Compute the annual modelled EBS cold-pool series for *source*."""
+    """Compute the annual modelled EBS cold-pool series for *source*.
+
+    Works for any source via the loader's grid-agnostic contract: Bering10K is weekly
+    + curvilinear; MOM6 NEP is monthly + rectilinear. With ``monthly=False`` the
+    summer-week selector picks the time step nearest *target_md*; with ``monthly=True``
+    it uses the July monthly mean (so weekly + monthly sources land on identical
+    cadence). All sources share one EBS-shelf mask (see :func:`build_shelf_mask`).
+    """
     ds = open_bottom_dataset(source)
-    shelf = shelf_mask_from_model(ds, source)
+    shelf = build_shelf_mask()  # shared footprint for all sources → models comparable
     areas = cell_area_km2(EBS_LATS, EBS_LONS)
-    print(f"{source.id}: shelf cells ≤{SHELF_MAX_DEPTH_M:.0f} m = {int(shelf.sum())} "
-          f"(~{areas[shelf].sum():,.0f} km²)")
+    print(f"{source.id}: shared EBS shelf cells = {int(shelf.sum())} "
+          f"(~{areas[shelf].sum():,.0f} km²){' [July monthly mean]' if monthly else ''}")
 
     rows = []
     for year in range(start, end + 1):
-        field = _nearest_summer_field(source, ds, year, target_md)
+        field = _nearest_summer_field(source, ds, year, target_md, monthly=monthly)
         if field is None:
             continue
         grid = regrid_curvilinear_to_regular(
@@ -135,9 +174,10 @@ def build_model_coldpool_series(
     return pd.DataFrame(rows)
 
 
-def save_parquet(df: pd.DataFrame, source: BottomSource) -> Path:
+def save_parquet(df: pd.DataFrame, source: BottomSource, monthly: bool = False) -> Path:
     DERIVED.mkdir(parents=True, exist_ok=True)
-    out = DERIVED / f"coldpool_model_{source.id}.parquet"
+    suffix = "_monthly" if monthly else ""
+    out = DERIVED / f"coldpool_model_{source.id}{suffix}.parquet"
     df.to_parquet(out, index=False)
     print(f"  Saved → {out}")
     return out
@@ -152,17 +192,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--source", default="bering10k", choices=sorted(SOURCES), help="Bottom source id")
     p.add_argument("--start", type=int, default=1982, help="First year")
     p.add_argument("--end", type=int, default=2024, help="Last year")
+    p.add_argument("--monthly", action="store_true",
+                   help="Use the July monthly mean (matches MOM6's cadence) for a "
+                        "like-for-like model-vs-model comparison.")
     return p.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     source = SOURCES[args.source]
-    df = build_model_coldpool_series(source, start=args.start, end=args.end)
+    df = build_model_coldpool_series(source, start=args.start, end=args.end, monthly=args.monthly)
     if df.empty:
         print("No years produced — check connectivity / year range.")
         return
-    save_parquet(df, source)
+    save_parquet(df, source, monthly=args.monthly)
 
 
 if __name__ == "__main__":

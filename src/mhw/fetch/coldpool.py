@@ -41,6 +41,15 @@ COLDPOOL_RDA_URL = (
 )
 _R_OBJECT = "cold_pool_index"
 
+# Per-haul survey temperatures (the index stations used to build the cold-pool index).
+# This is the basis for *survey replication*: sampling a model at each haul's location
+# and date, then comparing to the observed gear temperature (the literature-standard
+# model-vs-survey comparison; see Seelanki et al. 2025, Kearney 2021).
+COLDPOOL_HAULS_URL = (
+    "https://raw.githubusercontent.com/afsc-gap-products/coldpool/main/"
+    "data/index_hauls_temperature_data.csv"
+)
+
 # Lowercase rename of the R object's columns -> API/parquet schema.
 _COLUMN_MAP = {
     "YEAR": "year",
@@ -93,6 +102,31 @@ def fetch_coldpool_index() -> pd.DataFrame:
         f"{df['year'].min()}–{df['year'].max()} "
         f"(latest ≤2 °C area: {df['area_lte2_km2'].iloc[-1]:,.0f} km²)"
     )
+    return df
+
+
+# ---------------------------------------------------------------------------
+# Per-haul survey temperatures (for survey replication)
+# ---------------------------------------------------------------------------
+
+def fetch_coldpool_hauls() -> pd.DataFrame:
+    """Fetch the per-haul EBS survey temperatures (the cold-pool index stations).
+
+    Returns
+    -------
+    pd.DataFrame with columns: year (int), stationid, datetime (survey haul time),
+        latitude, longitude, gear_temperature (observed bottom temp, °C),
+        surface_temperature, bottom_depth. One row per survey haul.
+    """
+    print("Fetching AFSC per-haul survey temperatures (index_hauls_temperature_data.csv) …")
+    df = pd.read_csv(COLDPOOL_HAULS_URL)
+    df["datetime"] = pd.to_datetime(df["start_time"])
+    df["year"] = df["year"].astype(int)
+    keep = ["year", "stationid", "datetime", "latitude", "longitude",
+            "gear_temperature", "surface_temperature", "bottom_depth"]
+    df = df[keep].dropna(subset=["gear_temperature", "latitude", "longitude"])
+    df = df.sort_values(["year", "stationid"]).reset_index(drop=True)
+    print(f"  Hauls: {len(df):,}, {df['year'].min()}–{df['year'].max()}")
     return df
 
 
@@ -153,6 +187,8 @@ def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     df = fetch_coldpool_index()
     save_parquet(df)
+    hauls = fetch_coldpool_hauls()
+    save_parquet(hauls, "coldpool_hauls_observed.parquet")
     if args.plot:
         plot_coldpool_plotly(df)
 
