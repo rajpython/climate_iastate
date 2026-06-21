@@ -1,8 +1,9 @@
-# The Bering Sea Cold Pool — A Plain-Language Guide to This Dashboard Page
+# The Bering Sea Cold Pool — A Plain-Language Guide to the Cold-Pool Dashboard
 
 *A guide for anyone — no oceanography or statistics background needed. After reading
-this, you should be able to explain every number and chart on the "Bottom Conditions —
-Eastern Bering Sea Cold Pool" page, and answer questions about it.*
+this, you should be able to explain every number and chart on the two cold-pool pages —
+**"Cold Pool: Observed & Validation"** and **"Cold Pool: Model Comparison"** — and answer
+questions about them.*
 
 ---
 
@@ -12,9 +13,9 @@ Off the coast of Alaska, in the eastern Bering Sea, there is a patch of unusuall
 water that sits on the seafloor every summer. Scientists call it the **cold pool**. Its
 size changes a lot from year to year, and that size matters enormously for fish and crab
 — and therefore for the fishing industry and the communities that depend on it. This
-dashboard page tracks **how big the cold pool is each year**, measured three different
-ways: from a **real research survey** that goes out and takes the ocean's temperature with
-a ship, and from **two independent computer models** of the ocean. Comparing them lets us
+dashboard tracks **how big the cold pool is each year**, measured three different ways:
+from a **real research survey** that goes out and takes the ocean's temperature with a
+ship, and from **two independent computer models** of the ocean. Comparing them lets us
 check that the models are trustworthy — and they are: all three agree very closely, and
 where the two models differ from each other we get an honest measure of the uncertainty.
 
@@ -455,6 +456,7 @@ NOAA collaborators).
 - Observed index + per-haul data: `mhw-fetch-coldpool` →
   `data/raw/coldpool_index_observed.parquet`, `data/raw/coldpool_hauls_observed.parquet`
 - Full-shelf model series: `mhw-build-coldpool-model --source {bering10k,mom6_nep}`
+  (add `--monthly` for the matched-cadence series used by the model-vs-model panel)
 - Survey-replicated validation: `mhw-build-survey-replicate --source {bering10k,mom6_nep}`
   → all saved under `data/derived/cold_pool/`
 - Served by the dashboard API at `/v1/cold-pool/observed`,
@@ -464,7 +466,7 @@ NOAA collaborators).
 
 ## 9. Beyond temperature — other variables that matter for fish
 
-This page is about **temperature** (the cold pool). But temperature is not the only thing
+The cold-pool pages are about **temperature**. But temperature is not the only thing
 that decides whether fish and crab thrive, and — importantly — **all three of our sources
 carry much more than temperature.** We have not yet built dashboard pages for these, but
 the data is there and is a natural next step. Here is what each source offers and why it
