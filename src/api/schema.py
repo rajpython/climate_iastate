@@ -141,3 +141,30 @@ class ColdPoolPayload(BaseModel):
         "Lagged (not near-real-time). Validation target for modelled bottom temperature."
     )
     records:   list[ColdPoolRecord]
+
+
+# ---------------------------------------------------------------------------
+# Survey-replicated model validation (model sampled at haul locations + dates)
+# ---------------------------------------------------------------------------
+
+class SurveyReplicateRecord(BaseModel):
+    year:                    int
+    n_hauls:                 int
+    obs_mean_bottom_temp:    float | None  # °C, observed gear temp averaged over hauls
+    model_mean_bottom_temp:  float | None  # °C, model sampled at the same hauls
+    bias_c:                  float | None  # model − observed
+
+
+class SurveyReplicatePayload(BaseModel):
+    source: str
+    method: str = (
+        "Survey replication: model bottom temperature sampled at each AFSC haul's "
+        "location and nearest date, then compared to observed gear temperature "
+        "(after Kearney 2021; Seelanki et al. 2025). This is the literature-standard "
+        "model-vs-survey comparison — distinct from the full-shelf model product."
+    )
+    bias_c:  float | None = None   # overall haul-level bias (model − obs)
+    rmse_c:  float | None = None   # overall haul-level RMSE
+    corr:    float | None = None   # overall haul-level correlation
+    n_hauls: int = 0
+    records: list[SurveyReplicateRecord]

@@ -59,3 +59,24 @@ def test_cold_pool_modelled_ok(api_client):
 def test_cold_pool_modelled_unknown_source_404(api_client):
     resp = api_client.get("/v1/cold-pool/modelled", params={"source": "not_a_model"})
     assert resp.status_code == 404
+
+
+def test_cold_pool_survey_replicate_ok(api_client):
+    resp = api_client.get("/v1/cold-pool/survey-replicate", params={"source": "bering10k"})
+    if resp.status_code == 503:
+        pytest.skip("survey replicate not built (run mhw-build-survey-replicate)")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "Bering10K" in body["source"]
+    assert body["records"]
+    rec0 = body["records"][0]
+    assert {"year", "n_hauls", "obs_mean_bottom_temp", "model_mean_bottom_temp", "bias_c"} <= set(rec0)
+    # Survey-replicated bias should be small (literature-comparable), not the inflated
+    # full-shelf domain bias.
+    if body["bias_c"] is not None:
+        assert abs(body["bias_c"]) < 1.0
+
+
+def test_cold_pool_survey_replicate_unknown_source_404(api_client):
+    resp = api_client.get("/v1/cold-pool/survey-replicate", params={"source": "nope"})
+    assert resp.status_code == 404

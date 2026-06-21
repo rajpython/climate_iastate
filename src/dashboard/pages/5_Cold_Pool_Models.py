@@ -1,0 +1,167 @@
+"""Page 5 — Cold Pool: Model Comparison (Eastern Bering Sea).
+
+Two panels, both over the ≤200 m model shelf domain:
+  * **B1 — Full-shelf model view**: each model's own cold pool vs the observed survey
+    (pattern context). Absolute area runs larger than the survey footprint, so area is
+    standardized; bottom temperature in absolute °C.
+  * **B2 — Model vs model, identical footing**: the two models on the *same* ≤200 m shelf
+    *and* the same July monthly cadence (no observations) — isolates genuine model-to-model
+    differences / inter-model uncertainty.
+
+The threshold dropdown drives the **area** in both panels, independently of the Observed
+page. The true model-vs-survey bias lives on the companion page,
+`4_Cold_Pool_Observed.py` (survey-replicated validation). Build data with
+`mhw-build-coldpool-model` (and `--monthly` for B2).
+"""
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
+from plotly.subplots import make_subplots
+
+from dashboard.components.coldpool_data import (
+    MODEL_COLORS,
+    MODEL_MONTHLY,
+    MODEL_SOURCES,
+    THRESHOLDS,
+    load_model,
+    load_observed,
+    threshold_short,
+    zscore as _z,
+)
+
+
+def main() -> None:
+    st.set_page_config(page_title="Cold Pool — Model Comparison", layout="wide", page_icon="🌡️")
+    st.title("🌡️ Cold Pool — Model Comparison (Eastern Bering Sea)")
+    st.caption(
+        "How the two regional ocean models behave over the ≤200 m shelf, and how they compare "
+        "to each other. For each model's *true* skill against the survey, see the "
+        "**Cold Pool — Observed & Validation** page."
+    )
+
+    df = load_observed()
+    if df is None:
+        st.error("Cold-pool parquet not found. Run: `mhw-fetch-coldpool`")
+        return
+
+    # ---- Sidebar ----
+    st.sidebar.header("Controls")
+    thr_label = st.sidebar.selectbox("Model cold-pool threshold", list(THRESHOLDS), index=0)
+    thr_col = THRESHOLDS[thr_label]
+    thr_short = threshold_short(thr_label)
+    yr_min, yr_max = int(df["year"].min()), int(df["year"].max())
+    yr_range = st.sidebar.slider("Year range", yr_min, yr_max, (yr_min, yr_max))
+    model_choices = st.sidebar.multiselect(
+        "Models to show", list(MODEL_SOURCES), default=list(MODEL_SOURCES),
+        help="Pick one or both regional models.",
+    )
+    if thr_col != "area_lte2_km2":
+        st.sidebar.caption("⚠️ At very cold thresholds (≤ 0 / −1 °C) many years have near-"
+                           "zero area, so the standardized pattern and correlations get noisy.")
+
+    yr_lo, yr_hi = yr_range
+    if not model_choices:
+        st.info("Pick one or both models in the sidebar.")
+        return
+
+    # ---- Panel B1: Full-shelf model view vs observed ----
+    loaded = {name: load_model(MODEL_SOURCES[name]) for name in model_choices}
+    for name, m in loaded.items():
+        if m is None:
+            st.warning(f"{name} modelled cold pool not built yet. Run: `mhw-build-coldpool-model`")
+    loaded = {name: m for name, m in loaded.items() if m is not None}
+
+    base = df[(df["year"] >= yr_lo) & (df["year"] <= yr_hi)]
+    if loaded:
+        st.markdown(f"### Full-shelf model view — {' & '.join(loaded)}")
+        st.caption(
+            f"Each model's cold pool over its full ≤200 m shelf domain (its *own* view), shown "
+            f"against the observed survey at the **{thr_short}** threshold. The model domain is "
+            "larger than the survey footprint, so absolute area runs larger than the observed "
+            "index — area is therefore **standardized** (pattern), bottom temperature in "
+            "absolute °C. *For the model's true bias against the survey, see the Observed & "
+            "Validation page.*"
+        )
+        cfig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12)
+        cfig.add_trace(go.Scatter(x=base["year"], y=_z(base[thr_col]), mode="lines+markers",
+                       name="Observed", line={"color": "black", "width": 2}), row=1, col=1)
+        cfig.add_trace(go.Scatter(x=base["year"], y=base["mean_bottom_temp"], mode="lines+markers",
+                       name="Observed", showlegend=False, line={"color": "black", "width": 2}), row=2, col=1)
+        rows = []
+        for name, mdf in loaded.items():
+            color = MODEL_COLORS.get(name, "gray")
+            m = mdf[(mdf["year"] >= yr_lo) & (mdf["year"] <= yr_hi)]
+            cfig.add_trace(go.Scatter(x=m["year"], y=_z(m[thr_col]), mode="lines+markers",
+                           name=name, line={"color": color, "width": 2, "dash": "dash"}), row=1, col=1)
+            cfig.add_trace(go.Scatter(x=m["year"], y=m["mean_bottom_temp"], mode="lines+markers",
+                           name=name, showlegend=False, line={"color": color, "width": 2, "dash": "dash"}), row=2, col=1)
+            cc = base.merge(m, on="year", suffixes=("_obs", "_mod")).dropna(
+                subset=[f"{thr_col}_obs", f"{thr_col}_mod", "mean_bottom_temp_obs", "mean_bottom_temp_mod"])
+            if len(cc) >= 3:
+                rows.append({
+                    "Model": name,
+                    f"r (area {thr_short})": round(float(np.corrcoef(cc[f"{thr_col}_obs"], cc[f"{thr_col}_mod"])[0, 1]), 2),
+                    "r (bottom temp)": round(float(np.corrcoef(cc["mean_bottom_temp_obs"], cc["mean_bottom_temp_mod"])[0, 1]), 2),
+                    "Years": len(cc),
+                })
+        cfig.update_yaxes(title_text=f"Cold-pool area {thr_short} (z-score)", row=1, col=1)
+        cfig.add_hline(y=2.0, line_dash="dot", line_color="gray", line_width=1, row=2, col=1)
+        cfig.update_yaxes(title_text="Mean bottom temp (°C)", row=2, col=1)
+        cfig.update_layout(height=600, template="plotly_white",
+                           margin={"l": 70, "r": 20, "t": 64, "b": 40},
+                           legend={"orientation": "h", "y": 1.06, "yanchor": "bottom", "x": 0, "xanchor": "left"})
+        st.plotly_chart(cfig, use_container_width=True)
+        if rows:
+            st.markdown("**Pattern agreement with the survey** (*r* = correlation):")
+            st.dataframe(pd.DataFrame(rows).set_index("Model"), use_container_width=True)
+
+    # ---- Panel B2: model vs model, identical footing (≤200 m shelf, monthly) ----
+    if len(model_choices) >= 2:
+        monthly = {name: load_model(MODEL_MONTHLY[name]) for name in model_choices}
+        monthly = {name: m for name, m in monthly.items() if m is not None}
+        if len(monthly) >= 2:
+            st.markdown("### Model vs model — identical footing (≤200 m shelf, monthly)")
+            st.caption(
+                f"The two models on **exactly** the same basis — same ≤200 m shelf domain, same "
+                f"July monthly-mean cadence, no observations — at the **{thr_short}** threshold. "
+                "This isolates genuine model-to-model differences: where they agree we can be "
+                "confident; where they diverge is the inter-model uncertainty."
+            )
+            bfig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12)
+            series = {}
+            for name, mdf in monthly.items():
+                color = MODEL_COLORS.get(name, "gray")
+                m = mdf[(mdf["year"] >= yr_lo) & (mdf["year"] <= yr_hi)]
+                series[name] = m.set_index("year")
+                bfig.add_trace(go.Scatter(x=m["year"], y=_z(m[thr_col]), mode="lines+markers",
+                               name=name, line={"color": color, "width": 2}), row=1, col=1)
+                bfig.add_trace(go.Scatter(x=m["year"], y=m["mean_bottom_temp"], mode="lines+markers",
+                               name=name, showlegend=False, line={"color": color, "width": 2}), row=2, col=1)
+            bfig.update_yaxes(title_text=f"Cold-pool area {thr_short} (z-score)", row=1, col=1)
+            bfig.update_yaxes(title_text="Mean bottom temp (°C)", row=2, col=1)
+            bfig.update_layout(height=600, template="plotly_white",
+                               margin={"l": 70, "r": 20, "t": 64, "b": 40},
+                               legend={"orientation": "h", "y": 1.06, "yanchor": "bottom", "x": 0, "xanchor": "left"})
+            st.plotly_chart(bfig, use_container_width=True)
+            names = list(series)
+            if len(names) == 2:
+                a, b = series[names[0]], series[names[1]]
+                common = a.index.intersection(b.index)
+                if len(common) >= 3:
+                    da, db = a.loc[common, "mean_bottom_temp"], b.loc[common, "mean_bottom_temp"]
+                    r_area = float(np.corrcoef(a.loc[common, thr_col], b.loc[common, thr_col])[0, 1])
+                    r_bt = float(np.corrcoef(da, db)[0, 1])
+                    mean_diff = float((db - da).mean())
+                    m1, m2, m3 = st.columns(3)
+                    m1.metric(f"Inter-model r — area {thr_short}", f"{r_area:.2f}")
+                    m2.metric("Inter-model r — bottom temp", f"{r_bt:.2f}")
+                    m3.metric(f"Mean Δ ({names[1]} − {names[0]})", f"{mean_diff:+.2f} °C")
+                    st.caption("Both models on identical ≤200 m shelf + July-monthly footing.")
+    elif len(model_choices) == 1:
+        st.info("Select both models to see the model-vs-model comparison.")
+
+
+main()
