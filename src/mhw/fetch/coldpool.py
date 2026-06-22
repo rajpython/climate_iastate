@@ -15,7 +15,7 @@ The cold-pool index is the area (km²) of the EBS bottom-trawl survey footprint 
 bottom (gear) temperature ≤ a threshold; the headline index uses ≤ 2 °C, with ≤ 1, 0,
 and −1 °C also published. Coverage: EBS 1982–present (no 2020 — survey cancelled).
 
-CLI: mhw-fetch-coldpool [--plot]
+CLI: mhw-fetch-coldpool [--region ebs] [--plot]
 """
 from __future__ import annotations
 
@@ -26,51 +26,26 @@ from pathlib import Path
 
 import pandas as pd
 
+from mhw.bottom.regions import BOTTOM_REGIONS, EBS, BottomRegion, get_region
+
 # ---------------------------------------------------------------------------
 # Project paths
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_RAW = PROJECT_ROOT / "data" / "raw"
 
-# ---------------------------------------------------------------------------
-# Source
-# ---------------------------------------------------------------------------
-COLDPOOL_RDA_URL = (
-    "https://raw.githubusercontent.com/afsc-gap-products/coldpool/main/"
-    "data/cold_pool_index.rda"
-)
-_R_OBJECT = "cold_pool_index"
-
-# Per-haul survey temperatures (the index stations used to build the cold-pool index).
-# This is the basis for *survey replication*: sampling a model at each haul's location
-# and date, then comparing to the observed gear temperature (the literature-standard
-# model-vs-survey comparison; see Seelanki et al. 2025, Kearney 2021).
-COLDPOOL_HAULS_URL = (
-    "https://raw.githubusercontent.com/afsc-gap-products/coldpool/main/"
-    "data/index_hauls_temperature_data.csv"
-)
-
-# Lowercase rename of the R object's columns -> API/parquet schema.
-_COLUMN_MAP = {
-    "YEAR": "year",
-    "AREA_LTE2_KM2": "area_lte2_km2",
-    "AREA_LTE1_KM2": "area_lte1_km2",
-    "AREA_LTE0_KM2": "area_lte0_km2",
-    "AREA_LTEMINUS1_KM2": "area_lteminus1_km2",
-    "MEAN_GEAR_TEMPERATURE": "mean_bottom_temp",
-    "MEAN_BT_LT100M": "mean_bottom_temp_lt100m",
-    "MEAN_SURFACE_TEMPERATURE": "mean_surface_temp",
-    "MEAN_GEAR_SALINITY": "mean_bottom_salinity",
-    "LAST_UPDATE": "last_update",
-}
+# The observed-product URLs / R-object / column map now live on each region descriptor
+# (mhw.bottom.regions); EBS uses the AFSC `cold_pool_index` .rda + per-haul CSV. The
+# per-haul temperatures are the basis for *survey replication* (sampling a model at each
+# haul's location/date vs observed gear temp; Seelanki et al. 2025, Kearney 2021).
 
 
 # ---------------------------------------------------------------------------
 # Fetch & parse
 # ---------------------------------------------------------------------------
 
-def fetch_coldpool_index() -> pd.DataFrame:
-    """Fetch the AFSC observed cold-pool index from the coldpool repo.
+def fetch_coldpool_index(region: BottomRegion = EBS) -> pd.DataFrame:
+    """Fetch *region*'s observed cold-pool index from the coldpool repo.
 
     Returns
     -------
@@ -81,18 +56,24 @@ def fetch_coldpool_index() -> pd.DataFrame:
     """
     import pyreadr  # local import: optional-ish dep, only needed for this fetch
 
-    print("Fetching AFSC observed cold-pool index (cold_pool_index.rda) …")
-    with tempfile.NamedTemporaryFile(suffix=".rda", delete=False) as tmp:
-        urllib.request.urlretrieve(COLDPOOL_RDA_URL, tmp.name)
-        result = pyreadr.read_r(tmp.name)
-
-    if _R_OBJECT not in result:
-        raise KeyError(
-            f"Expected R object {_R_OBJECT!r} in {COLDPOOL_RDA_URL}; "
-            f"found {list(result)}"
+    obs = region.observed
+    if obs is None or obs.kind != "cold_pool_index":
+        raise ValueError(
+            f"Region {region.id!r} has no cold_pool_index observed product "
+            f"(kind={getattr(obs, 'kind', None)!r}). NBS/GOA/AI land in Phase 1."
         )
 
-    df = result[_R_OBJECT].rename(columns=_COLUMN_MAP)
+    print(f"Fetching AFSC observed cold-pool index ({region.id}: {obs.r_object}.rda) …")
+    with tempfile.NamedTemporaryFile(suffix=".rda", delete=False) as tmp:
+        urllib.request.urlretrieve(obs.rda_url, tmp.name)
+        result = pyreadr.read_r(tmp.name)
+
+    if obs.r_object not in result:
+        raise KeyError(
+            f"Expected R object {obs.r_object!r} in {obs.rda_url}; found {list(result)}"
+        )
+
+    df = result[obs.r_object].rename(columns=dict(obs.column_map))
     df = df.dropna(subset=["year"]).copy()
     df["year"] = df["year"].astype(int)
     df = df.sort_values("year").reset_index(drop=True)
@@ -109,8 +90,8 @@ def fetch_coldpool_index() -> pd.DataFrame:
 # Per-haul survey temperatures (for survey replication)
 # ---------------------------------------------------------------------------
 
-def fetch_coldpool_hauls() -> pd.DataFrame:
-    """Fetch the per-haul EBS survey temperatures (the cold-pool index stations).
+def fetch_coldpool_hauls(region: BottomRegion = EBS) -> pd.DataFrame:
+    """Fetch the per-haul survey temperatures for *region* (the index stations).
 
     Returns
     -------
@@ -118,8 +99,11 @@ def fetch_coldpool_hauls() -> pd.DataFrame:
         latitude, longitude, gear_temperature (observed bottom temp, °C),
         surface_temperature, bottom_depth. One row per survey haul.
     """
-    print("Fetching AFSC per-haul survey temperatures (index_hauls_temperature_data.csv) …")
-    df = pd.read_csv(COLDPOOL_HAULS_URL)
+    obs = region.observed
+    if obs is None or not obs.hauls_url:
+        raise ValueError(f"Region {region.id!r} has no per-haul survey product configured.")
+    print(f"Fetching AFSC per-haul survey temperatures ({region.id}) …")
+    df = pd.read_csv(obs.hauls_url)
     df["datetime"] = pd.to_datetime(df["start_time"])
     df["year"] = df["year"].astype(int)
     keep = ["year", "stationid", "datetime", "latitude", "longitude",
@@ -177,18 +161,20 @@ def plot_coldpool_plotly(df: pd.DataFrame) -> Path:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Fetch the AFSC observed cold-pool index (EBS bottom-trawl survey)."
+        description="Fetch the AFSC observed cold-pool index (survey-derived, by region)."
     )
+    p.add_argument("--region", default="ebs", choices=sorted(BOTTOM_REGIONS), help="Bottom region id")
     p.add_argument("--plot", action="store_true", help="Render a Plotly bar chart of the ≤2 °C index")
     return p.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
-    df = fetch_coldpool_index()
-    save_parquet(df)
-    hauls = fetch_coldpool_hauls()
-    save_parquet(hauls, "coldpool_hauls_observed.parquet")
+    region = get_region(args.region)
+    df = fetch_coldpool_index(region)
+    save_parquet(df, f"coldpool_index_observed_{region.id}.parquet")
+    hauls = fetch_coldpool_hauls(region)
+    save_parquet(hauls, f"coldpool_hauls_observed_{region.id}.parquet")
     if args.plot:
         plot_coldpool_plotly(df)
 

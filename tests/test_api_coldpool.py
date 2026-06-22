@@ -45,6 +45,20 @@ def test_cold_pool_empty_range_404(api_client):
     assert resp.status_code == 404
 
 
+def test_cold_pool_unknown_region_404(api_client):
+    # Region validation happens before any data load, so this 404s even with no parquet.
+    resp = api_client.get("/v1/cold-pool/observed", params={"region": "atlantis"})
+    assert resp.status_code == 404
+
+
+def test_cold_pool_observed_explicit_region(api_client):
+    resp = api_client.get("/v1/cold-pool/observed", params={"region": "ebs"})
+    if resp.status_code == 503:
+        pytest.skip("cold-pool parquet not fetched")
+    assert resp.status_code == 200
+    assert resp.json()["region"] == "ebs"
+
+
 def test_cold_pool_modelled_ok(api_client):
     resp = api_client.get("/v1/cold-pool/modelled", params={"source": "bering10k"})
     if resp.status_code == 503:

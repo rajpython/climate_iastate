@@ -21,28 +21,38 @@ from dashboard.components.coldpool_data import (
     MODEL_COLORS,
     MODEL_SOURCES,
     THRESHOLDS,
+    list_coldpool_regions,
     load_observed,
     load_survey_replicate,
+    region_label,
     threshold_short,
 )
 
 
 def main() -> None:
     st.set_page_config(page_title="Cold Pool — Observed & Validation", layout="wide", page_icon="🧊")
-    st.title("🧊 Cold Pool — Observed & Validation (Eastern Bering Sea)")
+
+    # ---- Sidebar: region first (drives the whole page), then controls ----
+    st.sidebar.header("Controls")
+    regions = list_coldpool_regions()
+    if not regions:
+        st.title("🧊 Cold Pool — Observed & Validation")
+        st.error("No cold-pool index found. Run: `mhw-fetch-coldpool --region ebs`")
+        return
+    region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="cp_obs_region")
+
+    st.title(f"🧊 Cold Pool — Observed & Validation ({region_label(region)})")
     st.caption(
         "The observed cold-pool index from the **NOAA AFSC summer bottom-trawl survey**, and "
         "how well the regional models reproduce it when compared the fair way. Model behaviour "
         "and model-vs-model comparison are on the **Cold Pool — Model Comparison** page."
     )
 
-    df = load_observed()
+    df = load_observed(region)
     if df is None:
-        st.error("Cold-pool parquet not found. Run: `mhw-fetch-coldpool`")
+        st.error(f"Cold-pool parquet not found for {region}. Run: `mhw-fetch-coldpool --region {region}`")
         return
 
-    # ---- Sidebar ----
-    st.sidebar.header("Controls")
     thr_label = st.sidebar.selectbox("Observed cold-pool threshold", list(THRESHOLDS), index=0)
     thr_col = THRESHOLDS[thr_label]
     thr_short = threshold_short(thr_label)
@@ -62,7 +72,7 @@ def main() -> None:
     # ---- Panel A: Observed cold-pool index ----
     st.markdown("### Observed cold-pool index — AFSC bottom-trawl survey")
     st.caption(
-        "The validated ground truth: area of the EBS survey footprint with bottom "
+        f"The validated ground truth: area of the {region.upper()} survey footprint with bottom "
         "temperature at or below the selected threshold, plus mean bottom temperature. "
         "Annual, lagged."
     )
@@ -70,12 +80,13 @@ def main() -> None:
     latest = d.iloc[-1]
     prev = d.iloc[-2] if len(d) > 1 else None
     long_mean = df[thr_col].mean()
+    span = f"{yr_min}–{yr_max}"
     c1, c2, c3 = st.columns(3)
     delta = None if prev is None else f"{latest[thr_col] - prev[thr_col]:+,.0f} km² vs {int(prev['year'])}"
     c1.metric(f"{int(latest['year'])} cold-pool area ({thr_short})",
               f"{latest[thr_col]:,.0f} km²", delta=delta, delta_color="inverse")
     pct_of_mean = 100.0 * latest[thr_col] / long_mean if long_mean else float("nan")
-    c2.metric("vs 1982–present mean", f"{pct_of_mean:.0f}%",
+    c2.metric(f"vs {span} mean", f"{pct_of_mean:.0f}%",
               help=f"Long-term mean ≈ {long_mean:,.0f} km²")
     if pd.notna(latest.get("mean_bottom_temp")):
         c3.metric(f"{int(latest['year'])} mean bottom temp", f"{latest['mean_bottom_temp']:.2f} °C")
@@ -90,7 +101,7 @@ def main() -> None:
                          name="Cold-pool area",
                          hovertemplate="%{x}: %{y:,.0f} km²<extra></extra>"), row=1, col=1)
     fig.add_hline(y=long_mean, line_dash="dash", line_color="gray", line_width=1,
-                  annotation_text="1982–present mean", annotation_font_size=9, row=1, col=1)
+                  annotation_text=f"{span} mean", annotation_font_size=9, row=1, col=1)
     fig.update_yaxes(title_text="km²", row=1, col=1)
     if show_bt and "mean_bottom_temp" in d:
         fig.add_trace(go.Scatter(x=d["year"], y=d["mean_bottom_temp"], mode="lines+markers",
@@ -105,7 +116,7 @@ def main() -> None:
 
     # ---- Panel C: Survey-replicated validation ----
     if model_choices:
-        sr_loaded = {name: load_survey_replicate(name) for name in model_choices}
+        sr_loaded = {name: load_survey_replicate(MODEL_SOURCES[name], region) for name in model_choices}
         if any(a is not None for a, _ in sr_loaded.values()):
             st.markdown("### Survey-replicated validation — model co-located with survey stations")
             st.caption(

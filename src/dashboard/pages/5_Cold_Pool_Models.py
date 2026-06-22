@@ -23,11 +23,12 @@ from plotly.subplots import make_subplots
 
 from dashboard.components.coldpool_data import (
     MODEL_COLORS,
-    MODEL_MONTHLY,
     MODEL_SOURCES,
     THRESHOLDS,
+    list_coldpool_regions,
     load_model,
     load_observed,
+    region_label,
     threshold_short,
     zscore as _z,
 )
@@ -35,20 +36,28 @@ from dashboard.components.coldpool_data import (
 
 def main() -> None:
     st.set_page_config(page_title="Cold Pool — Model Comparison", layout="wide", page_icon="🌡️")
-    st.title("🌡️ Cold Pool — Model Comparison (Eastern Bering Sea)")
+
+    # ---- Sidebar: region first, then controls ----
+    st.sidebar.header("Controls")
+    regions = list_coldpool_regions()
+    if not regions:
+        st.title("🌡️ Cold Pool — Model Comparison")
+        st.error("No cold-pool index found. Run: `mhw-fetch-coldpool --region ebs`")
+        return
+    region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="cp_mod_region")
+
+    st.title(f"🌡️ Cold Pool — Model Comparison ({region_label(region)})")
     st.caption(
         "How the two regional ocean models behave over the ≤200 m shelf, and how they compare "
         "to each other. For each model's *true* skill against the survey, see the "
         "**Cold Pool — Observed & Validation** page."
     )
 
-    df = load_observed()
+    df = load_observed(region)
     if df is None:
-        st.error("Cold-pool parquet not found. Run: `mhw-fetch-coldpool`")
+        st.error(f"Cold-pool parquet not found for {region}. Run: `mhw-fetch-coldpool --region {region}`")
         return
 
-    # ---- Sidebar ----
-    st.sidebar.header("Controls")
     thr_label = st.sidebar.selectbox("Model cold-pool threshold", list(THRESHOLDS), index=0)
     thr_col = THRESHOLDS[thr_label]
     thr_short = threshold_short(thr_label)
@@ -68,7 +77,7 @@ def main() -> None:
         return
 
     # ---- Panel B1: Full-shelf model view vs observed ----
-    loaded = {name: load_model(MODEL_SOURCES[name]) for name in model_choices}
+    loaded = {name: load_model(MODEL_SOURCES[name], region) for name in model_choices}
     for name, m in loaded.items():
         if m is None:
             st.warning(f"{name} modelled cold pool not built yet. Run: `mhw-build-coldpool-model`")
@@ -120,7 +129,7 @@ def main() -> None:
 
     # ---- Panel B2: model vs model, identical footing (≤200 m shelf, monthly) ----
     if len(model_choices) >= 2:
-        monthly = {name: load_model(MODEL_MONTHLY[name]) for name in model_choices}
+        monthly = {name: load_model(MODEL_SOURCES[name], region, monthly=True) for name in model_choices}
         monthly = {name: m for name, m in monthly.items() if m is not None}
         if len(monthly) >= 2:
             st.markdown("### Model vs model — identical footing (≤200 m shelf, monthly)")

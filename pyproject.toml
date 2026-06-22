@@ -59,6 +59,7 @@ dev = [
 mhw-fetch-sst = "mhw.fetch.oisst:main"
 mhw-fetch-indices = "mhw.fetch.indices:main"
 mhw-fetch-coldpool = "mhw.fetch.coldpool:main"
+mhw-fetch-catch = "mhw.fetch.foss_catch:main"
 mhw-build-coldpool-model = "mhw.bottom.coldpool:main"
 mhw-build-survey-replicate = "mhw.bottom.survey_replicate:main"
 mhw-build-masks = "mhw.regions.masks:main"

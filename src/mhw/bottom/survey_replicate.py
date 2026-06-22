@@ -15,7 +15,7 @@ see); survey replication answers "does the model match the survey, on the survey
 (validation). Co-locating in space and time removes the footprint/cadence artifacts that
 inflate a naive domain-average comparison.
 
-CLI: mhw-build-survey-replicate --source bering10k
+CLI: mhw-build-survey-replicate --source bering10k --region ebs
 """
 from __future__ import annotations
 
@@ -26,11 +26,12 @@ import numpy as np
 import pandas as pd
 
 from mhw.bottom.loader import load_bottom_temp, open_bottom_dataset
+from mhw.bottom.regions import BOTTOM_REGIONS, EBS, BottomRegion, get_region
 from mhw.bottom.regrid import normalize_lon
 from mhw.bottom.sources import SOURCES, BottomSource, BERING10K_K20_CORECFS
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-HAULS_PARQUET = PROJECT_ROOT / "data" / "raw" / "coldpool_hauls_observed.parquet"
+RAW = PROJECT_ROOT / "data" / "raw"
 DERIVED = PROJECT_ROOT / "data" / "derived" / "cold_pool"
 
 # Summer window to load per year (hauls fall within it; we co-locate in time inside it).
@@ -38,12 +39,17 @@ _SUMMER_START_MD = "05-01"
 _SUMMER_END_MD = "09-30"
 
 
-def load_hauls() -> pd.DataFrame:
-    if not HAULS_PARQUET.exists():
+def _hauls_path(region: BottomRegion) -> Path:
+    return RAW / f"coldpool_hauls_observed_{region.id}.parquet"
+
+
+def load_hauls(region: BottomRegion = EBS) -> pd.DataFrame:
+    p = _hauls_path(region)
+    if not p.exists():
         raise FileNotFoundError(
-            f"{HAULS_PARQUET} not found — run mhw-fetch-coldpool first."
+            f"{p} not found — run mhw-fetch-coldpool --region {region.id} first."
         )
-    return pd.read_parquet(HAULS_PARQUET)
+    return pd.read_parquet(p)
 
 
 def _ocean_kdtree(da):
@@ -65,12 +71,13 @@ def _ocean_kdtree(da):
 def build_survey_replicate(
     source: BottomSource = BERING10K_K20_CORECFS,
     hauls: pd.DataFrame | None = None,
+    region: BottomRegion = EBS,
 ) -> pd.DataFrame:
     """Sample *source* bottom temperature at each haul's location and nearest time.
 
     Returns one row per haul with the observed and modelled bottom temperature.
     """
-    hauls = load_hauls() if hauls is None else hauls
+    hauls = load_hauls(region) if hauls is None else hauls
     ds = open_bottom_dataset(source)
 
     tree = flat_ocean = n_x = None  # grid is fixed across years → build tree once
@@ -104,6 +111,7 @@ def build_survey_replicate(
     df = pd.concat(out, ignore_index=True)
     df = df.rename(columns={"gear_temperature": "obs_bottom_temp"})
     df["source"] = source.id
+    df["region"] = region.id
     df = df.dropna(subset=["model_bottom_temp", "obs_bottom_temp"])
     return df
 
@@ -138,10 +146,11 @@ def annual_means(df: pd.DataFrame) -> pd.DataFrame:
     return out.reset_index(drop=True)
 
 
-def save(df: pd.DataFrame, annual: pd.DataFrame, source: BottomSource) -> tuple[Path, Path]:
+def save(df: pd.DataFrame, annual: pd.DataFrame, source: BottomSource,
+         region: BottomRegion = EBS) -> tuple[Path, Path]:
     DERIVED.mkdir(parents=True, exist_ok=True)
-    hauls_out = DERIVED / f"survey_replicate_{source.id}.parquet"
-    annual_out = DERIVED / f"survey_replicate_annual_{source.id}.parquet"
+    hauls_out = DERIVED / f"survey_replicate_{source.id}_{region.id}.parquet"
+    annual_out = DERIVED / f"survey_replicate_annual_{source.id}_{region.id}.parquet"
     df.to_parquet(hauls_out, index=False)
     annual.to_parquet(annual_out, index=False)
     print(f"  Saved → {hauls_out}")
@@ -158,19 +167,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Build survey-replicated model-vs-survey comparison (co-located in space/time)."
     )
     p.add_argument("--source", default="bering10k", choices=sorted(SOURCES))
+    p.add_argument("--region", default="ebs", choices=sorted(BOTTOM_REGIONS), help="Bottom region id")
     return p.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     source = SOURCES[args.source]
-    df = build_survey_replicate(source)
+    region = get_region(args.region)
+    df = build_survey_replicate(source, region=region)
     annual = annual_means(df)
     skill = haul_skill(df)
-    print(f"\n{source.id} survey-replicated skill (co-located at hauls):")
+    print(f"\n{source.id} survey-replicated skill ({region.id}, co-located at hauls):")
     print(f"  n={skill['n_hauls']:,} hauls, {skill['year_min']}–{skill['year_max']}")
     print(f"  bias = {skill['bias_c']:+.3f} °C   RMSE = {skill['rmse_c']:.3f} °C   r = {skill['corr']:.3f}")
-    save(df, annual, source)
+    save(df, annual, source, region)
 
 
 if __name__ == "__main__":

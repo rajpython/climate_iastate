@@ -62,9 +62,12 @@ BERING10K_K20_CORECFS = BottomSource(
 # NOT `tob` as earlier guessed. Latest release r20250912 covers 1993-01..2025-06 (390
 # monthly steps), i.e. *fresher* than the Bering10K hindcast (~2024-08). The `regrid`
 # product is on a REGULAR lat/lon grid (lat=815, lon=341), so — unlike Bering10K's
-# curvilinear rho-grid — lat/lon here are 1-D. The forecast arm is published
-# (seasonal_forecast / seasonal_reforecast / decadal_forecast dirs exist); whether it
-# carries btm_temp and its init cadence is the open question (see
+# curvilinear rho-grid — lat/lon here are 1-D. Domain spans Baja→Chukchi (lat 10.8..80.7°N,
+# lon 156.9..255°E), i.e. GOA + EBS + Chukchi, verified live 2026-06-21. The forecast arm is
+# NOT yet released: seasonal_forecast / seasonal_reforecast / decadal_forecast appear as
+# directory names in the THREDDS catalog tree but hold ZERO .nc files (raw + regrid, every
+# cadence), and the public S3 bucket has only hindcast/ under the NEP domain (checked
+# 2026-06-21). So "coming soon" is literal — timeline is the open question (see
 # docs/forecast_extension/outreach/holsman-data-availability.md).
 #   NOTE: loader.load_bottom_temp assumes 2-D curvilinear lat/lon (it unpacks
 #   lat.dims -> (y, x)); this rectilinear product needs a 1-D-coord branch in the
@@ -84,12 +87,14 @@ MOM6_NEP = BottomSource(
     time_coord="time",
     drop_vars=(),
     cadence="monthly",
-    period="1993-01..2025-06 hindcast (release r20250912); forecast arm published",
+    period="1993-01..2025-06 hindcast (release r20250912); forecast arm not yet released",
     lagged=True,
     notes=(
         "Regular lat/lon grid (815x341), already rectilinear. btm_temp = Bottom "
-        "Temperature (degC). Forecast-arm btm_temp coverage TBD; Bering validation "
-        "underway."
+        "Temperature (degC). Domain Baja->Chukchi (GOA+EBS+Chukchi). Hindcast also "
+        "carries full COBALT set incl. bottom o2/aragonite/salinity/nutrients. "
+        "Forecast/reforecast dirs exist but are EMPTY (no files, 2026-06-21); Bering "
+        "validation underway."
     ),
 )
 

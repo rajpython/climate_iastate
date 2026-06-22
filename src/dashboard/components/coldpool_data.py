@@ -12,10 +12,12 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from dashboard.components.ts_event_metrics import _region_key
+from mhw.bottom.regions import BOTTOM_REGIONS
+
 ROOT = Path(__file__).resolve().parents[3]
 RAW_DIR = ROOT / "data" / "raw"
 MODEL_DIR = ROOT / "data" / "derived" / "cold_pool"
-OBSERVED_PARQUET = RAW_DIR / "coldpool_index_observed.parquet"
 
 # Threshold label -> parquet column. Used by both the observed and model area views.
 THRESHOLDS = {
@@ -24,53 +26,58 @@ THRESHOLDS = {
     "≤ 0 °C": "area_lte0_km2",
     "≤ −1 °C": "area_lteminus1_km2",
 }
-# Full-shelf model series (≤200 m); Bering10K weekly snapshot, MOM6 July month.
+# Model label -> source id. Filenames are built per region (coldpool_model_<id>_<region>…).
 MODEL_SOURCES = {
-    "Bering10K ROMS": "coldpool_model_bering10k.parquet",
-    "CEFI MOM6 NEP": "coldpool_model_mom6_nep.parquet",
-}
-# Same models on a matched July-monthly cadence (model-vs-model identical footing).
-MODEL_MONTHLY = {
-    "Bering10K ROMS": "coldpool_model_bering10k_monthly.parquet",
-    "CEFI MOM6 NEP": "coldpool_model_mom6_nep_monthly.parquet",
+    "Bering10K ROMS": "bering10k",
+    "CEFI MOM6 NEP": "mom6_nep",
 }
 # Distinct line colour per model (observed is always black).
 MODEL_COLORS = {
     "Bering10K ROMS": "steelblue",
     "CEFI MOM6 NEP": "darkorange",
 }
-# Survey-replicate files per model: (annual means, per-haul).
-SR_FILES = {
-    "Bering10K ROMS": ("survey_replicate_annual_bering10k.parquet", "survey_replicate_bering10k.parquet"),
-    "CEFI MOM6 NEP":  ("survey_replicate_annual_mom6_nep.parquet",  "survey_replicate_mom6_nep.parquet"),
-}
+
+
+def region_label(region_id: str) -> str:
+    """Full region name for titles (falls back to the upper-cased id)."""
+    r = BOTTOM_REGIONS.get(region_id)
+    return r.label if r else region_id.upper()
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
+def list_coldpool_regions() -> list[str]:
+    """Regions with an observed cold-pool index on disk, in canonical south→north order."""
+    regs = {p.stem.replace("coldpool_index_observed_", "")
+            for p in RAW_DIR.glob("coldpool_index_observed_*.parquet")}
+    return sorted(regs, key=_region_key)
 
 
 @st.cache_data(show_spinner="Loading cold-pool index …", ttl=3600)
-def load_observed() -> pd.DataFrame | None:
-    if not OBSERVED_PARQUET.exists():
+def load_observed(region: str) -> pd.DataFrame | None:
+    p = RAW_DIR / f"coldpool_index_observed_{region}.parquet"
+    if not p.exists():
         return None
-    return pd.read_parquet(OBSERVED_PARQUET).sort_values("year").reset_index(drop=True)
+    return pd.read_parquet(p).sort_values("year").reset_index(drop=True)
 
 
 @st.cache_data(show_spinner="Loading modelled cold pool …", ttl=3600)
-def load_model(fname: str) -> pd.DataFrame | None:
-    p = MODEL_DIR / fname
+def load_model(source_id: str, region: str, monthly: bool = False) -> pd.DataFrame | None:
+    suffix = "_monthly" if monthly else ""
+    p = MODEL_DIR / f"coldpool_model_{source_id}_{region}{suffix}.parquet"
     if not p.exists():
         return None
     return pd.read_parquet(p).sort_values("year").reset_index(drop=True)
 
 
 @st.cache_data(show_spinner="Loading survey-replicated comparison …", ttl=3600)
-def load_survey_replicate(model_label: str):
+def load_survey_replicate(source_id: str, region: str):
     """Return (annual means df, haul-level skill dict) or (None, None) if not built."""
-    annual_fn, haul_fn = SR_FILES[model_label]
-    ap = MODEL_DIR / annual_fn
+    ap = MODEL_DIR / f"survey_replicate_annual_{source_id}_{region}.parquet"
     if not ap.exists():
         return None, None
     annual = pd.read_parquet(ap).sort_values("year").reset_index(drop=True)
     skill = None
-    hp = MODEL_DIR / haul_fn
+    hp = MODEL_DIR / f"survey_replicate_{source_id}_{region}.parquet"
     if hp.exists():
         h = pd.read_parquet(hp)
         d = h["model_bottom_temp"] - h["obs_bottom_temp"]

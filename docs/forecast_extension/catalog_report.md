@@ -100,21 +100,25 @@ validate an EBS bottom-temperature / cold-pool product end-to-end ourselves.
 >   File: `btm_temp.nep.full.hcast.monthly.regrid.r20250912.199301-202506.nc`.
 > - **`regrid` product is on a REGULAR lat/lon grid** (lat=815, lon=341) — already
 >   rectilinear, so no curvilinear regrid needed (a `raw` curvilinear product also exists).
-> - **Forecast arm is published** in the catalog (`seasonal_forecast`, `seasonal_reforecast`,
->   `decadal_forecast` dirs exist), not "coming soon" as the portal landing text implies.
->   Whether the forecast arm carries `btm_temp` + its init cadence is the open question taken
->   to the AFSC/CEFI contacts (`outreach/holsman-data-availability.md`).
+> - **Forecast arm is NOT yet released** (corrected 2026-06-21). `seasonal_forecast`,
+>   `seasonal_reforecast`, `decadal_forecast` appear as *directory names* in the THREDDS
+>   catalog tree but hold **zero `.nc` files** (raw + regrid, every cadence); the public CEFI
+>   S3 bucket has **only `hindcast/`** under the NEP domain. So "coming soon" is literal — an
+>   earlier note here mistook the empty directory scaffolding for published data. The forecast
+>   timeline (and whether it will carry `btm_temp`) is the open question taken to the AFSC/CEFI
+>   contacts (`outreach/holsman-data-availability.md`).
 > So MOM6 NEP is no longer a "watch-list" item on currency grounds — **validation for the
 > Bering is the only remaining gate.** sources.py `MOM6_NEP` updated to match.
 
 - **Portal:** https://psl.noaa.gov/cefi_portal/  •  Cookbook:
   `noaa-cefi-portal.github.io/cefi-cookbook/` (Python/R OPeNDAP, query generator).
-- **Products:** historical MOM6 simulation (1993–2019, §4) **plus a forecast arm** —
-  **1-year seasonal forecasts, initialised 4×/yr**, GFDL **SPEAR** global model downscaled
-  to regional MOM6. The **Northeast Pacific (NEP)** domain spans **Baja California → the
-  Chukchi**, i.e. it **covers the Bering Sea and Gulf of Alaska**. Per the portal, NEP
-  **hindcast + reforecast data are public (as of Jan 2025)**; the NEP **operational**
-  forecast is "coming soon."
+- **Products:** historical MOM6 simulation (hindcast now current to 2025-06, §4) **plus a
+  forecast arm** — **1-year seasonal forecasts, initialised 4×/yr**, GFDL **SPEAR** global
+  model downscaled to regional MOM6. The **Northeast Pacific (NEP)** domain spans **Baja
+  California → the Chukchi** (verified live 2026-06-21: lat 10.8–80.7°N, lon 156.9–255°E),
+  i.e. it **covers the Bering Sea, Gulf of Alaska, and Chukchi**. **Forecast/reforecast are
+  NOT yet downloadable** (corrected 2026-06-21 — the catalog directories exist but are empty,
+  and the S3 bucket carries only the hindcast); the NEP forecast remains "coming soon."
 - **Access (public):** PSL THREDDS, **AWS S3**, **Google Cloud Storage**, OPeNDAP + direct
   download.
 - **Why it matters:** this is the **only public *forecast* feed covering our region** —
@@ -129,10 +133,11 @@ validate an EBS bottom-temperature / cold-pool product end-to-end ourselves.
   **AFSC bottom-trawl survey data**." So bottom temperature is produced *and* the model's
   flagship demo is **our exact product** (cold pool vs AFSC survey). Domain EBS+GOA+CCS,
   10 km, hindcast **1993→2025-06** (corrected). Residual checks: (a) ✓ *resolved* — bottom-temp
-  var is **`btm_temp`** (not `tob`), confirmed live in the NEP regrid hindcast; (b) ⬜ does the
-  **forecast/reforecast** arm carry `btm_temp` (dirs exist; contents not yet enumerated); (c)
-  Erin's "validation still underway" most likely refers to **forecast skill** — the
-  hindcast cold pool is already AFSC-validated per GFDL.
+  var is **`btm_temp`** (not `tob`), confirmed live in the NEP regrid hindcast; (b) ✓ *resolved
+  2026-06-21* — the **forecast/reforecast** arm is **not yet released** (empty catalog dirs;
+  S3 has hindcast only), so its `btm_temp` coverage is moot until it lands; (c) Erin's
+  "validation still underway" most likely refers to **forecast skill** — the hindcast cold
+  pool is already AFSC-validated per GFDL.
 
 *(Copernicus Marine retained only as a distant fallback; not pursued given A is open
 and validated.)*
