@@ -46,9 +46,29 @@ def region_label(region_id: str) -> str:
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def list_coldpool_regions() -> list[str]:
-    """Regions with an observed cold-pool index on disk, in canonical south→north order."""
+    """Cold-pool regions with an observed index on disk, in canonical south→north order."""
     regs = {p.stem.replace("coldpool_index_observed_", "")
             for p in RAW_DIR.glob("coldpool_index_observed_*.parquet")}
+    return sorted(regs, key=_region_key)
+
+
+def _has_model(rid: str) -> bool:
+    return any((MODEL_DIR / f"coldpool_model_{sid}_{rid}.parquet").exists()
+               for sid in MODEL_SOURCES.values())
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
+def list_bottom_state_regions() -> list[str]:
+    """All built bottom-state regions — cold-pool index *or* bottom-temp model — S→N order.
+
+    This is the unified region list for the bottom-state pages: cold-pool regions (EBS, NBS)
+    appear via their observed index, bottom-temperature regions (the Bering slope) via their
+    built model series. Product-specific panels are then chosen per region by ``product_kind``.
+    """
+    regs = {p.stem.replace("coldpool_index_observed_", "")
+            for p in RAW_DIR.glob("coldpool_index_observed_*.parquet")}
+    regs |= {rid for rid, r in BOTTOM_REGIONS.items()
+             if r.product_kind == "bottom_temp" and _has_model(rid)}
     return sorted(regs, key=_region_key)
 
 

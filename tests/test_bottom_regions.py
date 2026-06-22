@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from mhw.bottom.regions import BOTTOM_REGIONS, EBS, NBS, get_region
+from mhw.bottom.regions import BOTTOM_REGIONS, EBS, NBS, SLOPE, get_region
 
 
 def test_ebs_grid_matches_legacy_constants():
@@ -53,3 +53,20 @@ def test_nbs_descriptor():
     # grid covers the NBS haul footprint (lat 60.6–65.3) and sits north of EBS
     assert NBS.analysis_lats.min() <= 60.65 and NBS.analysis_lats.max() >= 65.3
     assert NBS.analysis_lats.min() >= EBS.analysis_lats.min()
+
+
+def test_slope_is_bottom_temp_band():
+    assert get_region("slope") is SLOPE
+    # deep, non-cold-pool: a depth BAND (200–1200 m), not the ≤200 m shelf
+    assert SLOPE.product_kind == "bottom_temp"
+    assert SLOPE.shelf_min_depth_m == 200.0 and SLOPE.shelf_max_depth_m == 1200.0
+    # observed comes from FOSS survey hauls (BSS), not a packaged coldpool index
+    assert SLOPE.observed.kind == "foss_hauls"
+    assert SLOPE.observed.foss_srvy == "BSS"
+    assert SLOPE.observed.rda_url == "" and SLOPE.observed.hauls_url == ""
+
+
+def test_shelf_regions_have_zero_min_depth():
+    # the min-depth band must stay 0 for the cold-pool shelves (behaviour-preserving)
+    assert EBS.shelf_min_depth_m == 0.0
+    assert NBS.shelf_min_depth_m == 0.0

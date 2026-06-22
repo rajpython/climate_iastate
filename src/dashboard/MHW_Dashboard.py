@@ -56,19 +56,21 @@ st.markdown(
     | 📉 **Distributions** | Metric histograms with percentile rulers |
     | 🌊 **Regime Analysis** | AO± × PDO± box plots over full backfill |
 
-    ### Page 4 — Cold Pool: Observed & Validation 🧊
-    *Eastern Bering Sea bottom conditions — the cold pool (shelf bottom water ≤ 2 °C).*
+    ### Page 4 — Bottom State: Observed & Validation 🧊
+    *Bering Sea bottom conditions by area — **EBS · NBS · Slope** (one region dropdown). For the
+    cold-pool shelves (EBS, NBS): the cold-pool index (shelf bottom water ≤ 2 °C). The slope is
+    deep water with **no cold pool** — bottom temperature only.*
     | Panel | Description |
     |---|---|
-    | ❄️ **Observed index** | AFSC bottom-trawl survey cold-pool area (by threshold) + mean bottom temperature, 1982–present |
+    | ❄️ **Observed cold-pool index** (EBS/NBS) | AFSC survey cold-pool area (by threshold) + mean bottom temperature |
     | ✅ **Survey-replicated validation** | Models sampled at the survey hauls vs observed — the literature-standard bias/RMSE skill |
 
-    ### Page 5 — Cold Pool: Model Comparison 🌡️
-    *Regional ocean models (Bering10K ROMS, CEFI MOM6 NEP) over the ≤ 200 m shelf.*
+    ### Page 5 — Bottom State: Model Comparison 🌡️
+    *Regional ocean models (Bering10K ROMS, CEFI MOM6 NEP) by Bering area.*
     | Panel | Description |
     |---|---|
-    | 🌊 **Full-shelf model view** | Each model's cold pool vs observed (pattern; standardized area + bottom temp) |
-    | ⚖️ **Model vs model** | The two models on identical footing (≤ 200 m shelf, monthly) → inter-model uncertainty |
+    | 🌊 **Full-shelf model view** (EBS/NBS) | Each model's cold pool vs observed (pattern; standardized area + bottom temp) |
+    | ⚖️ **Model vs model / record** | Two models on identical footing (cold-pool shelves); full bottom-temperature record (slope) |
 
     *Bottom-state data is **lagged** (recent-historical), not near-real-time. See the
     in-repo `docs/cold_pool_user_guide.md` for a plain-language explainer.*

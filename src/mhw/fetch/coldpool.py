@@ -100,7 +100,11 @@ def fetch_coldpool_hauls(region: BottomRegion = EBS) -> pd.DataFrame:
         surface_temperature, bottom_depth. One row per survey haul.
     """
     obs = region.observed
-    if obs is None or not obs.hauls_url:
+    if obs is None:
+        raise ValueError(f"Region {region.id!r} has no observed product configured.")
+    if obs.kind == "foss_hauls":
+        return _fetch_foss_hauls(region)
+    if not obs.hauls_url:
         raise ValueError(f"Region {region.id!r} has no per-haul survey product configured.")
     print(f"Fetching AFSC per-haul survey temperatures ({region.id}) …")
     df = pd.read_csv(obs.hauls_url)
@@ -111,6 +115,34 @@ def fetch_coldpool_hauls(region: BottomRegion = EBS) -> pd.DataFrame:
     keep = ["year", "stationid", "datetime", "latitude", "longitude",
             "gear_temperature", "surface_temperature", "bottom_depth"]
     df = df[keep].dropna(subset=["gear_temperature", "latitude", "longitude"])
+    df = df.sort_values(["year", "stationid"]).reset_index(drop=True)
+    print(f"  Hauls: {len(df):,}, {df['year'].min()}–{df['year'].max()}")
+    return df
+
+
+def _fetch_foss_hauls(region: BottomRegion) -> pd.DataFrame:
+    """Per-haul survey temps from the FOSS survey tables (bottom-temp regions, e.g. slope).
+
+    Bottom-temperature regions (no cold-pool product) get their observed bottom temperature
+    straight from the FOSS bottom-trawl haul records, reshaped to the same haul schema the
+    survey-replicate engine consumes (``gear_temperature`` = FOSS ``bottom_temperature_c``).
+    """
+    from mhw.fetch.foss_catch import fetch_hauls
+
+    obs = region.observed
+    print(f"Fetching FOSS survey hauls ({region.id}: srvy={obs.foss_srvy}) …")
+    h = fetch_hauls((obs.foss_srvy,))
+    df = pd.DataFrame({
+        "year": h["year"].astype(int),
+        "stationid": h["hauljoin"].astype(str),
+        "datetime": pd.to_datetime(h["date_time"]),
+        "latitude": h["latitude"],
+        "longitude": h["longitude"],
+        "gear_temperature": h["bottom_temperature_c"],
+        "surface_temperature": h.get("surface_temperature_c"),
+        "bottom_depth": h["depth_m"],
+    })
+    df = df.dropna(subset=["gear_temperature", "latitude", "longitude"])
     df = df.sort_values(["year", "stationid"]).reset_index(drop=True)
     print(f"  Hauls: {len(df):,}, {df['year'].min()}–{df['year'].max()}")
     return df
@@ -173,12 +205,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     region = get_region(args.region)
-    df = fetch_coldpool_index(region)
-    save_parquet(df, f"coldpool_index_observed_{region.id}.parquet")
-    hauls = fetch_coldpool_hauls(region)
-    save_parquet(hauls, f"coldpool_hauls_observed_{region.id}.parquet")
-    if args.plot:
-        plot_coldpool_plotly(df)
+    kind = region.observed.kind if region.observed else None
+
+    if kind == "cold_pool_index":
+        df = fetch_coldpool_index(region)
+        save_parquet(df, f"coldpool_index_observed_{region.id}.parquet")
+        hauls = fetch_coldpool_hauls(region)
+        save_parquet(hauls, f"coldpool_hauls_observed_{region.id}.parquet")
+        if args.plot:
+            plot_coldpool_plotly(df)
+    elif kind == "foss_hauls":
+        # Bottom-temperature region: no area index. Fetch the survey hauls; the observed
+        # annual mean bottom temp is produced by the survey-replicate step.
+        hauls = fetch_coldpool_hauls(region)
+        save_parquet(hauls, f"coldpool_hauls_observed_{region.id}.parquet")
+        print(f"  ({region.id}: bottom-temperature region — observed mean BT comes from "
+              "survey replication, no area index)")
+    else:
+        raise ValueError(f"Region {region.id!r} has unsupported observed kind {kind!r}")
 
 
 if __name__ == "__main__":

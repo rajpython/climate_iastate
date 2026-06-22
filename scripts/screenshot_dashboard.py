@@ -24,6 +24,7 @@ def main() -> int:
     ap.add_argument("--port", type=int, default=8501)
     ap.add_argument("--page", default="", help="Streamlit page slug (e.g. Bottom_Cold_Pool); blank = home")
     ap.add_argument("--select", nargs="*", default=[], help="Multiselect option labels to choose")
+    ap.add_argument("--region", default="", help="Region selectbox value to choose (e.g. SLOPE)")
     ap.add_argument("--out", default="/tmp/dashboard.png")
     ap.add_argument("--width", type=int, default=1400)
     ap.add_argument("--height", type=int, default=1000)
@@ -35,6 +36,19 @@ def main() -> int:
         page = browser.new_page(viewport={"width": args.width, "height": args.height})
         page.goto(url, wait_until="networkidle", timeout=60_000)
         page.wait_for_timeout(2500)  # let Streamlit hydrate
+
+        if args.region:
+            # The region picker is the first selectbox in the sidebar.
+            sb = page.locator('[data-testid="stSelectbox"]').first
+            sb.click()
+            page.wait_for_timeout(400)
+            try:
+                page.keyboard.type(args.region, delay=25)
+                page.wait_for_timeout(600)
+                page.keyboard.press("Enter")
+                page.wait_for_timeout(1500)  # let the page re-render for the new region
+            except Exception as e:  # noqa: BLE001
+                print(f"  ! could not select region {args.region!r}: {e}", file=sys.stderr)
 
         if args.select:
             # Target the Streamlit multiselect specifically (not other selectboxes).

@@ -1,17 +1,16 @@
-"""Page 5 — Cold Pool: Model Comparison (Eastern Bering Sea).
+"""Page 5 — Bottom State: Model Comparison (Bering Sea: EBS, NBS, Slope).
 
-Two panels, both over the ≤200 m model shelf domain:
-  * **B1 — Full-shelf model view**: each model's own cold pool vs the observed survey
-    (pattern context). Absolute area runs larger than the survey footprint, so area is
-    standardized; bottom temperature in absolute °C.
-  * **B2 — Model vs model, identical footing**: the two models on the *same* ≤200 m shelf
-    *and* the same July monthly cadence (no observations) — isolates genuine model-to-model
-    differences / inter-model uncertainty.
+One region dropdown; the panels adapt to the region's product kind:
 
-The threshold dropdown drives the **area** in both panels, independently of the Observed
-page. The true model-vs-survey bias lives on the companion page,
-`4_Cold_Pool_Observed.py` (survey-replicated validation). Build data with
-`mhw-build-coldpool-model` (and `--monthly` for B2).
+  * **Cold-pool regions** (EBS, NBS) — each model's cold pool over its ≤200 m shelf domain vs
+    the observed survey (pattern), and the two models on identical footing (inter-model
+    uncertainty). The threshold dropdown drives the area.
+  * **Bottom-temperature regions** (Bering slope) — each model's mean bottom temperature over
+    its full region domain across the whole period (a long, continuous record), with the
+    sporadic survey means overlaid.
+
+The model's *true* skill against the survey lives on `4_Cold_Pool_Observed.py`. Build data with
+`mhw-build-coldpool-model` (and `--monthly` for the model-vs-model panel).
 """
 from __future__ import annotations
 
@@ -25,58 +24,33 @@ from dashboard.components.coldpool_data import (
     MODEL_COLORS,
     MODEL_SOURCES,
     THRESHOLDS,
-    list_coldpool_regions,
+    list_bottom_state_regions,
     load_model,
     load_observed,
+    load_survey_replicate,
     region_label,
     threshold_short,
     zscore as _z,
 )
+from mhw.bottom.regions import get_region
 
 
-def main() -> None:
-    st.set_page_config(page_title="Cold Pool — Model Comparison", layout="wide", page_icon="🌡️")
-
-    # ---- Sidebar: region first, then controls ----
-    st.sidebar.header("Controls")
-    regions = list_coldpool_regions()
-    if not regions:
-        st.title("🌡️ Cold Pool — Model Comparison")
-        st.error("No cold-pool index found. Run: `mhw-fetch-coldpool --region ebs`")
-        return
-    region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="cp_mod_region")
-
-    st.title(f"🌡️ Cold Pool — Model Comparison ({region_label(region)})")
-    st.caption(
-        "How the two regional ocean models behave over the ≤200 m shelf, and how they compare "
-        "to each other. For each model's *true* skill against the survey, see the "
-        "**Cold Pool — Observed & Validation** page."
-    )
-
+def _cold_pool_models(region: str, model_choices: list[str]) -> None:
+    """Cold-pool-region view: full-shelf model vs observed (B1) + model-vs-model (B2)."""
     df = load_observed(region)
     if df is None:
         st.error(f"Cold-pool parquet not found for {region}. Run: `mhw-fetch-coldpool --region {region}`")
         return
-
     thr_label = st.sidebar.selectbox("Model cold-pool threshold", list(THRESHOLDS), index=0)
     thr_col = THRESHOLDS[thr_label]
     thr_short = threshold_short(thr_label)
     yr_min, yr_max = int(df["year"].min()), int(df["year"].max())
-    yr_range = st.sidebar.slider("Year range", yr_min, yr_max, (yr_min, yr_max))
-    model_choices = st.sidebar.multiselect(
-        "Models to show", list(MODEL_SOURCES), default=list(MODEL_SOURCES),
-        help="Pick one or both regional models.",
-    )
+    yr_lo, yr_hi = st.sidebar.slider("Year range", yr_min, yr_max, (yr_min, yr_max))
     if thr_col != "area_lte2_km2":
         st.sidebar.caption("⚠️ At very cold thresholds (≤ 0 / −1 °C) many years have near-"
                            "zero area, so the standardized pattern and correlations get noisy.")
 
-    yr_lo, yr_hi = yr_range
-    if not model_choices:
-        st.info("Pick one or both models in the sidebar.")
-        return
-
-    # ---- Panel B1: Full-shelf model view vs observed ----
+    # ---- Panel B1: full-shelf model view vs observed ----
     loaded = {name: load_model(MODEL_SOURCES[name], region) for name in model_choices}
     for name, m in loaded.items():
         if m is None:
@@ -90,9 +64,8 @@ def main() -> None:
             f"Each model's cold pool over its full ≤200 m shelf domain (its *own* view), shown "
             f"against the observed survey at the **{thr_short}** threshold. The model domain is "
             "larger than the survey footprint, so absolute area runs larger than the observed "
-            "index — area is therefore **standardized** (pattern), bottom temperature in "
-            "absolute °C. *For the model's true bias against the survey, see the Observed & "
-            "Validation page.*"
+            "index — area is therefore **standardized** (pattern), bottom temperature in absolute "
+            "°C. *For the model's true bias against the survey, see the Observed & Validation page.*"
         )
         cfig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12)
         cfig.add_trace(go.Scatter(x=base["year"], y=_z(base[thr_col]), mode="lines+markers",
@@ -171,6 +144,75 @@ def main() -> None:
                     st.caption("Both models on identical ≤200 m shelf + July-monthly footing.")
     elif len(model_choices) == 1:
         st.info("Select both models to see the model-vs-model comparison.")
+
+
+def _bottom_temp_models(region: str, model_choices: list[str]) -> None:
+    """Bottom-temperature-region view: full model-domain mean-BT record + survey points."""
+    full = {name: load_model(MODEL_SOURCES[name], region) for name in model_choices}
+    full = {n: m for n, m in full.items() if m is not None}
+    if not full:
+        st.warning(f"Model series not built for {region}. Run: "
+                   f"`mhw-build-coldpool-model --source bering10k --region {region}` (and mom6_nep).")
+        return
+    st.markdown("### Model bottom-temperature record — full region domain")
+    st.caption(
+        "Each model's mean bottom temperature over its full region domain (the depth-banded "
+        "slope footprint), across the whole model period — a long, continuous record where the "
+        "survey is sporadic. Survey-year observed means are overlaid as points for context. The "
+        "model domain is **not strata-matched** to the survey, so absolute values can differ from "
+        "the co-located comparison on the Observed & Validation page."
+    )
+    f2 = go.Figure()
+    for name in model_choices:           # observed points from any built survey-replicate annual
+        annual, _ = load_survey_replicate(MODEL_SOURCES[name], region)
+        if annual is not None:
+            f2.add_trace(go.Scatter(x=annual["year"], y=annual["obs_mean_bottom_temp"],
+                          mode="markers", name="Observed (survey)",
+                          marker={"color": "black", "size": 8, "symbol": "x"}))
+            break
+    for name, m in full.items():
+        f2.add_trace(go.Scatter(x=m["year"], y=m["mean_bottom_temp"], mode="lines",
+                      name=f"{name} (model domain)",
+                      line={"color": MODEL_COLORS.get(name, "gray"), "width": 2}))
+    f2.update_yaxes(title_text="Mean bottom temp (°C)")
+    f2.update_layout(height=460, template="plotly_white",
+                     margin={"l": 70, "r": 20, "t": 30, "b": 40},
+                     legend={"orientation": "h", "y": 1.06, "yanchor": "bottom", "x": 0, "xanchor": "left"})
+    st.plotly_chart(f2, use_container_width=True)
+
+
+def main() -> None:
+    st.set_page_config(page_title="Bottom State — Model Comparison", layout="wide", page_icon="🌡️")
+
+    st.sidebar.header("Controls")
+    regions = list_bottom_state_regions()
+    if not regions:
+        st.title("🌡️ Bottom State — Model Comparison")
+        st.error("No bottom-state region built. Run: `mhw-fetch-coldpool --region ebs`")
+        return
+    region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="bs_mod_region")
+    reg = get_region(region)
+    is_cold_pool = reg.product_kind == "cold_pool"
+
+    st.title(f"🌡️ Bottom State — Model Comparison · {region_label(region)}")
+    st.caption(
+        "How the regional ocean models (Bering10K ROMS, CEFI MOM6 NEP) behave over this region, "
+        "and how they compare to each other. For each model's *true* skill against the survey, "
+        "see the **Bottom State — Observed & Validation** page."
+    )
+
+    model_choices = st.sidebar.multiselect(
+        "Models to show", list(MODEL_SOURCES), default=list(MODEL_SOURCES),
+        help="Pick one or both regional models.",
+    )
+    if not model_choices:
+        st.info("Pick one or both models in the sidebar.")
+        return
+
+    if is_cold_pool:
+        _cold_pool_models(region, model_choices)
+    else:
+        _bottom_temp_models(region, model_choices)
 
 
 main()

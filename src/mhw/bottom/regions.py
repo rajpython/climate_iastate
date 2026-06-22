@@ -40,6 +40,7 @@ class ObservedProduct:
     r_object: str = ""
     hauls_url: str = ""
     hauls_survey_id: int | None = None  # filter the haul file to one AFSC survey (98 EBS, 143 NBS)
+    foss_srvy: str = ""         # FOSS survey code for kind="foss_hauls" (e.g. "BSS" slope)
     column_map: Mapping[str, str] = field(default_factory=dict)
     years: str = ""             # human label, e.g. "1982–present (no 2020)"
 
@@ -55,9 +56,10 @@ class BottomRegion:
     lat_max: float
     lon_min: float
     lon_max: float
-    shelf_max_depth_m: float            # ≤ this depth = "shelf" for the area index
+    shelf_max_depth_m: float            # depth mask upper bound (≤200 m shelf; ~1200 m slope)
     valid_sources: tuple[str, ...]      # model ids (mhw.bottom.sources) valid here
     has_survey_hauls: bool              # is per-haul survey replication possible?
+    shelf_min_depth_m: float = 0.0      # depth mask lower bound (0 for shelf; 200 m for slope)
     observed: ObservedProduct | None = None
     grid_res: float = 0.25              # analysis-grid resolution (°)
 
@@ -149,8 +151,34 @@ NBS = BottomRegion(
 )
 
 
-# Bering slope, GOA, AI land here in later phases (see docs/alaska_shelf_expansion_plan.md).
-BOTTOM_REGIONS: dict[str, BottomRegion] = {r.id: r for r in (EBS, NBS)}
+# --- Bering Sea slope — bottom-temperature region, no cold pool (Phase 1) ----------------
+# Validated 2026-06-22 against FOSS: the BSS survey (1,136 hauls, 2002/04/08/10/12/16, then
+# DISCONTINUED) sampled the 202–1200 m slope; bottom temp 2.0–4.6 °C — NO sub-2 °C water, so
+# there is no cold pool here. The product is bottom-temperature *conditions*, not an area
+# index (product_kind="bottom_temp"): a depth BAND (200–1200 m), not the ≤200 m shelf rule.
+# There is no packaged coldpool product, so the observed series comes straight from the FOSS
+# survey hauls (kind="foss_hauls", srvy "BSS"); the observed annual mean bottom temp then
+# falls out of the survey-replicate output (obs_mean_bottom_temp). Both models cover the slope.
+SLOPE = BottomRegion(
+    id="slope",
+    label="Bering Sea Slope",
+    product_kind="bottom_temp",
+    lat_min=54.0, lat_max=61.0,
+    lon_min=-180.0, lon_max=-165.0,
+    shelf_min_depth_m=200.0,
+    shelf_max_depth_m=1200.0,
+    valid_sources=("bering10k", "mom6_nep"),
+    has_survey_hauls=True,
+    observed=ObservedProduct(
+        kind="foss_hauls",
+        foss_srvy="BSS",
+        years="2002–2016 (sporadic; survey discontinued after 2016)",
+    ),
+)
+
+
+# GOA, AI land here in later phases (see docs/alaska_shelf_expansion_plan.md).
+BOTTOM_REGIONS: dict[str, BottomRegion] = {r.id: r for r in (EBS, NBS, SLOPE)}
 
 DEFAULT_REGION_ID = "ebs"
 

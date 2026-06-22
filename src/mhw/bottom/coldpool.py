@@ -94,7 +94,10 @@ def shelf_mask_from_model(ds: xr.Dataset, source: BottomSource,
         warnings.warn(f"{source.id}: no bottom-depth variable; shelf mask = full domain.")
         return np.ones((tgt_lats.size, tgt_lons.size), dtype=bool)
     depth_g = regrid_curvilinear_to_regular(lat2d, lon2d, depth2d, tgt_lats, tgt_lons, fill_nearest=False)
-    return np.isfinite(depth_g) & (depth_g <= region.shelf_max_depth_m)
+    mask = np.isfinite(depth_g) & (depth_g <= region.shelf_max_depth_m)
+    if region.shelf_min_depth_m > 0:           # slope/deep bands: exclude the shallow shelf
+        mask &= depth_g > region.shelf_min_depth_m
+    return mask
 
 
 def build_shelf_mask(region: BottomRegion = EBS, force: bool = False) -> np.ndarray:
