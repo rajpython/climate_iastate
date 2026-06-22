@@ -104,6 +104,8 @@ def fetch_coldpool_hauls(region: BottomRegion = EBS) -> pd.DataFrame:
         raise ValueError(f"Region {region.id!r} has no per-haul survey product configured.")
     print(f"Fetching AFSC per-haul survey temperatures ({region.id}) …")
     df = pd.read_csv(obs.hauls_url)
+    if obs.hauls_survey_id is not None:
+        df = df[df["survey_definition_id"] == obs.hauls_survey_id]
     df["datetime"] = pd.to_datetime(df["start_time"])
     df["year"] = df["year"].astype(int)
     keep = ["year", "stationid", "datetime", "latitude", "longitude",

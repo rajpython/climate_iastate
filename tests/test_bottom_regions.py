@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from mhw.bottom.regions import BOTTOM_REGIONS, EBS, get_region
+from mhw.bottom.regions import BOTTOM_REGIONS, EBS, NBS, get_region
 
 
 def test_ebs_grid_matches_legacy_constants():
@@ -38,3 +38,18 @@ def test_get_region_case_insensitive_and_unknown():
 def test_registry_keys_are_lowercase():
     assert all(k == k.lower() for k in BOTTOM_REGIONS)
     assert "ebs" in BOTTOM_REGIONS
+
+
+def test_nbs_descriptor():
+    assert get_region("nbs") is NBS
+    assert NBS.product_kind == "cold_pool"          # NBS has the area index, like EBS
+    assert set(NBS.valid_sources) == {"bering10k", "mom6_nep"}
+    assert NBS.observed.kind == "cold_pool_index"
+    assert NBS.observed.r_object == "nbs_mean_temperature"
+    # NBS reuses the EBS column map (same AREA_LTE*_KM2 schema) and filters the shared
+    # full-area haul CSV to the NBS survey id.
+    assert NBS.observed.column_map is EBS.observed.column_map
+    assert NBS.observed.hauls_survey_id == 143
+    # grid covers the NBS haul footprint (lat 60.6–65.3) and sits north of EBS
+    assert NBS.analysis_lats.min() <= 60.65 and NBS.analysis_lats.max() >= 65.3
+    assert NBS.analysis_lats.min() >= EBS.analysis_lats.min()
