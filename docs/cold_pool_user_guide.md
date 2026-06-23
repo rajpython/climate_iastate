@@ -496,6 +496,75 @@ A few honest points:
 
 ---
 
+## 9a. The catch page — reading "Catch × Bottom State"
+
+The dashboard now has a **catch** page that connects the cold pool to the animals living in
+it. The idea is simple and powerful: the **same research tow** that measures the seafloor
+temperature also records **what was caught there**. So for every haul we have a pair —
+*how cold the bottom was* and *how much of a species was caught* — with no modelling and no
+guesswork about location. "How much was caught" is reported as **CPUE** (catch-per-unit-effort):
+the catch standardised to **kilograms per km² swept**, so tows of different lengths compare fairly.
+
+**Snow crab is the headline** because it is a cold-water specialist — in the eastern Bering it
+piles up inside the cold pool. Pick a species, a region (EBS, NBS, or the slope), and a year.
+
+### The breakdown table
+
+The page splits that year's survey hauls into **cold-pool** vs **warmer**, with an "all hauls"
+row for context. Using the screenshot example — **snow crab, eastern Bering Sea, 2025** (350
+hauls, 198 of which caught snow crab):
+
+| Bottom temp | Hauls | Share of hauls | Mean CPUE (kg/km²) | Biomass share |
+|---|---|---|---|---|
+| **Cold pool (≤ 2 °C)** | 86 | 25 % | 3,095 | 74 % |
+| **Warmer (> 2 °C)** | 264 | 75 % | 346 | 26 % |
+| **All hauls** | 350 | 100 % | 1,022 | 100 % |
+
+Reading across:
+
+- **Hauls / Share of hauls** — how many tows fell in each band, and what fraction of the survey
+  that was. In 2025 only **25 %** of the shelf hauls were cold-pool (it was a small-cold-pool year).
+- **Mean CPUE (kg/km²)** — the **average catch density** in each band. Snow crab averaged **3,095**
+  kg/km² in cold-pool hauls versus **346** in warmer ones — about **9× denser** in the cold pool.
+- **Biomass share** — of all the snow crab caught that year (adding up the CPUE), the share that
+  came from each band. **74 %** of the crab sat in the cold pool.
+
+**"Cold" vs "warm" is a single cut at 2 °C.** A *cold-pool haul* is any tow with bottom
+temperature **≤ 2 °C**; a *warmer haul* is simply **everything else — bottom temperature above
+2 °C** (the rest of that year's survey, not a separate capped band). Tows with no temperature
+reading are left out of both.
+
+**How the two headline numbers fit together.** The caption under the table — *"8.9× denser …
+74 % of the biomass into 25 % of the hauls"* — is one story told two ways, and they are linked by
+the haul split: the cold pool held ~74 % of the biomass in only ~25 % of the hauls, so per haul it
+was packed about **(74/26) ÷ (25/75) ≈ 9×** denser. In words: the cold pool punched ~3× above its
+*area* share (74 % vs 26 % of the catch is a ~2.9× edge) **and** it was only ~⅓ the size of the warm
+area (~3× fewer hauls) — multiply those and you get the ~9× density. For a warm-water or
+temperature-indifferent species these numbers collapse toward a ~1× ratio and a ~50 % biomass share.
+
+### The two charts
+
+- **Catch vs bottom temperature** (scatter) — one dot per haul: bottom temperature across the
+  bottom, catch density up the side. The **shaded blue band is the ≤ 2 °C cold pool.** For snow
+  crab the tall dots cluster inside the band and collapse toward zero in warm water. *(The band
+  only appears for cold-pool regions — EBS/NBS. On the slope, which has no cold pool, there is no
+  band.)*
+- **Where it was caught** (map) — each tow placed at its real location, sized and coloured by
+  catch density; faint blue dots mark the cold-pool hauls. You can literally see the catch tracing
+  the cold pool across the shelf.
+
+### Honest caveats (same spirit as the rest of this guide)
+
+- **Observed only** — this is survey data joined to survey temperatures, no model involved.
+- **Association is not cause.** Cold water travels with other things crab like (depth, muddy
+  substrate, prey), so a strong cold-pool signal is consistent with the biology but does not by
+  itself *prove* temperature is the driver. Treat it as **exploratory**, not a causal claim.
+- **Survey footprint, annual, lagged** — same coverage and timing limits as the cold-pool index;
+  the northern shelves (Chukchi/Beaufort) have no routine survey, and the slope survey was
+  discontinued after 2016.
+
+---
+
 ## 10. Honest limitations (please read before quoting numbers)
 
 - **No source is real-time.** The survey is annual and only available after each summer is

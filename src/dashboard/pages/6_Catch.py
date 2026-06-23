@@ -21,7 +21,6 @@ import streamlit as st
 
 from dashboard.components.coldpool_data import list_bottom_state_regions, region_label
 from mhw.bottom.regions import get_region
-from mhw.fetch.foss_catch import cold_pool_summary
 
 ROOT = Path(__file__).resolve().parents[3]
 RAW_DIR = ROOT / "data" / "raw"
@@ -39,6 +38,28 @@ SPECIES_LABELS = {
     "Arrowtooth flounder": 10110,
 }
 
+# A distinct title icon per species (crabs vs the various fish).
+SPECIES_ICONS = {
+    "Snow crab": "🦀",
+    "Red king crab": "🦀",     # rendered as a crowned crab in _title_icon_html
+    "Pacific cod": "🐟",
+    "Walleye pollock": "🐠",
+    "Arrowtooth flounder": "🐡",
+}
+
+
+def _title_icon_html(label: str) -> str:
+    """Inline icon for the page title. Red king crab gets a crown perched on top of a
+    larger crab (no single 'crowned crab' glyph exists, so we layer two emoji with CSS)."""
+    if label == "Red king crab":
+        return (
+            '<span style="position:relative; display:inline-block; line-height:1; '
+            'font-size:1.2em; vertical-align:-0.08em;">🦀'
+            '<span style="position:absolute; top:-0.14em; left:50%; '
+            'transform:translateX(-50%); font-size:0.52em;">👑</span></span>'
+        )
+    return SPECIES_ICONS.get(label, "🎣")
+
 
 @st.cache_data(show_spinner="Loading catch …", ttl=3600)
 def load_catch(code: int) -> pd.DataFrame | None:
@@ -48,21 +69,59 @@ def load_catch(code: int) -> pd.DataFrame | None:
     return pd.read_parquet(p)
 
 
+def _breakdown_table(dy: pd.DataFrame) -> pd.DataFrame:
+    """Cold-pool vs warmer haul breakdown for one region/year: hauls, share, density, biomass."""
+    total = dy["cpue_kgkm2"].sum()
+
+    def row(sub: pd.DataFrame) -> dict:
+        n = len(sub)
+        return {
+            "Hauls": n,
+            "Share of hauls": f"{100 * n / len(dy):.0f}%" if len(dy) else "—",
+            "Mean CPUE (kg/km²)": f"{sub['cpue_kgkm2'].mean():,.0f}" if n else "—",
+            "Biomass share": f"{100 * sub['cpue_kgkm2'].sum() / total:.0f}%" if total else "—",
+        }
+
+    cold = dy[dy["bottom_temperature_c"] <= COLD_POOL_C]
+    warm = dy[dy["bottom_temperature_c"] > COLD_POOL_C]
+    return pd.DataFrame.from_dict(
+        {"Cold pool (≤ 2 °C)": row(cold), "Warmer (> 2 °C)": row(warm), "All hauls": row(dy)},
+        orient="index",
+    )
+
+
+def _styled_breakdown_html(dy: pd.DataFrame) -> str:
+    """The breakdown table as a styled HTML table — dark borders, bold headers, tinted rows
+    (cold = blue, warm = red, matching the map)."""
+    df = _breakdown_table(dy)
+    row_bg = {"Cold pool (≤ 2 °C)": "#e8f1fb", "Warmer (> 2 °C)": "#fdecea", "All hauls": "#f3f4f6"}
+    sty = (
+        df.style
+        .apply(lambda r: [f"background-color:{row_bg.get(r.name, '')}"] * len(r), axis=1)
+        .set_table_styles([
+            {"selector": "", "props": [("border-collapse", "collapse"), ("border", "2px solid #2c3e50")]},
+            {"selector": "th", "props": [("border", "1px solid #2c3e50"), ("padding", "8px 18px"),
+                                         ("background-color", "#dfe6ee"), ("font-weight", "700"),
+                                         ("font-size", "0.95rem"), ("text-align", "center"),
+                                         ("color", "#1f2a36")]},
+            {"selector": "td", "props": [("border", "1px solid #7b8a9a"), ("padding", "8px 18px"),
+                                         ("text-align", "right"), ("font-size", "0.95rem")]},
+            {"selector": "th.row_heading", "props": [("text-align", "left")]},
+        ])
+    )
+    return sty.to_html()
+
+
 def main() -> None:
-    st.set_page_config(page_title="Catch × Bottom State", layout="wide", page_icon="🦀")
+    st.set_page_config(page_title="Catch × Bottom State", layout="wide", page_icon="🎣")
 
     st.sidebar.header("Controls")
     sp_label = st.sidebar.selectbox("Species", list(SPECIES_LABELS), index=0)
     code = SPECIES_LABELS[sp_label]
 
-    st.title(f"🦀 Catch × Bottom State — {sp_label}")
-    st.caption(
-        "Survey catch (CPUE) paired with the **bottom temperature at the same haul**. "
-        "Observed-only, survey footprint, annual, lagged — **exploratory, not causal**."
-    )
-
     df = load_catch(code)
     if df is None:
+        st.markdown(f"## {_title_icon_html(sp_label)} {sp_label}", unsafe_allow_html=True)
         st.error(f"Catch not built for **{sp_label}**. Run: "
                  f"`mhw-fetch-catch --species {code} --regions EBS NBS BSS`")
         return
@@ -83,24 +142,33 @@ def main() -> None:
     year = st.sidebar.select_slider("Year", years, value=years[-1])
     dy = d[d["year"] == year]
 
-    # ---- Summary metrics ----
-    summ = cold_pool_summary(d).query("year == @year")
-    s = summ.iloc[0] if not summ.empty else None
-    caught = int((dy["cpue_kgkm2"] > 0).sum())
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric(f"{region.upper()} {year} hauls", f"{len(dy):,}", help=f"{caught} with {sp_label.lower()}")
-    if s is not None:
-        c2.metric("Corr(bottom temp, CPUE)", f"{s['corr_bt_cpue']:+.2f}",
-                  help="Negative ⇒ more catch where it is colder")
-        if is_cold_pool:
-            c3.metric("Biomass in cold pool (≤2 °C)", f"{100 * s['frac_biomass_in_band']:.0f}%",
-                      help=f"{100 * s['frac_hauls_in_band']:.0f}% of hauls were ≤2 °C")
-            ratio = (s["mean_cpue_in_band"] / s["mean_cpue_out_band"]) if s["mean_cpue_out_band"] else float("nan")
-            c4.metric("Mean CPUE: cold ÷ warm", f"{ratio:.1f}×" if np.isfinite(ratio) else "—",
-                      help=f"{s['mean_cpue_in_band']:,.0f} vs {s['mean_cpue_out_band']:,.0f} kg/km²")
+    # ---- Top header: region · year · species, shown once above the first table ----
+    st.markdown(f"## {_title_icon_html(sp_label)} {sp_label} · {region_label(region)} · {year}",
+                unsafe_allow_html=True)
 
-    # ---- Panel 1: CPUE vs bottom temperature ----
-    st.markdown(f"### Catch vs bottom temperature — {region_label(region)}, {year}")
+    # ---- Section 1: tabular summary (thermal partition for cold-pool regions) ----
+    st.markdown(f"### {'Catch partitioned by thermal regime' if is_cold_pool else 'Catch summary'}")
+    caught = int((dy["cpue_kgkm2"] > 0).sum())
+    st.caption(f"{len(dy):,} survey hauls · {caught:,} caught {sp_label.lower()}.")
+    if is_cold_pool:
+        st.markdown(_styled_breakdown_html(dy), unsafe_allow_html=True)
+        cold = dy[dy["bottom_temperature_c"] <= COLD_POOL_C]
+        warm = dy[dy["bottom_temperature_c"] > COLD_POOL_C]
+        cw = warm["cpue_kgkm2"].mean()
+        if len(cold) and len(warm) and cw > 0:
+            ratio = cold["cpue_kgkm2"].mean() / cw
+            in_share = 100 * cold["cpue_kgkm2"].sum() / dy["cpue_kgkm2"].sum()
+            haul_share = 100 * len(cold) / len(dy)
+            st.caption(
+                f"{sp_label} were **{ratio:.1f}× denser** in the cold pool — concentrating "
+                f"**{in_share:.0f}%** of the biomass into **{haul_share:.0f}%** of the hauls."
+            )
+    else:
+        st.caption(f"Mean CPUE **{dy['cpue_kgkm2'].mean():,.0f} kg/km²** "
+                   f"(deep slope — no ≤ 2 °C cold pool to split on).")
+
+    # ---- Section 2: density–temperature relationship ----
+    st.markdown("### Catch density as a function of bottom temperature")
     fig = go.Figure()
     if is_cold_pool:
         x0 = float(np.floor(d["bottom_temperature_c"].min()) - 0.5)
@@ -118,38 +186,35 @@ def main() -> None:
                       margin={"l": 70, "r": 20, "t": 20, "b": 50})
     st.plotly_chart(fig, use_container_width=True)
 
-    # ---- Panel 2: CPUE map (cold-pool hauls highlighted) ----
-    st.markdown(f"### Where it was caught — CPUE map, {region_label(region)} {year}")
-    mfig = go.Figure()
-    if is_cold_pool:
-        cp = dy[dy["bottom_temperature_c"] <= COLD_POOL_C]
-        mfig.add_trace(go.Scattergeo(
-            lon=cp["longitude"], lat=cp["latitude"], mode="markers",
-            marker={"size": 5, "color": "rgba(70,130,180,0.45)", "symbol": "circle"},
-            name="cold-pool haul (≤2 °C)", hoverinfo="skip"))
-    present = dy[dy["cpue_kgkm2"] > 0]
-    mfig.add_trace(go.Scattergeo(
-        lon=present["longitude"], lat=present["latitude"], mode="markers",
-        marker={"size": 4 + 14 * (present["cpue_kgkm2"] / max(present["cpue_kgkm2"].max(), 1)) ** 0.5,
-                "color": present["cpue_kgkm2"], "colorscale": "YlOrRd",
-                "colorbar": {"title": "CPUE<br>kg/km²"}, "line": {"width": 0.3, "color": "gray"}},
-        name=sp_label,
-        hovertemplate="%{lat:.2f}, %{lon:.2f}<br>CPUE %{marker.color:,.0f} kg/km²<extra></extra>"))
-    mfig.update_geos(lataxis_range=[53, 67], lonaxis_range=[-182, -155],
-                     showland=True, landcolor="rgb(243,243,243)",
-                     showocean=True, oceancolor="rgb(230,240,245)",
-                     resolution=50, showcountries=True, countrycolor="white")
-    mfig.update_layout(height=520, margin={"l": 0, "r": 0, "t": 10, "b": 0},
-                       legend={"orientation": "h", "y": 0, "x": 0})
+    # ---- Panel 2: map — bottom temperature (colour) × CPUE (marker size) ----
+    # Same tile-basemap style as the live MHW Operational map (go.Scattermap on
+    # open-street-map). Colour shows the thermal field (blue cold → red warm, diverging
+    # around the 2 °C cold-pool line); marker size shows catch density.
+    st.markdown("### Spatial co-distribution of catch and bottom temperature")
+    cpue = dy["cpue_kgkm2"].to_numpy()
+    cmax = float(max(cpue.max(), 1.0))
+    size = 4 + 26 * np.sqrt(np.clip(cpue, 0, None) / cmax)   # sqrt scaling; zero-catch ≈ 4 px
+    mfig = go.Figure(go.Scattermap(
+        lat=dy["latitude"], lon=dy["longitude"], mode="markers",
+        marker={"size": size, "color": dy["bottom_temperature_c"], "colorscale": "RdBu_r",
+                "cmid": COLD_POOL_C, "opacity": 0.82,
+                "colorbar": {"title": "Bottom<br>temp °C", "thickness": 15}},
+        customdata=np.column_stack([dy["bottom_temperature_c"], cpue]),
+        hovertemplate="%{lat:.2f}, %{lon:.2f}<br>bottom %{customdata[0]:.1f} °C<br>"
+                      "CPUE %{customdata[1]:,.0f} kg/km²<extra></extra>"))
+    mfig.update_layout(
+        map={"style": "open-street-map",
+             "center": {"lat": float(dy["latitude"].mean()), "lon": float(dy["longitude"].mean())},
+             "zoom": 4.0},
+        height=560, margin={"l": 0, "r": 0, "t": 10, "b": 0})
     st.plotly_chart(mfig, use_container_width=True)
 
     note = (" Snow crab is a cold-water specialist — in the eastern Bering it concentrates in the "
-            "cold pool." if code == 68580 and is_cold_pool else "")
+            "cold pool, so the biggest dots sit on the blue (cold) water." if code == 68580 and is_cold_pool else "")
     st.caption(
-        "CPUE = survey catch-per-unit-effort (kg/km²) at each tow; marker size/colour = CPUE. "
-        + ("Blue dots mark hauls inside the ≤2 °C cold pool." if is_cold_pool else
-           "This is a deep, non-cold-pool shelf — no ≤2 °C band shown.")
-        + note +
+        "Each dot is a survey tow: **colour = bottom temperature** (blue cold → red warm, split at "
+        "the 2 °C cold-pool line), **size = CPUE** (catch density, kg/km²; tiny dots are tows that "
+        "caught little or none)." + note +
         " Source: NOAA **FOSS** AFSC bottom-trawl survey (`haul` ⟕ `catch` on `hauljoin`). "
         "Association is not mechanism — present as exploratory."
     )
