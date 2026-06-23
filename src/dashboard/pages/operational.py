@@ -11,8 +11,6 @@ Run standalone:
 """
 from __future__ import annotations
 
-import sys
-import warnings
 from pathlib import Path
 
 import numpy as np
@@ -65,22 +63,8 @@ def _fmt(d) -> str:
     """Human-friendly date string, e.g. 'Feb 24, 2024'."""
     return pd.Timestamp(d).strftime(_DATE_FMT)
 
-# ---------------------------------------------------------------------------
-# Page config
-# ---------------------------------------------------------------------------
-st.set_page_config(page_title="Operational Dashboard", layout="wide", page_icon="")
-from dashboard.components.style import apply_explanatory_font
-apply_explanatory_font()
-st.markdown("""<style>
-[data-testid="stSidebarNavItems"] li:first-child a span {
-    font-size: 1.3rem; font-weight: 700;
-}
-[data-testid="stSidebarNavItems"] img,
-[data-testid="stSidebarNavItems"] svg { display: none !important; }
-[data-testid="stSidebarNavItems"] li:not(:first-child) a span::before {
-    content: "\\2022\\00a0";
-}
-</style>""", unsafe_allow_html=True)
+# Page config, fonts and sidebar styling are owned by the navigation shell
+# (Alaska_Dashboard.py) — this script just renders the page body.
 st.title("🌊 Operational Dashboard")
 
 # ---------------------------------------------------------------------------

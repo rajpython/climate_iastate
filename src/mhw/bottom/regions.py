@@ -52,6 +52,7 @@ class BottomRegion:
     id: str
     label: str                          # user-facing (dashboard titles)
     product_kind: str                   # "cold_pool" | "bottom_temp"
+    group: str                          # geographic nav group: "bering" | "goa_ai" | "arctic"
     lat_min: float
     lat_max: float
     lon_min: float
@@ -106,6 +107,7 @@ EBS = BottomRegion(
     id="ebs",
     label="Eastern Bering Sea",
     product_kind="cold_pool",
+    group="bering",
     lat_min=54.0, lat_max=63.0,
     lon_min=-179.0, lon_max=-157.0,
     shelf_max_depth_m=200.0,
@@ -134,6 +136,7 @@ NBS = BottomRegion(
     id="nbs",
     label="Northern Bering Sea",
     product_kind="cold_pool",
+    group="bering",
     lat_min=60.0, lat_max=66.0,
     lon_min=-176.0, lon_max=-160.0,
     shelf_max_depth_m=200.0,
@@ -163,6 +166,7 @@ SLOPE = BottomRegion(
     id="slope",
     label="Bering Sea Slope",
     product_kind="bottom_temp",
+    group="bering",
     lat_min=54.0, lat_max=61.0,
     lon_min=-180.0, lon_max=-165.0,
     shelf_min_depth_m=200.0,

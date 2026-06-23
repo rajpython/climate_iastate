@@ -20,7 +20,6 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from dashboard.components.coldpool_data import list_bottom_state_regions, region_label
-from dashboard.components.style import apply_explanatory_font
 from mhw.bottom.regions import get_region
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -143,16 +142,15 @@ def _slope_summary_html(dy: pd.DataFrame) -> str:
     return _style_table(df, {"All hauls": "#f3f4f6"})
 
 
-def main() -> None:
-    st.set_page_config(page_title="Catch × Bottom State", layout="wide", page_icon="🎣")
-    apply_explanatory_font()
-
+def render(group: str = "bering") -> None:
+    """Render the Catch × Bottom State page for one geographic group (page config/fonts are
+    owned by the navigation shell)."""
     st.sidebar.header("Controls")
-    bering = [r for r in list_bottom_state_regions() if r in REGION_TO_SRVY]
-    if not bering:
-        st.error("No Bering bottom-state regions built.")
+    regions = [r for r in list_bottom_state_regions(group) if r in REGION_TO_SRVY]
+    if not regions:
+        st.error("No survey-catch regions built for this group.")
         return
-    region = st.sidebar.selectbox("Region", bering, format_func=str.upper, key="catch_region")
+    region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="catch_region")
     srvy = REGION_TO_SRVY[region]
     is_cold_pool = get_region(region).product_kind == "cold_pool"
 
@@ -259,6 +257,3 @@ def main() -> None:
         + note +
         " Source: NOAA **FOSS** AFSC bottom-trawl survey (`haul` ⟕ `catch` on `hauljoin`)."
     )
-
-
-main()

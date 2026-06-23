@@ -1,5 +1,24 @@
-# Marine Heatwave State Dashboard — User Guide
-*Sub-arctic to Arctic marine waters around Alaska — Gulf of Alaska, Bering Sea (Eastern and Northern), Chukchi, and Beaufort.*
+# Alaska Marine Ecosystem Dashboard — User Guide
+*Climate • Ocean • Ecosystems • Fisheries — sub-arctic to Arctic marine waters around Alaska (Gulf of Alaska, Bering Sea (Eastern and Northern), Chukchi, and Beaufort).*
+
+> **This guide covers the Alaska-wide marine-heatwave (MHW) module** — the **Alaska-wide
+> Climate** section of the dashboard (Operational MHW · Historical MHW). For the **Bering Sea**
+> bottom-state products (the cold pool, model validation, catch × thermal habitat) see the
+> separate **Cold-Pool Guide** in the **Guides** section.
+
+## How the dashboard is organised
+
+The sidebar is **geography-first**: cross-cutting Alaska-wide products stay at the top, then
+region-specific products are grouped by area.
+
+| Section | Contents |
+|---|---|
+| **Overview** | Front door / orientation |
+| **Alaska-wide Climate** | **Operational MHW** (live state) · **Historical MHW** (1982–present) — *this guide* |
+| **Bering Sea** | Bottom State — Observed & Validation · Model Comparison · Catch × Bottom State — *see the Cold-Pool Guide* |
+| **Gulf of Alaska & Aleutians** · **Arctic** | Reserved — coming as data products are built |
+| **Research** | Recent papers, summaries, forecast outlooks, technical notes, project research |
+| **Guides** | User Guide · Cold-Pool Guide |
 
 ## What is a Marine Heatwave?
 
@@ -46,11 +65,13 @@ Note: OISST satellite data is typically 1--2 days behind real time, so the most 
 
 ---
 
-## Dashboard Pages
+## Dashboard Pages — Alaska-wide Climate
 
-### Page 1 — Operational
+*(Both MHW pages live under the **Alaska-wide Climate** section; each is region-selectable.)*
 
-The Operational page shows the **current and recent** MHW state. It has four tabs:
+### Operational MHW
+
+The Operational MHW page shows the **current and recent** MHW state. It has four tabs:
 
 #### Tab 1: Live MHW Map
 
@@ -99,9 +120,9 @@ Higher risk scores mean current conditions are more extreme than most of the his
 
 ---
 
-### Page 2 — Historical (1982--present)
+### Historical MHW (1982--present)
 
-The Historical page lets you explore the full backfill (1982 to the latest available date). A small caption at the top of the page reports the exact date each data source extends through — e.g., "MHW data through May 11, 2026 · AO through May 09, 2026 · PDO through Dec 2025" — so "present" always has an explicit meaning.
+The Historical MHW page lets you explore the full backfill (1982 to the latest available date). A small caption at the top of the page reports the exact date each data source extends through — e.g., "MHW data through May 11, 2026 · AO through May 09, 2026 · PDO through Dec 2025" — so "present" always has an explicit meaning.
 
 The page has four tabs:
 

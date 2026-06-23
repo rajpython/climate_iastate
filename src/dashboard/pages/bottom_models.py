@@ -32,7 +32,6 @@ from dashboard.components.coldpool_data import (
     threshold_short,
     zscore as _z,
 )
-from dashboard.components.style import apply_explanatory_font
 from mhw.bottom.regions import get_region
 
 
@@ -182,12 +181,11 @@ def _bottom_temp_models(region: str, model_choices: list[str]) -> None:
     st.plotly_chart(f2, use_container_width=True)
 
 
-def main() -> None:
-    st.set_page_config(page_title="Bottom State — Model Comparison", layout="wide", page_icon="🌡️")
-    apply_explanatory_font()
-
+def render(group: str = "bering") -> None:
+    """Render the Model Comparison page for one geographic group (page config/fonts are
+    owned by the navigation shell)."""
     st.sidebar.header("Controls")
-    regions = list_bottom_state_regions()
+    regions = list_bottom_state_regions(group)
     if not regions:
         st.title("🌡️ Bottom State — Model Comparison")
         st.error("No bottom-state region built. Run: `mhw-fetch-coldpool --region ebs`")
@@ -215,6 +213,3 @@ def main() -> None:
         _cold_pool_models(region, model_choices)
     else:
         _bottom_temp_models(region, model_choices)
-
-
-main()

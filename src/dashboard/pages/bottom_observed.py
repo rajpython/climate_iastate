@@ -29,8 +29,33 @@ from dashboard.components.coldpool_data import (
     region_label,
     threshold_short,
 )
-from dashboard.components.style import apply_explanatory_font
+from mhw.bottom.indicators import (
+    BASELINE_END,
+    BASELINE_START,
+    analog_years,
+    anomaly,
+    category_color,
+    ordinal_rank,
+    percentile_rank,
+    risk_category,
+)
 from mhw.bottom.regions import get_region
+
+
+def _ordinal(n: int) -> str:
+    """1 -> '1st', 2 -> '2nd', 11 -> '11th', 23 -> '23rd'."""
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def _category_badge(label: str) -> str:
+    """A Streamlit-coloured inline badge for a manager category label."""
+    color = category_color(label)               # green / orange / red / gray
+    directive = {"gray": "gray"}.get(color, color)
+    return f":{directive}[**{label}**]"
 
 
 def _survey_replicate_panel(region: str, model_choices: list[str], yr_range=None) -> bool:
@@ -108,16 +133,64 @@ def _cold_pool_observed(region: str, model_choices: list[str]) -> None:
     )
     latest = d.iloc[-1]
     prev = d.iloc[-2] if len(d) > 1 else None
-    long_mean = df[thr_col].mean()
-    span = f"{yr_min}–{yr_max}"
+    yr = int(latest["year"])
+
+    # KPIs are ranked against the FULL observed record (the defensible "of 1982–present"
+    # population), even when the year slider restricts what's plotted.
+    area_pop = df[thr_col]
+    long_mean = area_pop.mean()
+    full_span = f"{int(df['year'].min())}–{int(df['year'].max())}"
+    pct = percentile_rank(latest[thr_col], area_pop)
+    rank_small = ordinal_rank(latest[thr_col], area_pop, smallest=True)
+    category = risk_category(pct, concern_when_low=True)   # small cold pool = concern
+    pct_of_mean = 100.0 * latest[thr_col] / long_mean if long_mean else float("nan")
+
     c1, c2, c3 = st.columns(3)
     delta = None if prev is None else f"{latest[thr_col] - prev[thr_col]:+,.0f} km² vs {int(prev['year'])}"
-    c1.metric(f"{int(latest['year'])} cold-pool area ({thr_short})",
+    c1.metric(f"{yr} cold-pool area ({thr_short})",
               f"{latest[thr_col]:,.0f} km²", delta=delta, delta_color="inverse")
-    pct_of_mean = 100.0 * latest[thr_col] / long_mean if long_mean else float("nan")
-    c2.metric(f"vs {span} mean", f"{pct_of_mean:.0f}%", help=f"Long-term mean ≈ {long_mean:,.0f} km²")
+    c2.metric(
+        f"Percentile rank ({full_span})", f"{pct:.0f}th pct",
+        help=f"{_ordinal(rank_small)} smallest cold pool in {len(area_pop)} survey years · "
+             f"{pct_of_mean:.0f}% of the {full_span} mean ≈ {long_mean:,.0f} km²",
+    )
+    bt_anom = float("nan")
     if pd.notna(latest.get("mean_bottom_temp")):
-        c3.metric(f"{int(latest['year'])} mean bottom temp", f"{latest['mean_bottom_temp']:.2f} °C")
+        base_bt = df.loc[(df["year"] >= BASELINE_START) & (df["year"] <= BASELINE_END),
+                         "mean_bottom_temp"]
+        bt_anom = anomaly(latest["mean_bottom_temp"], base_bt)
+        anom_delta = (None if not pd.notna(bt_anom)
+                      else f"{bt_anom:+.2f} °C vs {BASELINE_START}–{BASELINE_END}")
+        c3.metric(f"{yr} mean bottom temp", f"{latest['mean_bottom_temp']:.2f} °C",
+                  delta=anom_delta, delta_color="off")
+
+    # ---- Manager interpretation: category badge + plain sentence + analogs ----
+    if pct >= 80:
+        habitat = "an **expanded** cold-water thermal refuge"
+    elif pct < 20:
+        habitat = "a **reduced** cold-water thermal refuge"
+    else:
+        habitat = "near-typical cold-water thermal habitat"
+    temp_clause = ("" if not pd.notna(bt_anom)
+                   else f" Mean bottom temperature is {bt_anom:+.2f} °C vs the "
+                        f"{BASELINE_START}–{BASELINE_END} norm.")
+    st.markdown(
+        f"{_category_badge(category)} — {yr}'s cold pool sits in the **{pct:.0f}th percentile** "
+        f"of the {full_span} survey record ({_ordinal(rank_small)} smallest), indicating "
+        f"{habitat}.{temp_clause}"
+    )
+    analog_cols = [df[thr_col].values]
+    if "mean_bottom_temp" in df:
+        analog_cols.append(df["mean_bottom_temp"].values)
+    analogs = analog_years(yr, df["year"].values, *analog_cols, k=3)
+    if analogs:
+        st.caption("Historical analogs (most similar [area, bottom temp]): "
+                   + ", ".join(str(a) for a in analogs) + ".")
+    st.caption(
+        "Percentile and analogs are ranked against the full observed survey record; categories "
+        "(top 20% Favorable · bottom 20% Elevated · bottom 10% High concern) are stated "
+        "conventions for the cold-water specialist view. Descriptive of past state — not a forecast."
+    )
 
     n_rows = 2 if show_bt else 1
     fig = make_subplots(rows=n_rows, cols=1, shared_xaxes=True, vertical_spacing=0.08,
@@ -126,7 +199,7 @@ def _cold_pool_observed(region: str, model_choices: list[str]) -> None:
     fig.add_trace(go.Bar(x=d["year"], y=d[thr_col], marker_color="steelblue", name="Cold-pool area",
                          hovertemplate="%{x}: %{y:,.0f} km²<extra></extra>"), row=1, col=1)
     fig.add_hline(y=long_mean, line_dash="dash", line_color="gray", line_width=1,
-                  annotation_text=f"{span} mean", annotation_font_size=9, row=1, col=1)
+                  annotation_text=f"{full_span} mean", annotation_font_size=9, row=1, col=1)
     fig.update_yaxes(title_text="km²", row=1, col=1)
     if show_bt and "mean_bottom_temp" in d:
         fig.add_trace(go.Scatter(x=d["year"], y=d["mean_bottom_temp"], mode="lines+markers",
@@ -160,6 +233,41 @@ def _cold_pool_observed(region: str, model_choices: list[str]) -> None:
     )
 
 
+def _bottom_temp_kpis(region: str) -> None:
+    """Percentile + anomaly on the observed survey mean bottom temp (no category — a
+    non-cold-pool shelf has no cold-water-specialist 'concern' direction)."""
+    obs = None
+    for sid in MODEL_SOURCES.values():           # observed series is model-independent
+        annual, _ = load_survey_replicate(sid, region)
+        if annual is not None and "obs_mean_bottom_temp" in annual:
+            obs = annual.dropna(subset=["obs_mean_bottom_temp"]).sort_values("year")
+            break
+    if obs is None or obs.empty:
+        return
+    latest = obs.iloc[-1]
+    yr = int(latest["year"])
+    series = obs["obs_mean_bottom_temp"]
+    span = f"{int(obs['year'].min())}–{int(obs['year'].max())}"
+    pct = percentile_rank(latest["obs_mean_bottom_temp"], series)
+    rank_warm = ordinal_rank(latest["obs_mean_bottom_temp"], series, smallest=False)
+    base = obs.loc[(obs["year"] >= BASELINE_START) & (obs["year"] <= BASELINE_END),
+                   "obs_mean_bottom_temp"]
+    anom = anomaly(latest["obs_mean_bottom_temp"], base) if not base.empty else float("nan")
+
+    c1, c2 = st.columns(2)
+    c1.metric(f"{yr} mean bottom temp", f"{latest['obs_mean_bottom_temp']:.2f} °C",
+              help=f"Observed survey mean over the {span} survey years")
+    if pd.notna(anom):
+        c2.metric(f"Anomaly vs {BASELINE_START}–{BASELINE_END}", f"{anom:+.2f} °C",
+                  help=f"{_ordinal(rank_warm)} warmest of {len(series)} survey years "
+                       f"({pct:.0f}th percentile)")
+    else:
+        c2.metric(f"Percentile rank ({span})", f"{pct:.0f}th pct",
+                  help=f"{_ordinal(rank_warm)} warmest of {len(series)} survey years")
+    st.caption("Descriptive of past observed state — ranked against the available survey years "
+               "(sporadic for a discontinued slope survey). Not a forecast.")
+
+
 def _bottom_temp_observed(region: str, model_choices: list[str]) -> None:
     """The bottom-temperature-region view (no cold pool): survey-replicated bottom temp only."""
     st.caption(
@@ -167,6 +275,7 @@ def _bottom_temp_observed(region: str, model_choices: list[str]) -> None:
         "bottom-temperature *conditions*: the observed survey bottom temperature vs the regional "
         "models, co-located at the survey hauls."
     )
+    _bottom_temp_kpis(region)
     if not model_choices:
         st.info("Pick at least one model in the sidebar.")
         return
@@ -185,12 +294,11 @@ def _bottom_temp_observed(region: str, model_choices: list[str]) -> None:
     )
 
 
-def main() -> None:
-    st.set_page_config(page_title="Bottom State — Observed & Validation", layout="wide", page_icon="🧊")
-    apply_explanatory_font()
-
+def render(group: str = "bering") -> None:
+    """Render the Observed & Validation page for one geographic group (page config/fonts
+    are owned by the navigation shell)."""
     st.sidebar.header("Controls")
-    regions = list_bottom_state_regions()
+    regions = list_bottom_state_regions(group)
     if not regions:
         st.title("Bottom State — Observed & Validation")
         st.error("No bottom-state region built. Run: `mhw-fetch-coldpool --region ebs`")
@@ -217,6 +325,3 @@ def main() -> None:
         _cold_pool_observed(region, model_choices)
     else:
         _bottom_temp_observed(region, model_choices)
-
-
-main()

@@ -1,9 +1,7 @@
-"""Page 3 — User Guide.
+"""User Guide page — renders docs/user_guide.md and offers a PDF download.
 
-Renders docs/user_guide.md as a Streamlit page and offers a PDF download.
-
-Run standalone:
-    streamlit run src/dashboard/pages/3_Guide.py
+Page config, fonts and sidebar styling are owned by the navigation shell
+(Alaska_Dashboard.py); this script just renders the page body.
 """
 from __future__ import annotations
 
@@ -15,19 +13,6 @@ ROOT = Path(__file__).parents[3]
 GUIDE_MD = ROOT / "docs" / "user_guide.md"
 GUIDE_PDF = ROOT / "docs" / "user_guide.pdf"
 
-st.set_page_config(page_title="User Guide", layout="wide", page_icon="")
-from dashboard.components.style import apply_explanatory_font
-apply_explanatory_font()
-st.markdown("""<style>
-[data-testid="stSidebarNavItems"] li:first-child a span {
-    font-size: 1.3rem; font-weight: 700;
-}
-[data-testid="stSidebarNavItems"] img,
-[data-testid="stSidebarNavItems"] svg { display: none !important; }
-[data-testid="stSidebarNavItems"] li:not(:first-child) a span::before {
-    content: "\\2022\\00a0";
-}
-</style>""", unsafe_allow_html=True)
 st.title("📖 User Guide")
 
 

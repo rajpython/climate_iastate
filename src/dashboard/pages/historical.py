@@ -114,22 +114,8 @@ def _regime_df(region: str) -> pd.DataFrame:
     merged["regime"]    = merged["ao_phase"] + " / " + merged["pdo_phase"]
     return merged
 
-# ---------------------------------------------------------------------------
-# Page config
-# ---------------------------------------------------------------------------
-st.set_page_config(page_title="Historical Analysis", layout="wide", page_icon="")
-from dashboard.components.style import apply_explanatory_font
-apply_explanatory_font()
-st.markdown("""<style>
-[data-testid="stSidebarNavItems"] li:first-child a span {
-    font-size: 1.3rem; font-weight: 700;
-}
-[data-testid="stSidebarNavItems"] img,
-[data-testid="stSidebarNavItems"] svg { display: none !important; }
-[data-testid="stSidebarNavItems"] li:not(:first-child) a span::before {
-    content: "\\2022\\00a0";
-}
-</style>""", unsafe_allow_html=True)
+# Page config, fonts and sidebar styling are owned by the navigation shell
+# (Alaska_Dashboard.py) — this script just renders the page body.
 st.title("📊 Historical Analysis — 1982–present")
 
 

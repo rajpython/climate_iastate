@@ -25,8 +25,8 @@ uv pip install -e ".[geo,dashboard,api,dev]"
 # Lint
 .venv/bin/ruff check src tests
 
-# Run the dashboard (Streamlit multipage; entry = the file, pages auto-discovered)
-.venv/bin/streamlit run src/dashboard/MHW_Dashboard.py
+# Run the dashboard (Streamlit; entry = the file, pages registered via st.navigation)
+.venv/bin/streamlit run src/dashboard/Alaska_Dashboard.py
 
 # Run the API (package import name is `api`, not `src.api`, via setuptools src-layout)
 .venv/bin/uvicorn api.main:app --reload --port 8000   # Swagger at /docs, all data under /v1
@@ -75,7 +75,7 @@ Pulls NOAA's public **FOSS** REST API and joins survey `haul` ⟕ `catch` on `ha
 ### Read layer
 
 - **API** (`src/api/`): FastAPI, all data routers mounted under `/v1` (`routes_states`, `routes_maps`, `routes_indices`, `routes_coldpool`); `/health` is unversioned. Routes read the generated parquet/zarr directly and return 503 when an artifact is missing.
-- **Dashboard** (`src/dashboard/`): Streamlit multipage — `MHW_Dashboard.py` is the entry, `pages/` are auto-discovered numbered pages (Operational, Historical, User Guide, Cold Pool Observed, Cold Pool Models), `components/` holds reusable panels.
+- **Dashboard** (`src/dashboard/`): Streamlit — `Alaska_Dashboard.py` is the entry + `st.navigation` shell that owns the single `set_page_config`, fonts, and a **geography-first hybrid** page registry (Overview · Alaska-wide Climate [MHW] · Bering Sea [bottom state + catch] · reserved GOA/AI + Arctic · Research · Guides). `pages/` modules render bodies only — cross-cutting MHW pages are path-registered scripts; region-specific pages expose a group-aware `render(group=...)` callable (region dropdowns filter by `BottomRegion.group`). `components/` holds reusable panels.
 
 ## Conventions worth matching
 

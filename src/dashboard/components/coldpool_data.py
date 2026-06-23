@@ -58,17 +58,24 @@ def _has_model(rid: str) -> bool:
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
-def list_bottom_state_regions() -> list[str]:
+def list_bottom_state_regions(group: str | None = None) -> list[str]:
     """All built bottom-state regions — cold-pool index *or* bottom-temp model — S→N order.
 
     This is the unified region list for the bottom-state pages: cold-pool regions (EBS, NBS)
     appear via their observed index, bottom-temperature regions (the Bering slope) via their
     built model series. Product-specific panels are then chosen per region by ``product_kind``.
+
+    Pass ``group`` (e.g. ``"bering"``) to restrict to one geographic nav group — this is what
+    lets the same bottom-state pages serve different geographic sections (Bering now; GOA/AI,
+    Arctic in later phases) by filtering on ``BottomRegion.group``.
     """
     regs = {p.stem.replace("coldpool_index_observed_", "")
             for p in RAW_DIR.glob("coldpool_index_observed_*.parquet")}
     regs |= {rid for rid, r in BOTTOM_REGIONS.items()
              if r.product_kind == "bottom_temp" and _has_model(rid)}
+    if group is not None:
+        regs = {rid for rid in regs
+                if rid in BOTTOM_REGIONS and BOTTOM_REGIONS[rid].group == group}
     return sorted(regs, key=_region_key)
 
 

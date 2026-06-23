@@ -1,6 +1,6 @@
-# Marine Heatwave State Dashboard
+# Alaska Marine Ecosystem Dashboard
 
-A live monitoring dashboard for marine heatwaves in the sub-arctic to Arctic waters around Alaska — Gulf of Alaska, Bering Sea (Eastern and Northern), Chukchi, and Beaufort.
+**Climate • Ocean • Ecosystems • Fisheries** — a regionally-organised board surfacing public Alaska-shelf ocean and fisheries data (observed surveys + ocean models). Its current modules are Alaska-wide marine-heatwave monitoring, Bering Sea bottom conditions (the cold pool), cold-pool validation / model comparison, and catch × thermal habitat. Covers the sub-arctic to Arctic waters around Alaska — Gulf of Alaska, Bering Sea (Eastern and Northern), Chukchi, and Beaufort.
 
 **Live dashboard**: [mhw.iastate.ai](https://mhw.iastate.ai)
 **API docs**: [mhw.iastate.ai/api/docs](https://mhw.iastate.ai/api/docs)
@@ -37,7 +37,7 @@ source .venv/bin/activate
 pip install -e ".[geo,dashboard,api,dev]"
 
 # Run the dashboard
-streamlit run src/dashboard/MHW_Dashboard.py
+streamlit run src/dashboard/Alaska_Dashboard.py
 
 # Run the API
 uvicorn api.main:app --reload --port 8000
@@ -70,11 +70,16 @@ cron and keeps `mhw.iastate.ai` current automatically.
 src/
   mhw/            # Core MHW detection, aggregation, risk scoring
   dashboard/      # Streamlit multipage app
-    MHW_Dashboard.py          # Entry point
+    Alaska_Dashboard.py       # Entry point + st.navigation shell (geography-first sections)
     pages/
-      1_Operational.py        # Real-time monitoring
-      2_Historical.py         # 1982–present analysis
-      3_User_Guide.py         # In-app documentation
+      operational.py          # Alaska-wide: real-time MHW monitoring
+      historical.py           # Alaska-wide: 1982–present MHW analysis
+      bottom_observed.py      # Bering: cold-pool index + survey-replicated validation
+      bottom_models.py        # Bering: model comparison (Bering10K vs MOM6)
+      catch.py                # Bering: catch × bottom state
+      user_guide.py           # In-app documentation
+      cold_pool_guide.py      # Plain-language cold-pool guide
+      research.py             # Research section (stubs)
     components/               # Reusable panel modules
   api/            # FastAPI REST endpoints
 config/           # Region definitions, climatology parameters

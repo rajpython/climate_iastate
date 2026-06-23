@@ -266,17 +266,26 @@ cold was the bottom, on average."
 
 ## 6. Reading the dashboard — two pages, four panels
 
-The cold pool lives on **two pages**, each with its own threshold control (so you can,
-say, view the observed index at ≤ 1 °C while comparing models at ≤ 2 °C).
+In the **Alaska Marine Ecosystem Dashboard**, the cold pool lives under the **Bering Sea**
+section as two pages — **"Bottom State — Observed & Validation"** and **"Bottom State —
+Model Comparison"** — each with its own threshold control (so you can, say, view the observed
+index at ≤ 1 °C while comparing models at ≤ 2 °C). One region dropdown spans the Bering areas
+(EBS · NBS · Slope).
 
-### Page 1 — "Cold Pool: Observed & Validation"
+### Bering Sea → "Bottom State — Observed & Validation"
 
 **Panel A — Observed cold-pool index.** Top metrics: the selected year's cold-pool area
-(km², with year-on-year change), that year as a % of the 1982–present mean, and mean bottom
-temperature. Below them, two charts: the **area** (blue bars, one per year — note the big
-cold years 1999/2010/2012, the **2017–2019 collapse**, and the **2020 gap** when there was
-no survey) and the **mean bottom temperature** (red line, with a 2 °C reference). The
-**threshold dropdown drives this panel.**
+(km², with year-on-year change), its **percentile rank** in the full 1982–present survey
+record (e.g. "29th pct · 13th smallest"), and the mean bottom temperature with its **anomaly
+vs the 1991–2020 norm**. A one-line **manager interpretation** beneath the metrics maps the
+percentile to a stated category — top 20% **Favorable** · middle **Typical** · bottom 20%
+**Elevated concern** · bottom 10% **High concern** (the cold-water-specialist view, where a
+*small* cold pool is the concern) — and a **historical-analogs** line names the past years
+the current conditions most resemble (nearest by standardised [area, bottom temp]). These are
+**descriptive** of observed history, not forecasts. Below them, two charts: the **area** (blue
+bars, one per year — note the big cold years 1999/2010/2012, the **2017–2019 collapse**, and
+the **2020 gap** when there was no survey) and the **mean bottom temperature** (red line, with
+a 2 °C reference). The **threshold dropdown drives this panel.**
 
 **Panel C — Survey-replicated validation** (appears when you pick model(s) to validate).
 Each model's bottom temperature is sampled **at the survey's own haul locations and dates**
@@ -285,7 +294,7 @@ each model's true **bias / RMSE / correlation**; this is where you read that bot
 essentially unbiased (Bering10K −0.16 °C, MOM6 +0.00 °C). Bottom-temperature based, so the
 threshold control does not apply here.
 
-### Page 2 — "Cold Pool: Model Comparison"
+### Bering Sea → "Bottom State — Model Comparison"
 
 **Panel B1 — Full-shelf model view.** Each model's cold pool over its full ≤ 200 m shelf
 (its *own* view), shown against observed: a standardized **area** panel (pattern) and an

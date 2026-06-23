@@ -1,7 +1,7 @@
 [project]
 name = "mhw-state-dashboard"
 version = "0.1.0"
-description = "Marine Heatwave State Dashboard — Hobday-style MHW detection for high-latitude fisheries"
+description = "Alaska Marine Ecosystem Dashboard — Alaska-shelf ocean & fisheries data board (MHW detection, cold pool / bottom state, survey catch)"
 requires-python = ">=3.10"
 
 # Core: science + data — sufficient for Steps 1–6
