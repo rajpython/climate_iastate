@@ -1,7 +1,7 @@
 # Alaska Shelf Data Board — Phased Expansion Plan
 
 **Status:** Plan, data-availability **validated live 2026-06-21**. Supersedes the ad-hoc
-Appendix A in `cold_pool_user_guide.md` for the regional matrix (that appendix should be
+Appendix A in `bering_bottom_state_guide.md` for the regional matrix (that appendix should be
 reconciled to the tables here).
 
 ## 1. Vision

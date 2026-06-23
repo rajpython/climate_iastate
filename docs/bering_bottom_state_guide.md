@@ -1,9 +1,15 @@
-# The Bering Sea Cold Pool — A Plain-Language Guide to the Cold-Pool Dashboard
+# Bering Sea Bottom-State Guide
+*Alaska Marine Ecosystem Dashboard — Climate • Ocean • Ecosystems • Fisheries*
 
-*A guide for anyone — no oceanography or statistics background needed. After reading
-this, you should be able to explain every number and chart on the two cold-pool pages —
-**"Cold Pool: Observed & Validation"** and **"Cold Pool: Model Comparison"** — and answer
-questions about them.*
+*A plain-language guide to the Bering Sea **Bottom State** indicators — no oceanography or
+statistics background needed. After reading this, you should be able to explain every number
+and chart on the three Bering Sea pages: **Bottom State — Observed & Validation**, **Bottom
+State — Model Comparison**, and **Catch × Bottom State**.*
+
+The cold pool is central here, but bottom state is broader: it also covers **bottom
+temperature**, the **observed survey index**, **model validation** and **model comparison**,
+and **catch–environment relationships**. For platform orientation see the **Dashboard Guide**;
+for the Alaska-wide marine-heatwave indicators see the **Marine Heatwave Guide**.
 
 ---
 
@@ -13,11 +19,11 @@ Off the coast of Alaska, in the eastern Bering Sea, there is a patch of unusuall
 water that sits on the seafloor every summer. Scientists call it the **cold pool**. Its
 size changes a lot from year to year, and that size matters enormously for fish and crab
 — and therefore for the fishing industry and the communities that depend on it. This
-dashboard tracks **how big the cold pool is each year**, measured three different ways:
-from a **real research survey** that goes out and takes the ocean's temperature with a
-ship, and from **two independent computer models** of the ocean. Comparing them lets us
-check that the models are trustworthy — and they are: all three agree very closely, and
-where the two models differ from each other we get an honest measure of the uncertainty.
+section of the dashboard tracks **how big the cold pool is each year** and **how warm the
+seafloor is**, measured three ways: from a **research survey** that takes the ocean's
+temperature with a ship, and from **two independent computer models** of the ocean.
+Comparing them validates the models — all three agree closely — and where the two models
+differ we get a direct measure of the uncertainty.
 
 ---
 

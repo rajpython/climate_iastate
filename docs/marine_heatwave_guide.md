@@ -1,24 +1,15 @@
-# Alaska Marine Ecosystem Dashboard — User Guide
-*Climate • Ocean • Ecosystems • Fisheries — sub-arctic to Arctic marine waters around Alaska (Gulf of Alaska, Bering Sea (Eastern and Northern), Chukchi, and Beaufort).*
+# Marine Heatwave Guide
+*Alaska Marine Ecosystem Dashboard — Climate • Ocean • Ecosystems • Fisheries*
 
-> **This guide covers the Alaska-wide marine-heatwave (MHW) module** — the **Alaska-wide
-> Climate** section of the dashboard (Operational MHW · Historical MHW). For the **Bering Sea**
-> bottom-state products (the cold pool, model validation, catch × thermal habitat) see the
-> separate **Cold-Pool Guide** in the **Guides** section.
+A detailed guide to the **Alaska-wide marine-heatwave (MHW) indicators** — the **Marine
+Heatwaves** entry under the **Alaska-wide Climate** section, with its **Operational** and
+**Historical** views. It covers the Hobday-style definition, the two views and their panels,
+the AO/PDO context and risk gauge, the climatology and thresholds, the data sources, and the
+REST API.
 
-## How the dashboard is organised
-
-The sidebar is **geography-first**: cross-cutting Alaska-wide products stay at the top, then
-region-specific products are grouped by area.
-
-| Section | Contents |
-|---|---|
-| **Overview** | Front door / orientation |
-| **Alaska-wide Climate** | **Operational MHW** (live state) · **Historical MHW** (1982–present) — *this guide* |
-| **Bering Sea** | Bottom State — Observed & Validation · Model Comparison · Catch × Bottom State — *see the Cold-Pool Guide* |
-| **Gulf of Alaska** · **Aleutian Islands** · **Arctic** | Distinct ecosystem sections — under development |
-| **Research** | A single page describing planned content (recent papers, summaries, forecast outlooks, technical notes, project research) |
-| **Guides** | User Guide · Cold-Pool Guide |
+For platform orientation — what the dashboard is and how it is organised — see the **Dashboard
+Guide**. For the Bering Sea bottom-state indicators (cold pool, bottom temperature, model
+validation, catch–environment relationships) see the **Bering Sea Bottom-State Guide**.
 
 ## What is a Marine Heatwave?
 
@@ -268,7 +259,7 @@ The Arctic Oscillation and Pacific Decadal Oscillation are large-scale climate m
 
 ## Credits
 
-**Marine Heatwave State Dashboard**
+**Alaska Marine Ecosystem Dashboard**
 Developed by Rajesh Singh, Professor, Department of Economics, Iowa State University (rsingh@iastate.edu).
 
 Built with Streamlit, FastAPI, and Plotly.

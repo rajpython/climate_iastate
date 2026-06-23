@@ -41,7 +41,11 @@ from dashboard.pages.marine_heatwaves import render as marine_heatwaves_render  
 from dashboard.pages.bottom_observed import render as bottom_observed_render  # noqa: E402
 from dashboard.pages.bottom_models import render as bottom_models_render  # noqa: E402
 from dashboard.pages.catch import render as catch_render  # noqa: E402
-from dashboard.pages.cold_pool_guide import render as cold_pool_guide_render  # noqa: E402
+from dashboard.pages.guides import (  # noqa: E402
+    bering_bottom_state_guide,
+    dashboard_guide,
+    marine_heatwave_guide,
+)
 from dashboard.pages.research import render as research_render  # noqa: E402
 from dashboard.pages._placeholders import coming_soon  # noqa: E402
 
@@ -168,8 +172,11 @@ nav = {
         st.Page(research_render, title="Research", url_path="research"),
     ],
     "Guides": [
-        st.Page("pages/user_guide.py", title="User Guide"),
-        st.Page(cold_pool_guide_render, title="Cold-Pool Guide", url_path="cold_pool_guide"),
+        st.Page(dashboard_guide, title="Dashboard Guide", url_path="dashboard_guide"),
+        st.Page(marine_heatwave_guide, title="Marine Heatwave Guide",
+                url_path="marine_heatwave_guide"),
+        st.Page(bering_bottom_state_guide, title="Bering Sea Bottom-State Guide",
+                url_path="bering_bottom_state_guide"),
     ],
 }
 
