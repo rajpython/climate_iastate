@@ -53,11 +53,11 @@ _COVERAGE = [
     ("Marine Heatwaves", "Operational &amp; historical monitoring",
      "Marine heatwave conditions across Alaska shelf ecosystems.", False),
     ("Bering Sea", "Bottom Conditions &amp; Climate–Fisheries Relationships",
-     "Cold-pool indicators, bottom-temperature assessments, model validation, model "
-     "comparison, and catch–environment relationships.", False),
+     "Cold-pool indicators, bottom-temperature assessments, model validation, and "
+     "climate–fisheries relationships.", False),
     ("Gulf of Alaska", "Regional Ecosystem Indicators", "", True),
     ("Aleutian Islands", "Regional Ecosystem Indicators", "", True),
-    ("Arctic", "Chukchi and Beaufort Ecosystems", "", True),
+    ("Arctic", "Chukchi and Beaufort Shelf Ecosystems", "", True),
     ("Research", "Research Resources",
      "Literature summaries, technical notes, forecast development, and project research.", False),
     ("Guides", "Documentation",
@@ -108,8 +108,8 @@ def home() -> None:
                 unsafe_allow_html=True)
     st.markdown(
         '<div class="amed-intro">Climate, ocean, ecosystem, and fisheries indicators for '
-        "Alaska's shelf ecosystems, derived from observed surveys and regional ocean "
-        'models.</div>',
+        "Alaska marine ecosystems, integrating observed surveys, operational products, and "
+        'regional ocean models.</div>',
         unsafe_allow_html=True,
     )
     st.markdown('<div class="amed-section">Current Coverage</div>', unsafe_allow_html=True)
