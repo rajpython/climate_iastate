@@ -32,6 +32,7 @@ from dashboard.components.coldpool_data import (
     threshold_short,
     zscore as _z,
 )
+from dashboard.components.style import apply_explanatory_font
 from mhw.bottom.regions import get_region
 
 
@@ -183,6 +184,7 @@ def _bottom_temp_models(region: str, model_choices: list[str]) -> None:
 
 def main() -> None:
     st.set_page_config(page_title="Bottom State — Model Comparison", layout="wide", page_icon="🌡️")
+    apply_explanatory_font()
 
     st.sidebar.header("Controls")
     regions = list_bottom_state_regions()

@@ -30,6 +30,9 @@ _SIDEBAR_CSS = """<style>
 </style>"""
 st.markdown(_SIDEBAR_CSS, unsafe_allow_html=True)
 
+from dashboard.components.style import apply_explanatory_font
+apply_explanatory_font()
+
 st.title("🌊 Marine Heatwave State Dashboard")
 st.subheader(
     "Sub-arctic to Arctic marine waters around Alaska — Gulf of Alaska, Bering Sea, Chukchi, and Beaufort"

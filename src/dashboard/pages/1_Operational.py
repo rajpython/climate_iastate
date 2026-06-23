@@ -69,6 +69,8 @@ def _fmt(d) -> str:
 # Page config
 # ---------------------------------------------------------------------------
 st.set_page_config(page_title="Operational Dashboard", layout="wide", page_icon="")
+from dashboard.components.style import apply_explanatory_font
+apply_explanatory_font()
 st.markdown("""<style>
 [data-testid="stSidebarNavItems"] li:first-child a span {
     font-size: 1.3rem; font-weight: 700;

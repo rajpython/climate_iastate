@@ -29,6 +29,7 @@ from dashboard.components.coldpool_data import (
     region_label,
     threshold_short,
 )
+from dashboard.components.style import apply_explanatory_font
 from mhw.bottom.regions import get_region
 
 
@@ -186,6 +187,7 @@ def _bottom_temp_observed(region: str, model_choices: list[str]) -> None:
 
 def main() -> None:
     st.set_page_config(page_title="Bottom State — Observed & Validation", layout="wide", page_icon="🧊")
+    apply_explanatory_font()
 
     st.sidebar.header("Controls")
     regions = list_bottom_state_regions()

@@ -16,6 +16,8 @@ GUIDE_MD = ROOT / "docs" / "user_guide.md"
 GUIDE_PDF = ROOT / "docs" / "user_guide.pdf"
 
 st.set_page_config(page_title="User Guide", layout="wide", page_icon="")
+from dashboard.components.style import apply_explanatory_font
+apply_explanatory_font()
 st.markdown("""<style>
 [data-testid="stSidebarNavItems"] li:first-child a span {
     font-size: 1.3rem; font-weight: 700;
