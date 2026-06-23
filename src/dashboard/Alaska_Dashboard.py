@@ -3,9 +3,11 @@
 Run:
     streamlit run src/dashboard/Alaska_Dashboard.py
 
-Hybrid navigation (``st.navigation``): cross-cutting Alaska-wide products (marine heatwaves)
-stay top-level; region-specific products (bottom state, catch) are organised geographically
-(one section per ecosystem); research and guides are separate platform sections. New
+Hybrid navigation (``st.navigation``, **top-positioned**): cross-cutting Alaska-wide products
+(marine heatwaves) and region-specific ecosystems (Bering Sea, Gulf of Alaska, …) are grouped
+into a horizontal top bar; this keeps the **left sidebar dedicated to the active page's own
+controls** (region/model/threshold selectors) so they sit at the top of the sidebar instead of
+below a tall navigation list. Research and guides are separate platform sections. New
 regions/products slot into a section here rather than lengthening a flat page list. This shell
 owns the single ``set_page_config``, the explanatory-font CSS, and the page registry; the page
 modules just render their bodies.
@@ -36,20 +38,19 @@ from dashboard.pages._placeholders import coming_soon  # noqa: E402
 # --- Overview front door ------------------------------------------------------------------
 # Current-coverage cards (one per platform section) — answers "what is this?" before "what
 # pages exist?". Not an ecosystem-status index (deliberately deferred). Each card leads with
-# the section, then the concept it covers. (icon, section, concept, bullets, description, under_dev).
+# the section, then the concept it covers. (icon, section, concept, description, under_dev).
 _COVERAGE = [
-    ("🌊", "Alaska-wide Climate", "Marine Heatwaves", ["Operational", "Historical"],
-     "Operational monitoring and historical analysis of marine heatwave conditions across "
-     "Alaska shelf ecosystems.", False),
-    ("🧊", "Bering Sea", "Bottom Conditions & Climate–Fisheries Relationships", [],
+    ("🌊", "Marine Heatwaves", "Operational & historical monitoring",
+     "Marine heatwave conditions across Alaska shelf ecosystems.", False),
+    ("🧊", "Bering Sea", "Bottom Conditions & Climate–Fisheries Relationships",
      "Cold-pool indicators, bottom-temperature assessments, model validation, model "
      "comparison, and catch–environment relationships.", False),
-    ("🌀", "Gulf of Alaska", "Regional Ecosystem Indicators", [], "", True),
-    ("🌋", "Aleutian Islands", "Regional Ecosystem Indicators", [], "", True),
-    ("❄️", "Arctic", "Chukchi and Beaufort Ecosystems", [], "", True),
-    ("🔬", "Research", "Research Resources", [],
+    ("🌀", "Gulf of Alaska", "Regional Ecosystem Indicators", "", True),
+    ("🌋", "Aleutian Islands", "Regional Ecosystem Indicators", "", True),
+    ("❄️", "Arctic", "Chukchi and Beaufort Ecosystems", "", True),
+    ("🔬", "Research", "Research Resources",
      "Literature summaries, technical notes, forecast development, and project research.", False),
-    ("📖", "Guides", "Documentation", [],
+    ("📖", "Guides", "Documentation",
      "Documentation, methodology, and background material.", False),
 ]
 
@@ -63,12 +64,11 @@ def home() -> None:
     )
     st.markdown("#### Current Coverage")
     cols = st.columns(3)
-    for i, (icon, section, concept, bullets, desc, under_dev) in enumerate(_COVERAGE):
+    for i, (icon, section, concept, desc, under_dev) in enumerate(_COVERAGE):
         with cols[i % 3].container(border=True):
             st.markdown(f"##### {icon}  {section}")
-            st.markdown(f"**{concept}**")
-            if bullets:
-                st.markdown("\n".join(f"- {b}" for b in bullets))
+            if concept:
+                st.markdown(f"**{concept}**")
             if desc:
                 st.write(desc)
             if under_dev:
@@ -80,16 +80,17 @@ def home() -> None:
 
 
 # --- Page registry: geography-first hybrid navigation -------------------------------------
+# Top-positioned: each section is a top-bar menu, leaving the sidebar for page controls.
 # Gulf of Alaska, Aleutian Islands, and Arctic are distinct ecosystems and get distinct
-# top-level sections from the start (avoids future restructuring); each holds one concise
-# placeholder until its indicators are built (Phase 2/3), reusing the group-aware render()s.
+# sections from the start (avoids future restructuring); each holds one concise placeholder
+# until its indicators are built (Phase 2/3), reusing the group-aware render()s.
 nav = {
     "Overview": [
         st.Page(home, title="Overview", icon="🏠", default=True),
     ],
-    "Alaska-wide Climate": [
-        st.Page("pages/operational.py", title="Operational MHW", icon="🌊"),
-        st.Page("pages/historical.py", title="Historical MHW", icon="📊"),
+    "Marine Heatwaves": [
+        st.Page("pages/operational.py", title="Operational", icon="🌊"),
+        st.Page("pages/historical.py", title="Historical", icon="📊"),
     ],
     "Bering Sea": [
         st.Page(lambda: bottom_observed_render(group="bering"),
@@ -123,5 +124,5 @@ nav = {
     ],
 }
 
-pg = st.navigation(nav)
+pg = st.navigation(nav, position="top")
 pg.run()
