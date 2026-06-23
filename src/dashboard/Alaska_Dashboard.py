@@ -31,6 +31,8 @@ st.markdown(
     """<style>
     [data-testid="stTopNavSection"], [data-testid="stTopNavSection"] a,
     [data-testid="stTopNavDropdownButton"], [data-testid="stTopNav"] a { font-size: 1.0rem; }
+    /* Trim the oversized default gap between the top nav bar and page content. */
+    [data-testid="stMainBlockContainer"] { padding-top: 2.5rem; }
     </style>""",
     unsafe_allow_html=True,
 )
