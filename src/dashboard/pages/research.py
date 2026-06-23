@@ -1,56 +1,41 @@
-"""Research section — minimal stub pages.
+"""Research section — a single page describing planned content.
 
-The structure is created now so the platform reads as a research-backed ecosystem board; the
-content is curated by the separate research cell (`docs/forecast_extension/`) and filled in
-later. Forecasting is owned by that cell — the board only *displays* products it delivers.
-Page config / fonts are owned by the navigation shell.
+One page (not several empty destinations) so the site reads as intentionally staged rather
+than unfinished. As content accumulates, the sections below can be promoted into dedicated
+pages. Forecasting is developed by a separate research cell; the board surfaces observed and
+modelled state and displays forecast products as they are delivered. Page config / fonts are
+owned by the navigation shell.
 """
 from __future__ import annotations
 
 import streamlit as st
 
-_COMING = "_Coming soon — curated by the research cell._"
 
-
-def research_home() -> None:
+def render() -> None:
     st.title("🔬 Research")
     st.markdown(
-        "The research home for the Alaska Marine Ecosystem board: recent papers, short research "
-        "summaries, forecast outlooks, technical notes, and the project's own research outputs.\n\n"
-        "Forecasting is owned by a separate research cell; the board surfaces observed and modelled "
-        "*state* and will display forecast products the cell delivers — it does not build forecasts."
+        "Research outputs and resources supporting the Alaska Marine Ecosystem board. "
+        "Forecast development is carried out by a separate research cell; the board surfaces "
+        "observed and modelled ecosystem state and will display forecast products as they "
+        "become available."
     )
-    st.info("This section is being assembled. Use the items under **Research** in the sidebar.")
+    st.divider()
 
+    st.markdown("### Recent papers")
+    st.write("Curated literature on Alaska marine ecosystems, the cold pool, bottom conditions, "
+             "and fisheries. _In preparation._")
 
-def recent_papers() -> None:
-    st.title("📄 Recent Papers")
-    st.markdown("Curated recent literature on Alaska marine ecosystems, cold pool, and fisheries.")
-    st.caption(_COMING)
+    st.markdown("### Research summaries")
+    st.write("Short, plain-language summaries of relevant studies and of this project's findings. "
+             "_In preparation._")
 
+    st.markdown("### Forecast outlooks")
+    st.write("Seasonal-to-interannual outlooks delivered by the research cell, displayed here as "
+             "they are released. _In preparation._")
 
-def research_summaries() -> None:
-    st.title("📝 Research Summaries")
-    st.markdown("Short plain-language summaries of relevant studies and the project's findings.")
-    st.caption(_COMING)
+    st.markdown("### Technical notes")
+    st.write("Methods, data provenance, validation, and reproducibility details. _In preparation._")
 
-
-def forecast_outlooks() -> None:
-    st.title("🔭 Forecast Outlooks")
-    st.markdown(
-        "Seasonal / interannual outlooks **delivered by the research cell** and displayed here. "
-        "The board does not generate forecasts."
-    )
-    st.caption(_COMING)
-
-
-def technical_notes() -> None:
-    st.title("🛠️ Technical Notes")
-    st.markdown("Methods, data provenance, validation notes, and reproducibility details.")
-    st.caption(_COMING)
-
-
-def project_research() -> None:
-    st.title("📁 Project Research")
-    st.markdown("Outputs from this project: working notes, presentations, and ongoing analyses.")
-    st.caption(_COMING)
+    st.markdown("### Project research")
+    st.write("Working notes, presentations, and ongoing analyses from this project. "
+             "_In preparation._")

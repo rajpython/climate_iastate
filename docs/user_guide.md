@@ -16,8 +16,8 @@ region-specific products are grouped by area.
 | **Overview** | Front door / orientation |
 | **Alaska-wide Climate** | **Operational MHW** (live state) · **Historical MHW** (1982–present) — *this guide* |
 | **Bering Sea** | Bottom State — Observed & Validation · Model Comparison · Catch × Bottom State — *see the Cold-Pool Guide* |
-| **Gulf of Alaska & Aleutians** · **Arctic** | Reserved — coming as data products are built |
-| **Research** | Recent papers, summaries, forecast outlooks, technical notes, project research |
+| **Gulf of Alaska** · **Aleutian Islands** · **Arctic** | Distinct ecosystem sections — under development |
+| **Research** | A single page describing planned content (recent papers, summaries, forecast outlooks, technical notes, project research) |
 | **Guides** | User Guide · Cold-Pool Guide |
 
 ## What is a Marine Heatwave?

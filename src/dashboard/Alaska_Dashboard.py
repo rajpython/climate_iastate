@@ -4,10 +4,11 @@ Run:
     streamlit run src/dashboard/Alaska_Dashboard.py
 
 Hybrid navigation (``st.navigation``): cross-cutting Alaska-wide products (marine heatwaves)
-stay top-level; region-specific products (bottom state, catch) are grouped geographically;
-research and guides are separate platform sections. New regions/products slot into a section
-here rather than lengthening a flat page list. This shell owns the single ``set_page_config``,
-the explanatory-font CSS, and the page registry; the page modules just render their bodies.
+stay top-level; region-specific products (bottom state, catch) are organised geographically
+(one section per ecosystem); research and guides are separate platform sections. New
+regions/products slot into a section here rather than lengthening a flat page list. This shell
+owns the single ``set_page_config``, the explanatory-font CSS, and the page registry; the page
+modules just render their bodies.
 """
 import streamlit as st
 
@@ -23,45 +24,64 @@ from dashboard.components.style import apply_explanatory_font  # noqa: E402
 apply_explanatory_font()
 
 # Region-specific bottom-state pages are group-aware callables; the placeholder + research
-# stubs are plain callables. Importing them here is safe — these modules define functions only.
+# pages are plain callables. Importing them here is safe — these modules define functions only.
 from dashboard.pages.bottom_observed import render as bottom_observed_render  # noqa: E402
 from dashboard.pages.bottom_models import render as bottom_models_render  # noqa: E402
 from dashboard.pages.catch import render as catch_render  # noqa: E402
 from dashboard.pages.cold_pool_guide import render as cold_pool_guide_render  # noqa: E402
-from dashboard.pages import research as rsch  # noqa: E402
+from dashboard.pages.research import render as research_render  # noqa: E402
 from dashboard.pages._placeholders import coming_soon  # noqa: E402
 
 
+# --- Overview front door ------------------------------------------------------------------
+# Module cards (one per platform section) — answers "what is this?" before "what pages exist?".
+# Not an ecosystem-status index (deliberately deferred). (icon, title, description, under_dev).
+_MODULES = [
+    ("🌊", "Alaska-wide Climate",
+     "Marine heatwave monitoring across Alaska shelf ecosystems through operational and "
+     "historical products.", False),
+    ("🧊", "Bering Sea",
+     "Bottom-state indicators, cold-pool conditions, model validation, model comparison, and "
+     "climate–fisheries relationships.", False),
+    ("🌀", "Gulf of Alaska",
+     "Regional ecosystem products under development.", True),
+    ("🌋", "Aleutian Islands",
+     "Regional ecosystem products under development.", True),
+    ("❄️", "Arctic",
+     "Chukchi and Beaufort ecosystem products under development.", True),
+    ("🔬", "Research",
+     "Research summaries, forecast development, technical notes, and project research.", False),
+    ("📖", "Guides",
+     "Documentation, methodology, and background material.", False),
+]
+
+
 def home() -> None:
-    """Overview — the front door (simple MVP; not an ecosystem-status index yet)."""
     st.title("🌊 Alaska Marine Ecosystem Dashboard")
     st.subheader("Climate • Ocean • Ecosystems • Fisheries")
     st.markdown(
-        """
-        A friendly, honest, regionally-organised window onto public Alaska-shelf ocean and
-        fisheries data — observed surveys and ocean models, surfaced for the scientists and
-        managers who can use them. Pick a section from the sidebar.
-
-        ### Current modules
-        | Section | What's there |
-        |---|---|
-        | 🌊 **Alaska-wide Climate** | Marine-heatwave monitoring across all Alaska shelves — live **Operational MHW** state and **Historical MHW** analysis (1982–present), region-selectable |
-        | 🧊 **Bering Sea** | **Bottom State — Observed & Validation** (the cold-pool index + survey-replicated model skill), **Model Comparison** (Bering10K ROMS vs CEFI MOM6 NEP), and **Catch × Bottom State** (snow crab & co. vs thermal habitat) |
-        | 🚧 **Gulf of Alaska & Aleutians** · **Arctic** | Reserved — bottom-temperature conditions + catch, coming as the data products are built |
-        | 🔬 **Research** | Recent papers, summaries, forecast outlooks (delivered by the research cell), technical notes, project research |
-        | 📖 **Guides** | User Guide and the plain-language Cold-Pool Guide |
-
-        ---
-        *Bottom-state and catch products are **lagged** (recent-historical), not near-real-time.
-        Forecasting is owned by a separate research cell — this board surfaces **state**.*
-        """
+        "Climate, ocean, ecosystem, and fisheries indicators for Alaska's shelf ecosystems, "
+        "derived from observed surveys and regional ocean models."
     )
-    st.info("Navigate with the **sidebar** (← left).  Prefer dark mode? **top-right ⋮ → Settings → Theme**.")
+    st.markdown("#### Modules")
+    cols = st.columns(3)
+    for i, (icon, title, desc, under_dev) in enumerate(_MODULES):
+        with cols[i % 3].container(border=True):
+            st.markdown(f"##### {icon}  {title}")
+            st.write(desc)
+            if under_dev:
+                st.caption("🚧 Under development")
+    st.caption(
+        "Products are observed and modelled ecosystem **state** — annual and lagged "
+        "(recent-historical), not near-real-time. Forecast products are under development and "
+        "will be surfaced through the Research section as they become available."
+    )
 
 
 # --- Page registry: geography-first hybrid navigation -------------------------------------
-# Future "Gulf of Alaska & Aleutians" and "Arctic" sections become real pages in Phase 2/3;
-# for now they hold a single reserved placeholder so the section renders.
+# Gulf of Alaska, Aleutian Islands, and Arctic are distinct ecosystems and get distinct
+# top-level sections from the start (avoids future restructuring); each holds one concise
+# placeholder until its products are built (Phase 2/3), reusing the group-aware render()s.
 nav = {
     "Overview": [
         st.Page(home, title="Overview", icon="🏠", default=True),
@@ -81,21 +101,20 @@ nav = {
                 title="Catch × Bottom State", icon="🎣",
                 url_path="bering_catch"),
     ],
-    "Gulf of Alaska & Aleutians": [
-        st.Page(coming_soon("Gulf of Alaska & Aleutians", phase="Phase 2"),
-                title="Coming soon", icon="🚧", url_path="goa_ai_coming_soon"),
+    "Gulf of Alaska": [
+        st.Page(coming_soon("Gulf of Alaska", phase="Phase 2"),
+                title="Coming soon", icon="🚧", url_path="goa_coming_soon"),
+    ],
+    "Aleutian Islands": [
+        st.Page(coming_soon("Aleutian Islands", phase="Phase 2"),
+                title="Coming soon", icon="🚧", url_path="ai_coming_soon"),
     ],
     "Arctic": [
         st.Page(coming_soon("Arctic — Chukchi & Beaufort", phase="Phase 3"),
                 title="Coming soon", icon="🚧", url_path="arctic_coming_soon"),
     ],
     "Research": [
-        st.Page(rsch.research_home, title="Research Home", icon="🔬", url_path="research_home"),
-        st.Page(rsch.recent_papers, title="Recent Papers", icon="📄", url_path="recent_papers"),
-        st.Page(rsch.research_summaries, title="Research Summaries", icon="📝", url_path="research_summaries"),
-        st.Page(rsch.forecast_outlooks, title="Forecast Outlooks", icon="🔭", url_path="forecast_outlooks"),
-        st.Page(rsch.technical_notes, title="Technical Notes", icon="🛠️", url_path="technical_notes"),
-        st.Page(rsch.project_research, title="Project Research", icon="📁", url_path="project_research"),
+        st.Page(research_render, title="Research", icon="🔬", url_path="research"),
     ],
     "Guides": [
         st.Page("pages/user_guide.py", title="User Guide", icon="📖"),

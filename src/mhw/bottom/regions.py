@@ -52,7 +52,7 @@ class BottomRegion:
     id: str
     label: str                          # user-facing (dashboard titles)
     product_kind: str                   # "cold_pool" | "bottom_temp"
-    group: str                          # geographic nav group: "bering" | "goa_ai" | "arctic"
+    group: str                          # geographic nav group: "bering" | "goa" | "ai" | "arctic"
     lat_min: float
     lat_max: float
     lon_min: float
