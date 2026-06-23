@@ -37,6 +37,7 @@ st.markdown(
 
 # Region-specific bottom-state pages are group-aware callables; the placeholder + research
 # pages are plain callables. Importing them here is safe — these modules define functions only.
+from dashboard.pages.marine_heatwaves import render as marine_heatwaves_render  # noqa: E402
 from dashboard.pages.bottom_observed import render as bottom_observed_render  # noqa: E402
 from dashboard.pages.bottom_models import render as bottom_models_render  # noqa: E402
 from dashboard.pages.catch import render as catch_render  # noqa: E402
@@ -137,9 +138,11 @@ nav = {
     "Overview": [
         st.Page(home, title="Overview", default=True),
     ],
+    # Two-level nav limit: the third level (Marine Heatwaves → Operational / Historical) lives
+    # inside the hub page. Future climate indicators (SST anomalies, climate modes, outlooks)
+    # become sibling pages here.
     "Alaska-wide Climate": [
-        st.Page("pages/operational.py", title="Operational MHW"),
-        st.Page("pages/historical.py", title="Historical MHW"),
+        st.Page(marine_heatwaves_render, title="Marine Heatwaves", url_path="marine_heatwaves"),
     ],
     "Bering Sea": [
         st.Page(lambda: bottom_observed_render(group="bering"),
