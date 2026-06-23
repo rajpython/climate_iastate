@@ -34,24 +34,22 @@ from dashboard.pages._placeholders import coming_soon  # noqa: E402
 
 
 # --- Overview front door ------------------------------------------------------------------
-# Module cards (one per platform section) — answers "what is this?" before "what pages exist?".
-# Not an ecosystem-status index (deliberately deferred). (icon, title, description, under_dev).
-_MODULES = [
-    ("🌊", "Alaska-wide Climate",
-     "Marine heatwave monitoring across Alaska shelf ecosystems through operational and "
-     "historical products.", False),
-    ("🧊", "Bering Sea",
-     "Bottom-state indicators, cold-pool conditions, model validation, model comparison, and "
-     "climate–fisheries relationships.", False),
-    ("🌀", "Gulf of Alaska",
-     "Regional ecosystem products under development.", True),
-    ("🌋", "Aleutian Islands",
-     "Regional ecosystem products under development.", True),
-    ("❄️", "Arctic",
-     "Chukchi and Beaufort ecosystem products under development.", True),
-    ("🔬", "Research",
-     "Research summaries, forecast development, technical notes, and project research.", False),
-    ("📖", "Guides",
+# Current-coverage cards (one per platform section) — answers "what is this?" before "what
+# pages exist?". Not an ecosystem-status index (deliberately deferred). Each card leads with
+# the section, then the concept it covers. (icon, section, concept, bullets, description, under_dev).
+_COVERAGE = [
+    ("🌊", "Alaska-wide Climate", "Marine Heatwaves", ["Operational", "Historical"],
+     "Operational monitoring and historical analysis of marine heatwave conditions across "
+     "Alaska shelf ecosystems.", False),
+    ("🧊", "Bering Sea", "Bottom Conditions & Climate–Fisheries Relationships", [],
+     "Cold-pool indicators, bottom-temperature assessments, model validation, model "
+     "comparison, and catch–environment relationships.", False),
+    ("🌀", "Gulf of Alaska", "Regional Ecosystem Indicators", [], "", True),
+    ("🌋", "Aleutian Islands", "Regional Ecosystem Indicators", [], "", True),
+    ("❄️", "Arctic", "Chukchi and Beaufort Ecosystems", [], "", True),
+    ("🔬", "Research", "Research Resources", [],
+     "Literature summaries, technical notes, forecast development, and project research.", False),
+    ("📖", "Guides", "Documentation", [],
      "Documentation, methodology, and background material.", False),
 ]
 
@@ -63,25 +61,28 @@ def home() -> None:
         "Climate, ocean, ecosystem, and fisheries indicators for Alaska's shelf ecosystems, "
         "derived from observed surveys and regional ocean models."
     )
-    st.markdown("#### Modules")
+    st.markdown("#### Current Coverage")
     cols = st.columns(3)
-    for i, (icon, title, desc, under_dev) in enumerate(_MODULES):
+    for i, (icon, section, concept, bullets, desc, under_dev) in enumerate(_COVERAGE):
         with cols[i % 3].container(border=True):
-            st.markdown(f"##### {icon}  {title}")
-            st.write(desc)
+            st.markdown(f"##### {icon}  {section}")
+            st.markdown(f"**{concept}**")
+            if bullets:
+                st.markdown("\n".join(f"- {b}" for b in bullets))
+            if desc:
+                st.write(desc)
             if under_dev:
                 st.caption("🚧 Under development")
     st.caption(
-        "Products are observed and modelled ecosystem **state** — annual and lagged "
-        "(recent-historical), not near-real-time. Forecast products are under development and "
-        "will be surfaced through the Research section as they become available."
+        "Current coverage emphasizes observed and modelled ecosystem state. Forecast indicators "
+        "will be integrated into Alaska-wide and regional sections as they become available."
     )
 
 
 # --- Page registry: geography-first hybrid navigation -------------------------------------
 # Gulf of Alaska, Aleutian Islands, and Arctic are distinct ecosystems and get distinct
 # top-level sections from the start (avoids future restructuring); each holds one concise
-# placeholder until its products are built (Phase 2/3), reusing the group-aware render()s.
+# placeholder until its indicators are built (Phase 2/3), reusing the group-aware render()s.
 nav = {
     "Overview": [
         st.Page(home, title="Overview", icon="🏠", default=True),
@@ -103,15 +104,15 @@ nav = {
     ],
     "Gulf of Alaska": [
         st.Page(coming_soon("Gulf of Alaska", phase="Phase 2"),
-                title="Coming soon", icon="🚧", url_path="goa_coming_soon"),
+                title="Under development", icon="🚧", url_path="goa_under_development"),
     ],
     "Aleutian Islands": [
         st.Page(coming_soon("Aleutian Islands", phase="Phase 2"),
-                title="Coming soon", icon="🚧", url_path="ai_coming_soon"),
+                title="Under development", icon="🚧", url_path="ai_under_development"),
     ],
     "Arctic": [
         st.Page(coming_soon("Arctic — Chukchi & Beaufort", phase="Phase 3"),
-                title="Coming soon", icon="🚧", url_path="arctic_coming_soon"),
+                title="Under development", icon="🚧", url_path="arctic_under_development"),
     ],
     "Research": [
         st.Page(research_render, title="Research", icon="🔬", url_path="research"),

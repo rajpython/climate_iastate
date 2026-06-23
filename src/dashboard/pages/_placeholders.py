@@ -18,9 +18,9 @@ def coming_soon(region_label: str, phase: str, blurb: str = "") -> Callable[[], 
     def _render() -> None:
         st.title(f"🚧 {region_label}")
         st.info(
-            f"**Coming soon ({phase}).** This region is reserved in the navigation while its "
-            "data products are built. Bottom-temperature conditions, catch × thermal habitat, "
-            "and model comparison will appear here following the Bering Sea template."
+            f"**Under development ({phase}).** This ecosystem is reserved in the navigation "
+            "while its indicators are built. Bottom-temperature assessments, catch–environment "
+            "relationships, and model comparison will appear here following the Bering Sea template."
         )
         if blurb:
             st.caption(blurb)
