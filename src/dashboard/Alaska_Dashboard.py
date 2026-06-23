@@ -112,8 +112,7 @@ def home() -> None:
                 unsafe_allow_html=True)
     st.markdown(
         '<div class="amed-intro">Climate, ocean, ecosystem, and fisheries indicators for '
-        "Alaska marine ecosystems, integrating observed surveys, operational products, and "
-        'regional ocean models.</div>',
+        'Alaska marine ecosystems.</div>',
         unsafe_allow_html=True,
     )
     st.markdown('<div class="amed-section">Current Coverage</div>', unsafe_allow_html=True)
@@ -126,8 +125,8 @@ def home() -> None:
     cards = "".join(_card_html(*m) for m in _COVERAGE)
     st.markdown(f'<div class="amed-grid">{cards}</div>', unsafe_allow_html=True)
     st.markdown(
-        '<hr class="amed-rule"><div class="amed-footer">Developed at Iowa State University '
-        "using NOAA observational and modelling products.</div>",
+        '<hr class="amed-rule"><div class="amed-footer">Developed using NOAA observational '
+        "and modelling products.</div>",
         unsafe_allow_html=True,
     )
 
