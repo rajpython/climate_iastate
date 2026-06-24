@@ -208,10 +208,20 @@ with right:
         mfig.add_trace(go.Scattergeo(lon=[lon_e], lat=[val], mode="text",
                        text=[f"  {val:.2f}°N "], textposition="top right",
                        textfont={"color": GREEN, "size": 11}, showlegend=False, hoverinfo="skip"))
+        # Degree tick labels (geo subplots don't render graticule labels) — small text in the
+        # ocean margins, aligned with the 1° lat / 5° lon gridlines.
+        lat_ticks = [54, 55, 56, 57, 58, 59, 60]
+        lon_ticks = [-175, -170, -165, -160]
+        mfig.add_trace(go.Scattergeo(lon=[-177.6] * len(lat_ticks), lat=lat_ticks, mode="text",
+                       text=[f"{t}°N" for t in lat_ticks], textfont={"size": 10, "color": "#5f6b7a"},
+                       showlegend=False, hoverinfo="skip"))
+        mfig.add_trace(go.Scattergeo(lon=lon_ticks, lat=[53.5] * len(lon_ticks), mode="text",
+                       text=[f"{abs(t)}°W" for t in lon_ticks], textfont={"size": 10, "color": "#5f6b7a"},
+                       showlegend=False, hoverinfo="skip"))
         mfig.update_geos(
             resolution=50, projection_type="mercator",
-            lataxis={"range": [54, 60.5], "showgrid": True, "gridcolor": "rgba(150,150,150,0.3)", "dtick": 1},
-            lonaxis={"range": [-176, -158], "showgrid": True, "gridcolor": "rgba(150,150,150,0.3)", "dtick": 5},
+            lataxis={"range": [53.0, 61.0], "showgrid": True, "gridcolor": "rgba(150,150,150,0.3)", "dtick": 1},
+            lonaxis={"range": [-178.7, -156.5], "showgrid": True, "gridcolor": "rgba(150,150,150,0.3)", "dtick": 5},
             showland=True, landcolor="#e9e2d3", showocean=True, oceancolor="#cfe3f2",
             showcoastlines=True, coastlinecolor="#9aa7b5", coastlinewidth=0.8,
             showlakes=False, showrivers=False)
