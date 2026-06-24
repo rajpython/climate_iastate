@@ -5,8 +5,10 @@ from mhw.bottom.indicators import (
     analog_years,
     anomaly,
     category_color,
+    direction_phrase,
     ordinal_rank,
     percentile_rank,
+    position_category,
     risk_category,
 )
 
@@ -98,3 +100,23 @@ def test_analog_years_skips_nonfinite_and_missing_target():
     assert analog_years(2010, years, area, mean_bt, k=3) == [2012]
     # Unknown target year → empty.
     assert analog_years(1999, years, area, mean_bt) == []
+
+
+# --- position_category ---------------------------------------------------------------------
+def test_position_category_bins():
+    assert position_category(95) == "Much farther north than typical"
+    assert position_category(90) == "Much farther north than typical"
+    assert position_category(75) == "Moderately farther north than typical"
+    assert position_category(50) == "Near average position"
+    assert position_category(30) == "Near average position"
+    assert position_category(20) == "Moderately farther south than typical"
+    assert position_category(5) == "Much farther south than typical"
+    assert position_category(float("nan")) == "Near average position"
+
+
+# --- direction_phrase ----------------------------------------------------------------------
+def test_direction_phrase_north_south_and_near():
+    assert direction_phrase(0.8) == "0.8° farther north than typical"
+    assert direction_phrase(-0.3) == "0.3° farther south than typical"
+    assert direction_phrase(0.02) == "near its average position"
+    assert direction_phrase(float("nan")) == "position unavailable"

@@ -30,6 +30,7 @@ import xarray as xr
 
 from mhw.bottom.loader import load_bottom_temp, open_bottom_dataset
 from mhw.bottom.regions import BOTTOM_REGIONS, EBS, BottomRegion, get_region
+from mhw.bottom.position import cold_pool_position
 from mhw.bottom.regrid import regrid_curvilinear_to_regular
 from mhw.bottom.sources import SOURCES, BottomSource, BERING10K_K20_CORECFS
 
@@ -174,6 +175,10 @@ def build_model_coldpool_series(
                "mean_bottom_temp": round(mean_shelf_bottom_temp(grid, shelf, areas), 4)}
         for thr in THRESHOLDS_C:
             row[_THRESH_COL[thr]] = round(coldpool_area_km2(grid, shelf, areas, thr), 1)
+        if region.product_kind == "cold_pool":
+            # Derived position indicator (southern extent = p05 latitude of ≤2 °C shelf cells).
+            sext = cold_pool_position(grid, shelf, lats, lons, threshold=2.0)
+            row["southern_extent_lat"] = None if not np.isfinite(sext) else round(sext, 3)
         rows.append(row)
         print(f"  {year}: ≤2 °C = {row['area_lte2_km2']:,.0f} km²  "
               f"mean BT = {row['mean_bottom_temp']:.2f} °C")

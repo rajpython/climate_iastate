@@ -24,6 +24,7 @@ from dashboard.components.coldpool_data import (
     MODEL_SOURCES,
     THRESHOLDS,
     list_bottom_state_regions,
+    load_model,
     load_observed,
     load_survey_replicate,
     region_label,
@@ -35,8 +36,10 @@ from mhw.bottom.indicators import (
     analog_years,
     anomaly,
     category_color,
+    direction_phrase,
     ordinal_rank,
     percentile_rank,
+    position_category,
     risk_category,
 )
 from mhw.bottom.regions import get_region
@@ -56,6 +59,89 @@ def _category_badge(label: str) -> str:
     color = category_color(label)               # green / orange / red / gray
     directive = {"gray": "gray"}.get(color, color)
     return f":{directive}[**{label}**]"
+
+
+def _southern_extent_panel(region: str) -> None:
+    """Cold-Pool Southern Extent — a derived position indicator (model-derived, Phase 1).
+
+    Answers 'where is the cold pool', not just 'how big'. Southern extent = the 5th-percentile
+    latitude of ≤2 °C shelf cells (see the Bering Sea Bottom-State Guide). EBS only.
+    """
+    if region != "ebs":
+        return
+    loaded = {name: load_model(MODEL_SOURCES[name], region) for name in MODEL_SOURCES}
+    loaded = {n: m for n, m in loaded.items()
+              if m is not None and "southern_extent_lat" in m
+              and m["southern_extent_lat"].notna().any()}
+    if not loaded:
+        st.markdown("### Cold-pool southern extent — *where* the cold pool reaches (model-derived)")
+        st.info("The southern-extent indicator isn't built yet. Run "
+                "`mhw-build-coldpool-model --source bering10k --region ebs` (and `--source mom6_nep`).")
+        return
+
+    st.markdown("### Cold-pool southern extent — *where* the cold pool reaches (model-derived)")
+    st.caption(
+        "A derived **position** indicator complementing area and bottom temperature: the "
+        "southernmost reach of the ≤ 2 °C cold pool (5th-percentile latitude of cold shelf "
+        "cells). Higher latitude = farther north = a northward-contracted cold pool. "
+        "**Model-derived** (Bering10K, CEFI MOM6 NEP); an observed survey version is planned. "
+        "Not an official ESR metric — see the Bering Sea Bottom-State Guide."
+    )
+
+    # KPI card driven by one source (default Bering10K — the longer record).
+    src_name = st.radio("Source for the headline", list(loaded), horizontal=True,
+                        key="sext_src")
+    df = loaded[src_name].dropna(subset=["southern_extent_lat"]).sort_values("year")
+    series = df["southern_extent_lat"]
+    latest = df.iloc[-1]
+    yr = int(latest["year"])
+    val = float(latest["southern_extent_lat"])
+    span = f"{int(df['year'].min())}–{int(df['year'].max())}"
+    base = df.loc[(df["year"] >= BASELINE_START) & (df["year"] <= BASELINE_END),
+                  "southern_extent_lat"]
+    base_mean = float(base.mean()) if not base.empty else float("nan")
+    anom = anomaly(val, base) if not base.empty else float("nan")
+    pct = percentile_rank(val, series)
+    category = position_category(pct)
+    phrase = direction_phrase(anom)
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric(f"{yr} southern extent ({src_name})", f"{val:.1f} °N")
+    c2.metric(f"Historical mean ({BASELINE_START}–{BASELINE_END})",
+              f"{base_mean:.1f} °N" if pd.notna(base_mean) else "—")
+    c3.metric(f"Percentile ({span})", f"{pct:.0f}th",
+              help="Percentile of this year's southern-extent latitude in the model record.")
+
+    eco = ("a northward-contracted cold pool, reducing southern cold-water habitat" if pct >= 70
+           else "a southward-expanded cold pool" if pct <= 30
+           else "a near-typical cold-pool position")
+    st.markdown(
+        f"**{category}** — in {yr} the modelled cold pool reached about **{val:.1f} °N**, "
+        f"**{phrase}** ({_ordinal(int(round(pct)))} percentile of the {span} record), indicating "
+        f"{eco}."
+    )
+    analogs = analog_years(yr, df["year"].values, series.values, k=3)
+    if analogs:
+        st.caption("Most similar years (by southern extent): " + ", ".join(str(a) for a in analogs) + ".")
+
+    # Historical time series — each model + the headline source's climatological mean.
+    fig = go.Figure()
+    for name, m in loaded.items():
+        mm = m.dropna(subset=["southern_extent_lat"]).sort_values("year")
+        fig.add_trace(go.Scatter(x=mm["year"], y=mm["southern_extent_lat"], mode="lines+markers",
+                      name=name, line={"color": MODEL_COLORS.get(name, "gray"), "width": 2}))
+    if pd.notna(base_mean):
+        fig.add_hline(y=base_mean, line_dash="dash", line_color="gray", line_width=1,
+                      annotation_text=f"{src_name} {BASELINE_START}–{BASELINE_END} mean",
+                      annotation_font_size=9)
+    fig.update_yaxes(title_text="Southern extent (°N) — higher = farther north")
+    fig.update_layout(height=380, template="plotly_white",
+                      margin={"l": 70, "r": 20, "t": 30, "b": 40},
+                      legend={"orientation": "h", "y": 1.06, "yanchor": "bottom",
+                              "x": 0, "xanchor": "left"})
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption("Descriptive of modelled history — not a forecast. Definition is swappable "
+               "(default: 5th-percentile latitude of ≤ 2 °C shelf cells).")
 
 
 def _survey_replicate_panel(region: str, model_choices: list[str], yr_range=None) -> bool:
@@ -211,6 +297,9 @@ def _cold_pool_observed(region: str, model_choices: list[str]) -> None:
     fig.update_layout(height=300 * n_rows, template="plotly_white", showlegend=False,
                       bargap=0.15, margin={"l": 60, "r": 20, "t": 50, "b": 40})
     st.plotly_chart(fig, use_container_width=True)
+
+    # ---- Panel B: cold-pool southern extent (derived position; model-derived) ----
+    _southern_extent_panel(region)
 
     # ---- Panel C: survey-replicated validation ----
     if model_choices:

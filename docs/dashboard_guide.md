@@ -24,8 +24,9 @@ Two indicator areas are implemented today:
 - **Alaska-wide Climate — Marine Heatwaves.** Operational (live and recent) and historical
   (1982–present) marine-heatwave state across the Alaska shelf seas, derived from NOAA OISST.
 - **Bering Sea — Bottom State.** The cold-pool area index and bottom-temperature conditions
-  from the AFSC summer bottom-trawl survey, model validation and model comparison
-  (Bering10K ROMS, CEFI MOM6 NEP), and catch–environment relationships.
+  from the AFSC summer bottom-trawl survey, a derived cold-pool **southern-extent** position
+  indicator, model validation and model comparison (Bering10K ROMS, CEFI MOM6 NEP), and
+  catch–environment relationships.
 
 The Gulf of Alaska, Aleutian Islands, and Arctic (Chukchi and Beaufort) ecosystem sections are
 **under development**. Additional ocean-health indicators and forecast indicators will be added

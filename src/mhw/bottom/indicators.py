@@ -146,3 +146,37 @@ def analog_years(
         dists.append((float(np.linalg.norm(z[i] - tvec)), int(yr)))
     dists.sort(key=lambda t: (t[0], t[1]))
     return [yr for _, yr in dists[:k]]
+
+
+# --- Cold-pool position (southern extent) ------------------------------------------------
+# Position uses *directional* language, not signed anomalies, and neutral spatial categories
+# (no concern colour) — managers read it spatially. Higher latitude = farther north (a
+# northward retreat of the cold pool's southern reach).
+
+def position_category(pct: float) -> str:
+    """Map a percentile of southern-extent latitude to a spatial category (documented bins)."""
+    if not np.isfinite(pct):
+        return "Near average position"
+    if pct >= 90:
+        return "Much farther north than typical"
+    if pct >= 70:
+        return "Moderately farther north than typical"
+    if pct >= 30:
+        return "Near average position"
+    if pct >= 10:
+        return "Moderately farther south than typical"
+    return "Much farther south than typical"
+
+
+def direction_phrase(anomaly_deg: float, near: float = 0.1) -> str:
+    """Render a latitude anomaly as spatial language: '0.8° farther north than typical'.
+
+    Anomalies smaller than ``near`` (degrees) read as 'near its average position'. Sign is
+    expressed as north (positive) / south (negative); the value is never shown signed.
+    """
+    if not np.isfinite(anomaly_deg):
+        return "position unavailable"
+    mag = abs(anomaly_deg)
+    if mag < near:
+        return "near its average position"
+    return f"{mag:.1f}° farther {'north' if anomaly_deg > 0 else 'south'} than typical"

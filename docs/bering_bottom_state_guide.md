@@ -270,6 +270,33 @@ cold was the bottom, on average."
 
 ---
 
+## 5a. The third number: "cold-pool southern extent"
+
+Area says *how much* cold habitat there is; southern extent says **where** it is — how far
+south the cold pool reaches. Two years can have a similar cold-pool area but a very different
+position, and the southern edge of the cold pool acts as a biological barrier, so its position
+matters in its own right.
+
+**What it is.** The **5th-percentile latitude** of the shelf cells at or below 2 °C — the
+southern reach of the cold pool, taken as a low percentile rather than the single
+southernmost cell so it is not thrown off by an isolated cold patch. A **higher** latitude
+means the cold pool's southern edge sits **farther north** (a northward-contracted cold pool,
+typical of warm years); a **lower** latitude means it reaches **farther south**.
+
+**How to read it.** The dashboard reports the current value, the historical mean position,
+the difference in spatial language ("0.8° farther north than typical"), a percentile, a
+plain-language category, and the most similar past years. For example, the warm year 2019
+shows a far-north southern extent (a strongly retreated cold pool), while cold years sit
+farther south.
+
+**Two honest notes.** This is a **derived position indicator**, not an official ESR metric —
+ESRs convey position through maps; we reduce it to one defensible, clearly-stated number. And
+the current dashboard value is **model-derived** (Bering10K, MOM6); an observed survey version
+is planned. The exact definition is intentionally easy to revise if AFSC scientists prefer an
+alternative convention.
+
+---
+
 ## 6. Reading the dashboard — two pages, four panels
 
 In the **Alaska Marine Ecosystem Dashboard**, the cold pool lives under the **Bering Sea**
