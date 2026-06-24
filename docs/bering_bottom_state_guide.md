@@ -226,7 +226,7 @@ four steps:
 
 We show **two** regional ocean models side by side, on purpose. They are built by
 different groups using different modelling systems, so when they *agree* we can be more
-confident, and when they *disagree* that gap is an honest measure of uncertainty.
+confident, and when they *disagree* that gap is a direct measure of uncertainty.
 
 | | **Bering10K ROMS** | **CEFI MOM6 NEP** |
 |---|---|---|
@@ -323,7 +323,7 @@ pattern and correlations get noisier — the page notes this.
 ## 7. Understanding the comparison
 
 ### Why is the area shown "standardized (z-score)" in the comparison?
-There is one honest wrinkle. The survey measures area over its **exact official survey
+There is one wrinkle worth noting. The survey measures area over its **exact official survey
 footprint**. The models measure area over a slightly **larger shelf region** (everything
 shallower than 200 m). Because the models add up a bigger region, their **raw area numbers
 come out larger** than the survey's — especially in warmer years. That is a difference in
@@ -370,7 +370,7 @@ The trap — which our first attempt fell into — is comparing #1 against the s
 whole-shelf model average vs a survey-footprint observation. That is apples-to-oranges and
 makes the models look artificially warm. The fix is comparison #3.
 
-### What "bias" means, and the honest numbers
+### What "bias" means, and the actual numbers
 **Bias** is the average gap between model and observed bottom temperature (model − observed).
 It differs from correlation: **correlation (r)** asks "do they rise and fall together?"
 (shape); **bias** asks "is the model too warm or cold on average?" (level).
@@ -411,103 +411,38 @@ Compared the *correct* way, **both models are excellent, essentially-unbiased st
 the survey** — MOM6 marginally better at the point level, Bering10K marginally colder. They
 reproduce the famous events (cold 2012, the 2017–2019 collapse), they **fill years the
 survey missed** (like 2020), and — being two independent models — **where they agree we can
-be confident, and where they disagree we get an honest measure of uncertainty.** That is the
+be confident, and where they disagree we get a direct measure of uncertainty.** That is the
 foundation for everything we want to build on top of them.
 
 ---
 
-## 8. Where the data comes from (sources, and exactly how we got it)
+## 8. Data sources
 
-Everything on this page is built from **public, free** data — no login, no special
-access, no data-sharing agreement. But the *three sources are obtained in two different
-ways*, which is worth being precise about (it also matters when we describe our methods to
-NOAA collaborators).
+All three sources are public and free. Brief attributions:
 
-### A note on "how we get it": files vs. data services
-- The **observed survey index** is a small published **file** we simply download (one file
-  per release). It is produced by NOAA but **distributed through a code/data repository
-  (GitHub) and archived on Zenodo** — *not* served from a noaa.gov data API.
-- The **two models** are large datasets we read directly from **NOAA's own data servers**
-  over a standard ocean-data service called **OPeNDAP/THREDDS**. Rather than downloading
-  whole files, OPeNDAP lets us pull just the region, variable, and dates we need, on
-  demand — effectively a data API. Both model servers are **on noaa.gov**.
+- **Observed cold-pool index and per-haul temperatures** — NOAA Alaska Fisheries Science
+  Center (AFSC), `afsc-gap-products/coldpool` (Zenodo DOI 10.5281/zenodo.16915337). Eastern
+  Bering Sea shelf, 1982–2025 (no 2020 survey).
+- **Bering10K ROMS** — NOAA PMEL and the University of Washington, Alaska Climate Integrated
+  Modeling (ACLIM) program. Bering Sea, 1970–2024 hindcast.
+- **CEFI MOM6 NEP** — NOAA GFDL and PSL, Climate, Ecosystems & Fisheries Initiative (CEFI).
+  Northeast Pacific (Baja to the Chukchi), 1993–2025 hindcast.
 
-### Source 1 — Observed cold-pool index (the survey)
-- Producer: **NOAA Alaska Fisheries Science Center (AFSC)**, Groundfish Assessment Program.
-- How we get it: **direct file download from GitHub** (the AFSC product repo); the citable
-  archive is on Zenodo. *(There is also an R-package install route; we use the raw file.)*
-- Repository: `afsc-gap-products/coldpool` — <https://github.com/afsc-gap-products/coldpool>
-- Citable archive: Zenodo DOI **10.5281/zenodo.16915337** —
-  <https://doi.org/10.5281/zenodo.16915337>
-- Exact files: the `cold_pool_index` object (the annual index), and
-  `index_hauls_temperature_data.csv` (the **per-haul** station temperatures — location,
-  date, observed bottom temperature — used for survey replication, §7).
-  <https://raw.githubusercontent.com/afsc-gap-products/coldpool/main/data/cold_pool_index.rda>
-- Coverage: eastern Bering Sea shelf, **1982–2025** (no 2020). Index: one row per survey
-  year; hauls: ~15,000 station records.
-
-### Source 2 — Bering10K ROMS model (ACLIM)
-- Producer: **NOAA PMEL + University of Washington**, Alaska Climate Integrated Modeling
-  (ACLIM) program.
-- How we get it: **OPeNDAP/THREDDS from a noaa.gov server** (open, no login).
-- Server: NOAA PMEL THREDDS — <https://data.pmel.noaa.gov/aclim/thredds/>
-- Exact dataset: the operational hindcast bottom-5m temperature collection
-  (`B10K-K20_CORECFS`) —
-  `https://data.pmel.noaa.gov/aclim/thredds/dodsC/B10K-K20_Level2_CORECFS_bottom5m_collection.nc`
-- Coverage: Bering Sea / EBS, **weekly, 1970–2024** (refreshed a few times a year).
-
-### Source 3 — CEFI MOM6 NEP model
-- Producer: **NOAA GFDL + PSL**, Climate, Ecosystems & Fisheries Initiative (CEFI).
-- How we get it: **OPeNDAP/THREDDS from a noaa.gov server** (open, no login; also
-  mirrored on AWS S3 / Google Cloud).
-- Portal: NOAA CEFI data portal — <https://psl.noaa.gov/cefi_portal/>
-- Exact dataset: the Northeast Pacific hindcast bottom-temperature (`btm_temp`),
-  monthly, regridded, on the PSL THREDDS server under
-  `.../Projects/CEFI/regional_mom6/cefi_portal/northeast_pacific/...`
-- Coverage: Northeast Pacific (Baja → Chukchi), **monthly, 1993–2024** (hindcast extends
-  to mid-2025). A public seasonal-**forecast** version also exists.
-
-### How the dashboard refreshes these (for maintainers)
-- Observed index + per-haul data: `mhw-fetch-coldpool` →
-  `data/raw/coldpool_index_observed.parquet`, `data/raw/coldpool_hauls_observed.parquet`
-- Full-shelf model series: `mhw-build-coldpool-model --source {bering10k,mom6_nep}`
-  (add `--monthly` for the matched-cadence series used by the model-vs-model panel)
-- Survey-replicated validation: `mhw-build-survey-replicate --source {bering10k,mom6_nep}`
-  → all saved under `data/derived/cold_pool/`
-- Served by the dashboard API at `/v1/cold-pool/observed`,
-  `/v1/cold-pool/modelled?source=...`, and `/v1/cold-pool/survey-replicate?source=...`.
+Server endpoints, file formats, and the build/refresh commands are documented in the technical
+companion (`docs/cold_pool_README.md`).
 
 ---
 
-## 9. Beyond temperature — other variables that matter for fish
+## 9. Beyond temperature
 
-The cold-pool pages are about **temperature**. But temperature is not the only thing
-that decides whether fish and crab thrive, and — importantly — **all three of our sources
-carry much more than temperature.** We have not yet built dashboard pages for these, but
-the data is there and is a natural next step. Here is what each source offers and why it
-matters biologically:
-
-| Variable | Why it matters for fish & crab | Survey (observed) | Bering10K | MOM6 NEP |
-|---|---|---|---|---|
-| **Bottom & surface temperature** | habitat limits, the cold pool itself | ✓ (full record) | ✓ | ✓ |
-| **Salinity** | identifies water masses; sets layering that drives the spring plankton bloom | ✓ (recent years only) | ✓ | ✓ |
-| **Sea ice** | creates the cold pool; controls bloom timing | — | ✓ | ✓ |
-| **Dissolved oxygen** | low oxygen stresses or excludes fish & crab | — | ✓ | ✓ |
-| **Nutrients & plankton** | the base of the food web — prey for larvae (drives *recruitment*, i.e. how many young survive) | — | ✓ | ✓ |
-| **Currents** | carry larvae to or away from nursery grounds (recruitment) | — | ✓ | ✓ |
-| **Ocean acidification (pH / carbon)** | weakens crab shell formation — directly relevant to crab survival | — | — | ✓ (COBALT) |
-
-A few honest points:
-- The **survey** measures temperature for its whole record, **surface temperature**, and
-  **bottom salinity only in recent years** (salinity sensors were added later). The wider
-  AFSC bottom-trawl survey also records the actual fish and crab catch, but that is a
-  separate product from the cold-pool index used here.
-- The **models** are the richer source for these other fields: Bering10K carries a full
-  biology module (oxygen, nutrients, plankton), and **MOM6 additionally carries ocean
-  acidification / carbon chemistry** — which is especially relevant to crab.
-- **Today the dashboard uses only temperature.** Salinity, oxygen, and the
-  recruitment-relevant fields (nutrients, plankton, currents, pH) are available from the
-  same sources and are a clear avenue for future pages.
+Temperature is not the only control on whether fish and crab thrive, and all three sources
+carry more than temperature. The models in particular are rich: Bering10K includes a biology
+module (salinity, sea ice, dissolved oxygen, nutrients, plankton, currents), and MOM6
+additionally carries ocean acidification / carbonate chemistry — including seafloor aragonite
+saturation, the crab-shell indicator. The survey adds surface temperature and, in recent
+years, bottom salinity. The dashboard currently shows temperature only; dissolved oxygen and
+aragonite are the highest-value additions for a fisheries audience and are planned (see
+`docs/alaska_shelf_expansion_plan.md`).
 
 ---
 
@@ -568,7 +503,7 @@ temperature-indifferent species these numbers collapse toward a ~1× ratio and a
   catch density; faint blue dots mark the cold-pool hauls. You can literally see the catch tracing
   the cold pool across the shelf.
 
-### Honest caveats (same spirit as the rest of this guide)
+### Caveats
 
 - **Observed only** — this is survey data joined to survey temperatures, no model involved.
 - **Association is not cause.** Cold water travels with other things crab like (depth, muddy
@@ -580,7 +515,7 @@ temperature-indifferent species these numbers collapse toward a ~1× ratio and a
 
 ---
 
-## 10. Honest limitations (please read before quoting numbers)
+## 10. Limitations (please read before quoting numbers)
 
 - **No source is real-time.** The survey is annual and only available after each summer is
   processed; the models are hindcasts running through 2024. This page shows **recent
@@ -622,7 +557,7 @@ survey** can fill gaps and are the stepping stone toward forecasting.
 **Q: Why two models instead of one?**
 Because they are built independently by different groups. When two independent models
 *and* the real survey all agree, that is strong evidence; where the two models disagree,
-that gap is an honest signal of how uncertain we should be. We also get each one's
+that gap is a direct signal of how uncertain we should be. We also get each one's
 strengths: Bering10K's accuracy here, and MOM6's broader coverage and forecast capability.
 
 **Q: Doesn't MOM6 run ~1 °C warm? I see it high on the bottom-temperature chart.**
@@ -699,22 +634,16 @@ have seen is a full-shelf-footprint artifact, not the model's true bias (§7).
 
 ## Appendix A — Data availability across the five Alaska shelf regions
 
-> **Note (2026-06-21):** the authoritative, fully-verified regional availability matrix and
-> the expansion roadmap now live in **`docs/alaska_shelf_expansion_plan.md`**. That document
-> corrects and extends the tables below (e.g. GOA survey runs to 2025; NBS has its own
-> cold-pool area index; the Aleutians and Bering Slope have observed bottom-temperature data
-> but no cold pool). Treat the plan as the source of truth; this appendix is the original
-> sketch.
+This guide covers the eastern Bering Sea. For context, the table below summarises observed and
+modelled **bottom-temperature** availability across the five Alaska shelf regions, from the
+three sources used throughout: the **survey** (AFSC summer bottom-trawl / cold-pool index),
+**Bering10K ROMS** (the Bering-Sea model), and **MOM6 NEP** (the Northeast Pacific model).
+Regions run south to north. Key: **✓** available · **~** partial or sporadic · **—** not
+available.
 
-The cold-pool pages cover the **eastern Bering Sea**. This appendix summarises, for **all
-five Alaska shelf regions**, what subsurface (seafloor) data each of our three sources
-provides — first **bottom temperature** (Table A.1), then the **other ocean-health
-indicators** (Table A.2). Regions run south to north. Key: **✓** available · **~** partial
-or sporadic · **—** not available.
-
-The three sources are the same ones used elsewhere in this guide: the **survey** (the AFSC
-summer bottom-trawl / cold-pool index, observed), and two ocean models, **Bering10K ROMS**
-(the Bering-Sea specialist) and **MOM6 NEP** (the whole Northeast Pacific).
+The full regional availability matrix — other ocean-health indicators, catch/stock layers, and
+the expansion roadmap — is maintained in **`docs/alaska_shelf_expansion_plan.md`**, which is the
+authoritative source for current coverage and planned work.
 
 ### Table A.1 — Subsurface (bottom) temperature
 
@@ -731,152 +660,6 @@ single monthly time axis, so the Northern Bering, Chukchi, and Beaufort carry th
 not a shorter one (confirmed by reading values at both ends of the series in each region, June
 2026). Bering10K's 1970–2024 applies wherever it has coverage (the Bering shelf and the
 southern Chukchi edge).
-
-### Table A.2 — Other ocean-health indicators
-
-Indicators counted here: **salinity, sea ice, dissolved oxygen, nutrients & plankton,
-currents, and ocean acidification (pH / carbonate chemistry)**. For the two models these
-indicators are carried **wherever the model has coverage** — so each model's region pattern
-matches its column in Table A.1; the difference between the models is *which* indicators they
-carry, not which regions.
-
-| Region | Survey (observed) | Bering10K ROMS | MOM6 NEP (CEFI) |
-|---|---|---|---|
-| Gulf of Alaska (GOA) | ~ bottom salinity (recent) | — | ✓ full set incl. acidification |
-| Eastern Bering Sea (EBS) | ~ bottom salinity (recent) | ✓ all but acidification | ✓ full set incl. acidification |
-| Northern Bering Sea (NBS) | — | ✓ all but acidification | ✓ full set incl. acidification |
-| Chukchi Sea | — | ~ southern edge only | ✓ full set incl. acidification |
-| Beaufort Sea | — | — | ✓ full set incl. acidification |
-
-**Notes**
-- **"Full set" (MOM6 NEP)** = salinity, sea ice, dissolved oxygen (including at the
-  seafloor), nutrients, plankton/chlorophyll, currents, and ocean acidification / carbonate
-  chemistry (including seafloor aragonite saturation, the crab-shell indicator). MOM6 is the
-  only source that carries the acidification fields.
-- **Bering10K** carries salinity, sea ice, dissolved oxygen, nutrients, plankton, and
-  currents (its biology module), but **not** acidification / carbon chemistry.
-- The **survey** is primarily a temperature record; it also measures surface temperature and
-  added **bottom salinity in recent years**. The wider bottom-trawl survey records the actual
-  fish and crab caught — a separate product from the cold-pool index used here.
-- **All model entries are hindcasts** — recent history, not real-time — and MOM6's forecast
-  version is not yet released. See §10.
-- **Coverage was confirmed against the live data servers (June 2026).** MOM6 NEP returns
-  valid seafloor values at sample points in all five regions, including the Beaufort;
-  Bering10K spans roughly 45°–70°N and covers the Bering shelf (EBS and NBS) plus the
-  southern edge of the Chukchi, but not the Gulf of Alaska or the Beaufort.
-- **Availability is not the same as validation.** The survey is the ground truth; Bering10K
-  is validated for the eastern Bering Sea; MOM6's Bering validation is published, but its
-  standing in the Gulf of Alaska, Chukchi, and Beaufort is less established. A region being
-  filled in a table above does not by itself mean the model has been checked there.
-- **Indicator periods (Table A.2) match the temperature periods** in Table A.1: the MOM6
-  indicators run 1993–2025 across the whole domain; the Bering10K indicators run 1970–2024
-  wherever it has coverage.
-
-### Table A.3 — Fish & shellfish stock / catch data (scoping)
-
-This is the **biological catch layer**, beyond the physical ocean — what is actually living
-on and being taken from the shelf. It is **separate from the cold-pool work** and will likely
-become its own board section; it is captured here as a first pass so the scope is on record.
-
-The anchor is the **AFSC summer bottom-trawl survey** — the same survey that produces the
-cold-pool index also records **what was caught in every tow**. It is public and queryable
-today through NOAA's **FOSS** (Fisheries One Stop Shop) REST API. The survey covers the same
-shelves as the physical data and **thins out north of the Bering** in the same way (no routine
-survey in the Chukchi or Beaufort).
-
-| Survey region | Coverage (years) | What's available |
-|---|---|---|
-| Eastern Bering Sea (EBS) shelf | 1982–2025, annual | haul records + per-species catch; includes **crab** (it is the crab/groundfish survey) |
-| Northern Bering Sea (NBS) | 2010–2023, sporadic | same fields |
-| Gulf of Alaska (GOA) | 1990–2025, biennial | same fields |
-| Aleutian Islands (AI) | 1991–2024, biennial/triennial | same fields |
-| Bering Sea Slope (BSS) | ~2002–2016, sporadic | same fields |
-| Chukchi / Beaufort | — | no routine bottom-trawl survey; only occasional Arctic research cruises |
-
-What the FOSS survey tables give (confirmed live, June 2026):
-- **Haul** — one row per tow: year, region, vessel, station, location, depth, **bottom
-  temperature**, gear.
-- **Catch** — one row per species per haul: catch-per-unit-effort in **kg/km²** and **#/km²**,
-  total weight, and count.
-- **Species** — taxonomy lookup (species code → scientific / common name, WoRMS / ITIS IDs).
-
-Other public stock layers (identified, not yet exercised in depth — for the future split):
-- **Design-based biomass / abundance indices** by species, region, and year — the official
-  rolled-up products from **`afsc-gap-products`** (GitHub + Zenodo; also served via **AKFIN**).
-  These turn the haul-level catch above into stock indices.
-- **Stock-assessment outputs** — estimated biomass, recruitment, and fishing mortality from
-  **NPFMC / AFSC SAFE** reports; the **RAM Legacy Stock Assessment Database** packages many
-  Alaska stocks as ready-to-use time series.
-- **Commercial catch / landings** — **AKFIN** and NOAA catch-accounting; note much
-  vessel-level catch is **confidential and only released aggregated**.
-
-Honest caveats:
-- The survey is the clean, fully-public, haul-level layer; the assessment and commercial-catch
-  layers are progressively more processed and (for landings) access-restricted.
-- This A.3 is a **scoping sketch**: the FOSS survey tables were checked live; the
-  afsc-gap-products indices, RAM Legacy, and AKFIN entries were identified but not each
-  exercised in this pass.
-
-### Appendix A.4 — Linking catch to bottom state (sketch)
-
-The single cheapest, most defensible bridge between the **physical** board (bottom
-temperature, the cold pool) and the **biological** board (catch) is that they come from the
-**same hauls**. Every AFSC bottom-trawl tow already records *both* its **bottom temperature**
-and, for each species, the **catch** at that spot — joined by one key (`hauljoin`). So "what
-was caught" and "how cold the seafloor was" are co-located **at the point of capture**, with
-no model and no spatial matching required.
-
-**A worked example (observed only, computed live June 2026).** Snow crab is the natural
-showcase — a cold-water specialist. Joining the 2023 eastern Bering Sea survey catch to its
-hauls:
-
-- snow-crab catch averaged **~412 kg/km² in cold-pool hauls (≤ 2 °C)** versus **~49 kg/km² in
-  warmer hauls** — roughly **eight times** denser in the cold pool;
-- **~84 % of the surveyed snow-crab biomass sat inside the cold pool**, even though those
-  hauls were only ~39 % of the survey;
-- correlation of catch with bottom temperature was **r ≈ −0.44** (negative = more crab where
-  it is colder).
-
-This is consistent with the known biology and with the snow-crab collapse story (Szuwalski et
-al. 2023, References) — but here it falls straight out of the data, no modelling involved.
-
-**Three levels of linkage, in increasing ambition:**
-1. **Haul-level co-location (free, observed).** Join catch → haul on `hauljoin`; for any
-   species and year you get CPUE paired with the bottom temperature where it was caught. Gives
-   a stock's *thermal profile* and its *share inside the cold pool* (the example above). Snow
-   crab, red king crab, Pacific cod, pollock, and arrowtooth flounder give contrasting thermal
-   preferences to compare.
-2. **Index vs. index (observed).** Roll both sides up to annual, per-region series — cold-pool
-   **area** (from the index in this guide) vs a stock's **survey biomass** (from
-   afsc-gap-products, §A.3) — and plot them together over 1982–2025. This is the
-   management-relevant view and essentially the ESR narrative.
-3. **Model-extended (out of scope here — research cell).** Because the *models* carry bottom
-   temperature (and oxygen, pH…) everywhere and through time, one could relate stock
-   distributions to *modelled* bottom state beyond the survey footprint or forward in time.
-   That is species-distribution / forecasting territory and belongs to the research cell, not
-   this data board. Flagged, not built.
-
-**What it looks like on the board (concrete):**
-- a **catch × bottom-state** view — pick a species and year → scatter of CPUE vs bottom
-  temperature across hauls, with the ≤ 2 °C cold-pool band shaded, plus a CPUE map with the
-  cold-pool outline drawn on top;
-- a **time-series** view — cold-pool area vs the species' survey biomass index, both
-  standardised;
-- everything labelled **observed-only, survey footprint (EBS/NBS/GOA/AI), annual, lagged.**
-
-**Plumbing (verified live).** `haul` (`hauljoin`, year, region, lat/lon, depth,
-`bottom_temperature_c`) joined to `catch` (`hauljoin`, `species_code`, `cpue_kgkm2`,
-`cpue_nokm2`) on `hauljoin`; names via `species` (snow crab = `68580`). A single-key join —
-no regrid, no model for levels 1–2.
-
-**Caveats.**
-- The survey is **summer-only, annual, and lagged**, and the gear bottom temperature is not
-  identical to a model's bottom temperature (different instrument and timing) — so keep the
-  clean linkage **observed-vs-observed**.
-- Association is **not mechanism**: depth, substrate, and predator/prey covary with
-  temperature. Present level 1–2 as **exploratory**, not causal.
-- The **northern shelves (Chukchi/Beaufort) have no routine survey**, so the observed linkage
-  is **Bering/GOA/AI only** — the same northern thinning as the rest of the board.
 
 ---
 
@@ -908,6 +691,5 @@ the AFSC scientist who first pointed us toward this work.*
 
 *Data sources: NOAA AFSC cold-pool index (Zenodo 10.5281/zenodo.16915337, via GitHub
 afsc-gap-products/coldpool); NOAA PMEL/UW Bering10K ROMS hindcast (ACLIM, PMEL THREDDS);
-NOAA GFDL/PSL CEFI MOM6 NEP hindcast (PSL THREDDS / CEFI portal). This guide describes the
-"Bottom Conditions — Eastern Bering Sea Cold Pool" page of the Marine Heatwave State
-Dashboard.*
+NOAA GFDL/PSL CEFI MOM6 NEP hindcast (PSL THREDDS / CEFI portal). This guide documents the
+**Bering Sea → Bottom State** indicators of the Alaska Marine Ecosystem Dashboard.*

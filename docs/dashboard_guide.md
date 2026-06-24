@@ -31,6 +31,15 @@ The Gulf of Alaska, Aleutian Islands, and Arctic (Chukchi and Beaufort) ecosyste
 **under development**. Additional ocean-health indicators and forecast indicators will be added
 over time.
 
+## Planned expansion
+
+Coverage will broaden along several lines: Gulf of Alaska, Aleutian Islands, and Arctic
+(Chukchi and Beaufort) ecosystem indicators; additional ocean-health variables (for example
+dissolved oxygen and aragonite saturation) where survey and model coverage allow; and forecast
+indicators integrated into the relevant Alaska-wide and regional sections as they become
+available. The platform currently emphasizes observed and modelled ecosystem state; forecast
+indicators are developed separately and surfaced here as they mature.
+
 ## Navigation structure
 
 The top navigation is organised so that cross-cutting Alaska-wide indicators sit alongside

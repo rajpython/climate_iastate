@@ -40,130 +40,44 @@ The dashboard covers five marine regions around Alaska, spanning the sub-arctic 
 | Chukchi | Chukchi Sea | 67--73 N | 180--155 W |
 | Beaufort | Beaufort Sea | 69--73 N | 155--130 W |
 
-These five regions follow the standard regionalization used by NOAA's Alaska Fisheries Science Center and the North Pacific Fishery Management Council. Four of them — Gulf of Alaska, East Bering Sea, Chukchi Sea, and Beaufort Sea — are formally recognized as NOAA Large Marine Ecosystems (LMEs). The Northern Bering Sea is treated as its own region (rather than lumped into EBS) because it is a biogeographic transition zone with distinct sea-ice phenology, and has received focused research attention since the 2017--2019 NBS ice failures.
-
-Select any region from the **sidebar dropdown** on either dashboard page. Arctic regions (Chukchi, Beaufort) are ice-masked in winter, so MHW activity is concentrated in the open-water season.
+These five regions follow the standard regionalisation used by NOAA's Alaska Fisheries Science Center and the North Pacific Fishery Management Council; the Northern Bering Sea is kept distinct from the Eastern Bering Sea as a biogeographic transition zone with its own sea-ice regime. Arctic regions (Chukchi, Beaufort) are ice-masked in winter, so heatwave activity concentrates in the open-water season. SST observations (OISST) typically lag real time by 1–2 days. Region selection and navigation are described in the Dashboard Guide.
 
 ---
 
-## Getting Started
+## Interpreting Marine Heatwave Metrics
 
-1. **Pick a region** — use the sidebar dropdown on any page to select one of the five regions.
-2. **Check current conditions** — the Operational page shows today's MHW state, event metrics, and risk level.
-3. **Explore history** — the Historical page lets you browse 43 years of MHW records (1982--present).
+Each metric answers a different ecological question; read together they describe how severe, how long, and how widespread an event is.
 
-Note: OISST satellite data is typically 1--2 days behind real time, so the most recent date shown may not be today.
+- **Intensity (I)** — how far SST sits above the local 90th-percentile threshold (°C). Higher intensity means greater thermal stress relative to what the ecosystem is adapted to at that time of year. Because the reference is the threshold rather than the mean, these values are conservative.
+- **Duration (D)** — how many consecutive days the event persists. Persistence often matters more than peak warmth: prolonged exposure depletes energy reserves, shifts distributions, and disrupts spawning and prey availability.
+- **Cumulative intensity (C)** — total heat exposure (degree-days): intensity integrated over duration. This is the best single measure of overall ecological burden because it captures both how warm and how long; the 2014–2016 northeast Pacific event ranks extreme on it.
+- **Area fraction** — the share of a region under a confirmed MHW at a given time. A low value is a localised event; a high value is a region-wide event with broader ecological consequences. Above roughly 5% is treated here as a regional-scale event.
 
----
-
-## Dashboard Pages — Alaska-wide Climate
-
-*(Both MHW pages live under the **Alaska-wide Climate** section; each is region-selectable.)*
-
-### Operational MHW
-
-The Operational MHW page shows the **current and recent** MHW state. It has four tabs:
-
-#### Tab 1: Live MHW Map
-
-A spatial heatmap of the selected region for a given date. Use the date slider to scroll through recent days. Choose from five metrics in the dropdown:
-
-- **Active flag (A)** — binary: is a confirmed MHW in progress at this cell?
-- **Intensity (I)** — degrees C above the 90th-percentile threshold
-- **Duration (D)** — how many consecutive days the cell has been in MHW
-- **Cumulative intensity (C)** — total heat exposure over the event so far (degree-days)
-- **Threshold exceedance (x)** — raw SST anomaly above the seasonal threshold (degrees C)
-
-Grid cells under sea ice or on land are masked out. Below the map, summary statistics show the minimum, maximum, and mean values for the selected metric, plus (when viewing Active flag) a count of active cells.
-
-#### Tab 2: Event Metrics
-
-Time-series charts of five regional aggregate metrics, stacked vertically on a shared time axis:
-
-- **Area fraction** — the share of ocean grid cells in the region experiencing an active MHW (0.25 means 25%)
-- **Mean intensity (I)** — average intensity across active cells (degrees C)
-- **Mean duration (D)** — average event length across active cells (days)
-- **Mean cumulative intensity (C)** — average heat exposure (degree-days)
-- **Mean onset rate (O)** — average initial warming speed (degrees C per day)
-
-Use the window dropdown (30, 60, 90, 180 days, **1 year** (default), or Full record) to control the time range. Shaded bands mark periods when area fraction exceeds 5%, indicating a regional-scale event. Below the chart, summary metrics show event days, peak area fraction, and peak date.
-
-#### Tab 3: Predictability Context
-
-Four stacked subplots on a shared time axis let you visually assess whether large-scale climate regime shifts correspond to changes in heatwave activity:
-
-- **Arctic Oscillation (AO)** — daily bar chart, colored blue (positive) or red (negative). Positive AO tends to confine cold air to the Arctic; negative AO allows cold air outbreaks southward.
-- **Pacific Decadal Oscillation (PDO)** — monthly bar chart, colored orange (positive) or blue (negative). Positive PDO is associated with warmer waters in the northeast Pacific.
-- **Area fraction** — MHW spatial coverage as a filled line chart, with a dashed line at the 5% regional event threshold.
-- **Mean intensity (I)** — average heatwave intensity across active cells (degrees C).
-
-The AO and PDO indices are shown alongside MHW metrics so you can spot correlations — for instance, whether a shift to positive PDO preceded a surge in heatwave coverage. Use the window dropdown (90 days, 180 days, **1 year** (default), or All) to adjust the time range. The "All" view is useful for seeing both PDO phases, since PDO has been in a sustained negative phase since 2020. Below the chart, summary metrics show the latest AO and PDO values, the window-average AO, and the number of MHW event days.
-
-#### Tab 4: Risk Gauge
-
-A composite risk score (0--100) combining the current values of intensity, duration, cumulative intensity, and onset rate, expressed as percentiles against the full historical record (1982--present). The gauge shows:
-
-- **Overall risk score** — weighted average of the four metric percentiles
-- **Individual percentile bars** — how extreme each metric is relative to history
-- **30-day trend sparkline** — is risk rising or falling?
-
-Higher risk scores mean current conditions are more extreme than most of the historical record.
+A short, intense, localised spike and a moderate but prolonged, region-wide event are ecologically very different even when peak intensity is similar — which is why the dashboard reports all four metrics rather than a single number.
 
 ---
 
-### Historical MHW (1982--present)
+## The Operational and Historical views
 
-The Historical MHW page lets you explore the full backfill (1982 to the latest available date). A small caption at the top of the page reports the exact date each data source extends through — e.g., "MHW data through May 11, 2026 · AO through May 09, 2026 · PDO through Dec 2025" — so "present" always has an explicit meaning.
+Both views sit under **Alaska-wide Climate → Marine Heatwaves** and are region-selectable.
 
-The page has four tabs:
+### Operational
 
-#### Tab 1: Annual MHW Burden
+Current and recent MHW state, in four panels:
 
-A bar chart with one bar per year. Pick which metric the bars represent using the radio buttons above the chart:
+- **Live MHW map** — the selected metric (active flag, intensity, duration, cumulative intensity, or threshold exceedance) mapped across the region for a chosen date; land and ice-covered cells are masked.
+- **Event metrics** — regional time series of area fraction and the mean intensity, duration, cumulative intensity, and onset rate across active cells, with regional-scale events (area fraction > 5%) shaded.
+- **Predictability context** — the Arctic Oscillation (AO) and Pacific Decadal Oscillation (PDO) shown alongside MHW coverage and intensity, to assess visually whether climate-mode shifts coincide with changes in heatwave activity. This is correlation context, not prediction.
+- **Risk gauge** — a composite 0–100 score combining the current intensity, duration, cumulative-intensity, and onset-rate percentiles against the region's full 1982–present record, with a 30-day trend. Higher means more extreme than most of the historical record.
 
-- **Peak Area Fraction** — the single highest daily area fraction in that year
-- **Mean Area Fraction** — average area fraction across all days in that year
-- **Event Days** — count of days where area fraction exceeded 5%
+### Historical (1982–present)
 
-Each bar is colored by where the year ranks in the region's full historical distribution of the selected metric:
+The full record, in four panels:
 
-- **Red** — top 10% of years (≥ 90th percentile)
-- **Orange** — 50th--90th percentile band
-- **Blue** — bottom 50%
-
-The legend above the chart shows the actual numeric cutoffs, which adapt automatically when you change region or metric. The coloring is year-neutral (no hardcoded "Blob years" highlighting): each year gets whatever rank its actual values earn within that region's history. For some regions the Blob years (2014--2016) come out red on Peak Area Fraction (e.g., GOA and EBS); for others, like Chukchi and Beaufort, the Blob barely registered and those years are blue, while different years (2018--2019 for Chukchi; 2012 for Beaufort) are the extremes.
-
-A small *Pacific Blob* text annotation labels the 2014--2016 period on the chart as a historical-context marker. The label is text-only — it does not affect bar coloring. On regions where the Blob registered as extreme (GOA, EBS), the arrow lands on a tall red bar; on regions where it didn't (Chukchi, Beaufort), the same arrow lands on a small blue bar, which itself visualizes the regional contrast.
-
-A top-10-years summary table appears below the chart, sorted by Peak Area Fraction.
-
-#### Tab 2: Event Explorer
-
-Pick a year from the dropdown to drill into that year's MHW activity for the selected region.
-
-- **Five year-level metric cards** at the top: Event Days (days where area fraction > 5%), Peak Area Fraction, Peak Intensity, Peak Duration, Peak Cumulative Intensity.
-- **Three stacked time-series subplots** for the chosen year, sharing a common time axis: area fraction (filled crimson line), mean intensity (orange), and mean duration (purple). A dashed red horizontal line marks the 5% regional-event threshold on the area-fraction subplot.
-- **Salmon-shaded vertical bands** across all three subplots mark day-spans where area fraction exceeded 5%, so you can visually trace which periods were regional events and how the other metrics behaved during those periods.
-- **Monthly summary table** below: per-month Event Days, Peak Area Fraction, Peak Intensity, and Peak Duration.
-
-#### Tab 3: Metric Distributions
-
-Histograms of daily metric values across the full record, with vertical percentile rulers (25th, 50th, 75th, 90th, 95th). These show how today's conditions compare to the full range of historical variability.
-
-#### Tab 4: Regime Analysis
-
-Box plots and a summary table comparing MHW metrics across the four AO/PDO regime combinations (AO+ PDO+, AO+ PDO--, AO-- PDO+, AO-- PDO--). This reveals whether certain climate regimes are associated with more intense or persistent heatwaves.
-
-**Important: both the box plots and the median table use *event days only*** — i.e., days where the region's area fraction exceeded 5%. If the panel showed all days (including the ~80% with no MHW activity in any region), every distribution would collapse to zero and the boxes would all look identical. Restricting to event days makes the comparison meaningful.
-
-The summary table reports for each regime:
-
-- **Total days** in that regime
-- **Event days** (days where area fraction > 5%)
-- **Event rate** (fraction of regime days that were events) — a clean diagnostic for "does this regime host more MHWs?"
-- **Medians** of area fraction, intensity, duration, and cumulative intensity over the event days
-
-For Gulf of Alaska, the PDO+ phases (warm Pacific) typically show roughly 2x the event rate of PDO-- phases.
+- **Annual burden** — one bar per year (peak area fraction, mean area fraction, or event days), coloured by where the year ranks in the region's own history (top 10% / 50–90th / bottom 50%). The 2014–2016 *Pacific Blob* is marked for context; colouring is quantile-based, so the Blob reads as extreme where it actually was (GOA, EBS) and unremarkable where it was not (Chukchi, Beaufort).
+- **Event explorer** — a chosen year's area fraction, intensity, and duration over time, with regional-event spans shaded and a monthly summary.
+- **Distributions** — histograms of daily metric values with percentile rulers, placing current conditions in the full range of historical variability.
+- **Regime analysis** — MHW metrics compared across the four AO/PDO phase combinations, computed over **event days only** (area fraction > 5%) so the comparison is not diluted by the many quiet days. The summary reports each regime's event rate and median metrics; in the Gulf of Alaska, warm-phase PDO typically shows roughly twice the event rate of cool-phase PDO.
 
 ---
 
