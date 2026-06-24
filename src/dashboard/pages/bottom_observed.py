@@ -24,10 +24,9 @@ from dashboard.components.coldpool_data import (
     MODEL_SOURCES,
     THRESHOLDS,
     list_bottom_state_regions,
-    load_model,
     load_observed,
-    load_observed_southern_extent,
     load_survey_replicate,
+    ordinal,
     region_label,
     threshold_short,
 )
@@ -37,22 +36,11 @@ from mhw.bottom.indicators import (
     analog_years,
     anomaly,
     category_color,
-    direction_phrase,
     ordinal_rank,
     percentile_rank,
-    position_category,
     risk_category,
 )
 from mhw.bottom.regions import get_region
-
-
-def _ordinal(n: int) -> str:
-    """1 -> '1st', 2 -> '2nd', 11 -> '11th', 23 -> '23rd'."""
-    if 10 <= n % 100 <= 20:
-        suffix = "th"
-    else:
-        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
-    return f"{n}{suffix}"
 
 
 def _category_badge(label: str) -> str:
@@ -60,122 +48,6 @@ def _category_badge(label: str) -> str:
     color = category_color(label)               # green / orange / red / gray
     directive = {"gray": "gray"}.get(color, color)
     return f":{directive}[**{label}**]"
-
-
-def _southern_extent_panel(region: str) -> None:
-    """Cold-pool southern extent — a derived position indicator (observed survey hauls, with
-    model comparison). EBS only.
-
-    Answers 'where does the cold pool reach', not just 'how big'. Southern extent = the
-    5th-percentile latitude of ≤2 °C locations — survey hauls for observed, gridded shelf cells
-    for the models. See the Bering Sea Bottom-State Guide.
-    """
-    if region != "ebs":
-        return
-    obs = load_observed_southern_extent(region)
-    models = {name: load_model(MODEL_SOURCES[name], region) for name in MODEL_SOURCES}
-    models = {n: m.dropna(subset=["southern_extent_lat"]).sort_values("year")
-              for n, m in models.items()
-              if m is not None and "southern_extent_lat" in m
-              and m["southern_extent_lat"].notna().any()}
-
-    st.markdown("### Cold-pool southern extent — *where* the cold pool reaches")
-    if obs is None and not models:
-        st.info("The southern-extent indicator isn't built yet. Run `mhw-fetch-coldpool "
-                "--region ebs` (observed) and `mhw-build-coldpool-model --region ebs` (models).")
-        return
-    st.caption(
-        "A derived **position** indicator complementing area and bottom temperature: the southern "
-        "reach of the ≤ 2 °C cold pool (5th-percentile latitude of cold locations). Higher "
-        "latitude = farther north = a northward-contracted cold pool. **Observed** is the AFSC "
-        "survey hauls; the models are shown for comparison. Not an official ESR metric — see the "
-        "Bering Sea Bottom-State Guide."
-    )
-
-    # Headline = observed survey (ground truth) when available; otherwise fall back to a model.
-    if obs is not None:
-        head_label, df = "observed cold pool", obs
-    else:
-        head_label, (name, df) = "modelled cold pool", next(iter(models.items()))
-    series = df["southern_extent_lat"]
-    latest = df.iloc[-1]
-    yr = int(latest["year"])
-    val = float(latest["southern_extent_lat"])
-    span = f"{int(df['year'].min())}–{int(df['year'].max())}"
-    base = df.loc[(df["year"] >= BASELINE_START) & (df["year"] <= BASELINE_END), "southern_extent_lat"]
-    base_mean = float(base.mean()) if not base.empty else float("nan")
-    anom = anomaly(val, base) if not base.empty else float("nan")
-    pct = percentile_rank(val, series)
-    category = position_category(pct)
-    phrase = direction_phrase(anom)
-    # Rank from whichever end the year sits on — intuitive ("Nth farthest north since 1982").
-    start_year = int(df["year"].min())
-    if pct >= 50:
-        rank, rank_word = ordinal_rank(val, series, smallest=False), "farthest north"
-    else:
-        rank, rank_word = ordinal_rank(val, series, smallest=True), "farthest south"
-    rank_phrase = f"{_ordinal(rank)} {rank_word} since {start_year}"
-
-    # The comparison Current vs Historical-mean position is the heart of the indicator, so it
-    # gets its own prominent top row (the difference shown directionally as a delta under
-    # Current); the statistical context (percentile, rank) sits in a second row.
-    r1c1, r1c2 = st.columns(2)
-    r1c1.metric(f"{yr} southern extent", f"{val:.1f} °N",
-                delta=(phrase if pd.notna(anom) else None), delta_color="off")
-    r1c2.metric(f"Historical mean position ({BASELINE_START}–{BASELINE_END})",
-                f"{base_mean:.1f} °N" if pd.notna(base_mean) else "—")
-    r2c1, r2c2 = st.columns(2)
-    r2c1.metric(f"Percentile ({span})", f"{pct:.0f}th")
-    r2c2.metric(f"Rank — {rank_word}", f"{_ordinal(rank)} of {len(series)}",
-                help=f"{rank_phrase}.")
-
-    eco = ("a northward-contracted cold pool, reducing southern cold-water habitat" if pct >= 70
-           else "a southward-expanded cold pool" if pct <= 30
-           else "a near-typical cold-pool position")
-    st.markdown(
-        f"**{category}** — in {yr} the {head_label} reached about **{val:.1f} °N**, **{phrase}** "
-        f"({_ordinal(int(round(pct)))} percentile of the {span} record), indicating {eco}."
-    )
-
-    # Analog years: joint similarity in [southern extent, cold-pool area] (z-scored Euclidean) so
-    # analogs match cold-pool *position and size*, not position alone. Falls back to extent-only.
-    if obs is not None:
-        area_src = load_observed(region)   # observed cold-pool index carries area_lte2_km2
-        amerge = (df.merge(area_src[["year", "area_lte2_km2"]], on="year", how="inner")
-                  if area_src is not None and "area_lte2_km2" in area_src.columns else None)
-    else:
-        amerge = df if "area_lte2_km2" in df.columns else None   # model df already has both
-    if amerge is not None and amerge["area_lte2_km2"].notna().sum() >= 3:
-        analogs = analog_years(yr, amerge["year"].values,
-                               amerge["southern_extent_lat"].values,
-                               amerge["area_lte2_km2"].values, k=3)
-        analog_caption = "Most similar years (by position and cold-pool area): "
-    else:
-        analogs = analog_years(yr, df["year"].values, series.values, k=3)
-        analog_caption = "Most similar years (by southern extent): "
-    if analogs:
-        st.caption(analog_caption + ", ".join(str(a) for a in analogs) + ".")
-
-    # Time series: observed (black) + each model (dashed); observed climatological-mean line.
-    fig = go.Figure()
-    if obs is not None:
-        fig.add_trace(go.Scatter(x=obs["year"], y=obs["southern_extent_lat"], mode="lines+markers",
-                      name="Observed (survey)", line={"color": "black", "width": 2}))
-    for name, m in models.items():
-        fig.add_trace(go.Scatter(x=m["year"], y=m["southern_extent_lat"], mode="lines+markers",
-                      name=name, line={"color": MODEL_COLORS.get(name, "gray"), "width": 2, "dash": "dash"}))
-    if pd.notna(base_mean):
-        fig.add_hline(y=base_mean, line_dash="dot", line_color="gray", line_width=1,
-                      annotation_text=f"{BASELINE_START}–{BASELINE_END} mean", annotation_font_size=9)
-    fig.update_yaxes(title_text="Southern extent (°N) — higher = farther north")
-    fig.update_layout(height=380, template="plotly_white",
-                      margin={"l": 70, "r": 20, "t": 30, "b": 40},
-                      legend={"orientation": "h", "y": 1.06, "yanchor": "bottom",
-                              "x": 0, "xanchor": "left"})
-    st.plotly_chart(fig, use_container_width=True)
-    st.caption("Observed = survey hauls (latitudes of ≤ 2 °C tows); models = gridded ≤ 2 °C shelf "
-               "cells — the same 5th-percentile definition, different sampling. Descriptive of "
-               "past state, not a forecast; the definition is swappable.")
 
 
 def _survey_replicate_panel(region: str, model_choices: list[str], yr_range=None) -> bool:
@@ -271,7 +143,7 @@ def _cold_pool_observed(region: str, model_choices: list[str]) -> None:
               f"{latest[thr_col]:,.0f} km²", delta=delta, delta_color="inverse")
     c2.metric(
         f"Percentile rank ({full_span})", f"{pct:.0f}th pct",
-        help=f"{_ordinal(rank_small)} smallest cold pool in {len(area_pop)} survey years · "
+        help=f"{ordinal(rank_small)} smallest cold pool in {len(area_pop)} survey years · "
              f"{pct_of_mean:.0f}% of the {full_span} mean ≈ {long_mean:,.0f} km²",
     )
     bt_anom = float("nan")
@@ -296,7 +168,7 @@ def _cold_pool_observed(region: str, model_choices: list[str]) -> None:
                         f"{BASELINE_START}–{BASELINE_END} norm.")
     st.markdown(
         f"{_category_badge(category)} — {yr}'s cold pool sits in the **{pct:.0f}th percentile** "
-        f"of the {full_span} survey record ({_ordinal(rank_small)} smallest), indicating "
+        f"of the {full_span} survey record ({ordinal(rank_small)} smallest), indicating "
         f"{habitat}.{temp_clause}"
     )
     analog_cols = [df[thr_col].values]
@@ -332,8 +204,15 @@ def _cold_pool_observed(region: str, model_choices: list[str]) -> None:
                       bargap=0.15, margin={"l": 60, "r": 20, "t": 50, "b": 40})
     st.plotly_chart(fig, use_container_width=True)
 
-    # ---- Panel B: cold-pool southern extent (derived position; model-derived) ----
-    _southern_extent_panel(region)
+    # ---- Cold-pool position: a pointer to the dedicated page (EBS) ----
+    if region == "ebs":
+        with st.container(border=True):
+            st.markdown(
+                "**Where is the cold pool?** Its **southern extent** — how far south the ≤ 2 °C "
+                "cold pool reaches, and whether it has retreated north — has its own page."
+            )
+            st.page_link("pages/cold_pool_position.py",
+                         label="Open Cold-Pool Position →", icon="🧭")
 
     # ---- Panel C: survey-replicated validation ----
     if model_choices:
@@ -350,8 +229,8 @@ def _cold_pool_observed(region: str, model_choices: list[str]) -> None:
           survey years **{yr_min}–{yr_max}** · last updated {last_update}.
         - **Bering10K ROMS** (NOAA PMEL / UW ACLIM) · **CEFI MOM6 NEP** (NOAA GFDL/PSL).
 
-        All **lagged** (recent-historical), not near-real-time. See **Bottom State — Model
-        Comparison** for full-shelf model behaviour and model-vs-model comparison.
+        All **lagged** (recent-historical), not near-real-time. See **Model Comparison**
+        for full-shelf model behaviour and model-vs-model comparison.
         """
     )
 
@@ -382,11 +261,11 @@ def _bottom_temp_kpis(region: str) -> None:
               help=f"Observed survey mean over the {span} survey years")
     if pd.notna(anom):
         c2.metric(f"Anomaly vs {BASELINE_START}–{BASELINE_END}", f"{anom:+.2f} °C",
-                  help=f"{_ordinal(rank_warm)} warmest of {len(series)} survey years "
+                  help=f"{ordinal(rank_warm)} warmest of {len(series)} survey years "
                        f"({pct:.0f}th percentile)")
     else:
         c2.metric(f"Percentile rank ({span})", f"{pct:.0f}th pct",
-                  help=f"{_ordinal(rank_warm)} warmest of {len(series)} survey years")
+                  help=f"{ordinal(rank_warm)} warmest of {len(series)} survey years")
     st.caption("Descriptive of past observed state — ranked against the available survey years "
                "(sporadic for a discontinued slope survey). Not a forecast.")
 
@@ -423,15 +302,17 @@ def render(group: str = "bering") -> None:
     st.sidebar.header("Controls")
     regions = list_bottom_state_regions(group)
     if not regions:
-        st.title("Bottom State — Observed & Validation")
+        st.title("Cold Pool & Bottom Temperature")
         st.error("No bottom-state region built. Run: `mhw-fetch-coldpool --region ebs`")
         return
     region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="bs_obs_region")
     reg = get_region(region)
     is_cold_pool = reg.product_kind == "cold_pool"
 
-    icon = "🧊" if is_cold_pool else "🌡️"
-    st.title(f"{icon} Bottom State — Observed & Validation · {region_label(region)}")
+    if is_cold_pool:
+        st.title(f"🧊 Cold Pool & Bottom Temperature · {region_label(region)}")
+    else:
+        st.title(f"🌡️ Bottom Temperature · {region_label(region)}")
     if is_cold_pool:
         st.caption(
             "The observed **cold-pool index** from the NOAA AFSC summer bottom-trawl survey, and "

@@ -151,9 +151,11 @@ nav = {
     ],
     "Bering Sea": [
         st.Page(lambda: bottom_observed_render(group="bering"),
-                title="Bottom State — Observed & Validation", url_path="bering_bottom_observed"),
+                title="Cold Pool & Bottom Temperature", url_path="bering_bottom_observed"),
         st.Page(lambda: bottom_models_render(group="bering"),
-                title="Bottom State — Model Comparison", url_path="bering_bottom_models"),
+                title="Model Comparison", url_path="bering_bottom_models"),
+        st.Page("pages/cold_pool_position.py",
+                title="Cold-Pool Position", url_path="bering_cold_pool_position"),
         st.Page(lambda: catch_render(group="bering"),
                 title="Catch × Bottom State", url_path="bering_catch"),
     ],

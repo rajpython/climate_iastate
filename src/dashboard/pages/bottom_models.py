@@ -187,18 +187,18 @@ def render(group: str = "bering") -> None:
     st.sidebar.header("Controls")
     regions = list_bottom_state_regions(group)
     if not regions:
-        st.title("🌡️ Bottom State — Model Comparison")
+        st.title("🌡️ Model Comparison")
         st.error("No bottom-state region built. Run: `mhw-fetch-coldpool --region ebs`")
         return
     region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="bs_mod_region")
     reg = get_region(region)
     is_cold_pool = reg.product_kind == "cold_pool"
 
-    st.title(f"🌡️ Bottom State — Model Comparison · {region_label(region)}")
+    st.title(f"🌡️ Model Comparison · {region_label(region)}")
     st.caption(
         "How the regional ocean models (Bering10K ROMS, CEFI MOM6 NEP) behave over this region, "
         "and how they compare to each other. For each model's *true* skill against the survey, "
-        "see the **Bottom State — Observed & Validation** page."
+        "see the **Cold Pool & Bottom Temperature** page."
     )
 
     model_choices = st.sidebar.multiselect(

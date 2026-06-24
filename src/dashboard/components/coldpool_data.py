@@ -44,6 +44,34 @@ def region_label(region_id: str) -> str:
     return r.label if r else region_id.upper()
 
 
+def ordinal(n: int) -> str:
+    """1 -> '1st', 2 -> '2nd', 11 -> '11th', 23 -> '23rd' (shared by the bottom-state pages)."""
+    suffix = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
+def load_survey_footprint(region: str):
+    """Convex-hull outline (lon, lat closed ring) of the survey hauls — the survey footprint.
+
+    Drawn under the southern-extent reference lines for geographic context. Returns
+    (lon_ring, lat_ring) as lists, or None if the haul file isn't built.
+    """
+    from scipy.spatial import ConvexHull
+
+    p = RAW_DIR / f"coldpool_hauls_observed_{region}.parquet"
+    if not p.exists():
+        return None
+    h = pd.read_parquet(p)
+    pts = h[["longitude", "latitude"]].dropna().drop_duplicates().to_numpy()
+    if len(pts) < 3:
+        return None
+    ring = pts[ConvexHull(pts).vertices]
+    lon = list(ring[:, 0]) + [ring[0, 0]]   # close the ring
+    lat = list(ring[:, 1]) + [ring[0, 1]]
+    return lon, lat
+
+
 @st.cache_data(show_spinner=False, ttl=3600)
 def list_coldpool_regions() -> list[str]:
     """Cold-pool regions with an observed index on disk, in canonical south→north order."""

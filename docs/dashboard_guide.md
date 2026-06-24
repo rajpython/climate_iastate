@@ -50,7 +50,7 @@ region-specific ecosystem sections, with research and documentation kept separat
 |---|---|
 | **Overview** | Orientation and current coverage |
 | **Alaska-wide Climate** | **Marine Heatwaves** → Operational and Historical views (region-selectable) |
-| **Bering Sea** | **Bottom State — Observed & Validation**, **Model Comparison**, and **Catch × Bottom State** |
+| **Bering Sea** | **Cold Pool & Bottom Temperature**, **Model Comparison**, **Cold-Pool Position**, and **Catch × Bottom State** |
 | **Gulf of Alaska** · **Aleutian Islands** · **Arctic** | Distinct ecosystem sections — under development |
 | **Research** | Recent papers, research summaries, forecast development, technical notes, and project research (in preparation) |
 | **Guides** | This guide, the Marine Heatwave Guide, and the Bering Sea Bottom-State Guide |

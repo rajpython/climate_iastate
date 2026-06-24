@@ -3,8 +3,8 @@
 
 *A plain-language guide to the Bering Sea **Bottom State** indicators — no oceanography or
 statistics background needed. After reading this, you should be able to explain every number
-and chart on the three Bering Sea pages: **Bottom State — Observed & Validation**, **Bottom
-State — Model Comparison**, and **Catch × Bottom State**.*
+and chart on the four Bering Sea pages: **Cold Pool & Bottom Temperature**, **Model
+Comparison**, **Cold-Pool Position**, and **Catch × Bottom State**.*
 
 The cold pool is central here, but bottom state is broader: it also covers **bottom
 temperature**, the **observed survey index**, **model validation** and **model comparison**,
@@ -286,11 +286,14 @@ shelf cells, for comparison. A **higher** latitude means the cold pool's souther
 **farther north** (a northward-contracted cold pool, typical of warm years); a **lower** one
 means it reaches **farther south**.
 
-**How to read it.** The panel leads with the observed value and reports the historical mean
-position, the difference in spatial language ("0.8° farther north than typical"), a percentile,
-a plain-language category, and the most similar past years; the two models are overlaid on the
-time series for comparison. For example, the warm year 2019 shows a far-north southern extent
-(a strongly retreated cold pool), while cold years sit farther south.
+**How to read it.** Southern extent has its own page — **"Cold-Pool Position"** under Bering Sea.
+It leads with the observed value and reports the historical mean position, the difference in
+spatial language ("0.8° farther north than typical"), a percentile, a historical rank, a
+plain-language category, and the most similar past years (matched on position **and** cold-pool
+area). A **map** draws the current and 1991–2020-mean southern extent as labelled reference lines
+over the survey footprint, and a time series overlays the two models for comparison. For example,
+the warm year 2019 shows a far-north southern extent (a strongly retreated cold pool), while cold
+years sit farther south.
 
 **Two notes.** This is a **derived position indicator**, not an official ESR metric — ESRs
 convey position through maps; here it is reduced to one clearly-stated number. The headline is
@@ -302,12 +305,13 @@ definition is intentionally easy to revise if AFSC scientists prefer an alternat
 ## 6. Reading the dashboard — two pages, four panels
 
 In the **Alaska Marine Ecosystem Dashboard**, the cold pool lives under the **Bering Sea**
-section as two pages — **"Bottom State — Observed & Validation"** and **"Bottom State —
-Model Comparison"** — each with its own threshold control (so you can, say, view the observed
+section across **"Cold Pool & Bottom Temperature"** (observed index + survey validation) and
+**"Model Comparison"** — each with its own threshold control (so you can, say, view the observed
 index at ≤ 1 °C while comparing models at ≤ 2 °C). One region dropdown spans the Bering areas
-(EBS · NBS · Slope).
+(EBS · NBS · Slope). Cold-pool **position** has its own page (§5a, **"Cold-Pool Position"**), and
+catch is on **"Catch × Bottom State"** (§9a).
 
-### Bering Sea → "Bottom State — Observed & Validation"
+### Bering Sea → "Cold Pool & Bottom Temperature"
 
 **Panel A — Observed cold-pool index.** Top metrics: the selected year's cold-pool area
 (km², with year-on-year change), its **percentile rank** in the full 1982–present survey
@@ -329,7 +333,7 @@ each model's true **bias / RMSE / correlation**; this is where you read that bot
 essentially unbiased (Bering10K −0.16 °C, MOM6 +0.00 °C). Bottom-temperature based, so the
 threshold control does not apply here.
 
-### Bering Sea → "Bottom State — Model Comparison"
+### Bering Sea → "Model Comparison"
 
 **Panel B1 — Full-shelf model view.** Each model's cold pool over its full ≤ 200 m shelf
 (its *own* view), shown against observed: a standardized **area** panel (pattern) and an
