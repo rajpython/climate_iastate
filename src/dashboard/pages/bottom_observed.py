@@ -108,24 +108,48 @@ def _southern_extent_panel(region: str) -> None:
     pct = percentile_rank(val, series)
     category = position_category(pct)
     phrase = direction_phrase(anom)
+    # Rank from whichever end the year sits on — intuitive ("Nth farthest north since 1982").
+    start_year = int(df["year"].min())
+    if pct >= 50:
+        rank, rank_word = ordinal_rank(val, series, smallest=False), "farthest north"
+    else:
+        rank, rank_word = ordinal_rank(val, series, smallest=True), "farthest south"
+    rank_phrase = f"{_ordinal(rank)} {rank_word} since {start_year}"
 
     c1, c2, c3 = st.columns(3)
     c1.metric(f"{yr} southern extent", f"{val:.1f} °N")
-    c2.metric(f"Historical mean ({BASELINE_START}–{BASELINE_END})",
+    c2.metric(f"Historical mean position ({BASELINE_START}–{BASELINE_END})",
               f"{base_mean:.1f} °N" if pd.notna(base_mean) else "—")
     c3.metric(f"Percentile ({span})", f"{pct:.0f}th",
-              help="Percentile of this year's southern-extent latitude in the record.")
+              help=f"{rank_phrase} ({len(series)} survey years).")
 
     eco = ("a northward-contracted cold pool, reducing southern cold-water habitat" if pct >= 70
            else "a southward-expanded cold pool" if pct <= 30
            else "a near-typical cold-pool position")
     st.markdown(
         f"**{category}** — in {yr} the {head_label} reached about **{val:.1f} °N**, **{phrase}** "
-        f"({_ordinal(int(round(pct)))} percentile of the {span} record), indicating {eco}."
+        f"({_ordinal(int(round(pct)))} percentile of the {span} record — the **{rank_phrase}**), "
+        f"indicating {eco}."
     )
-    analogs = analog_years(yr, df["year"].values, series.values, k=3)
+
+    # Analog years: joint similarity in [southern extent, cold-pool area] (z-scored Euclidean) so
+    # analogs match cold-pool *position and size*, not position alone. Falls back to extent-only.
+    if obs is not None:
+        area_src = load_observed(region)   # observed cold-pool index carries area_lte2_km2
+        amerge = (df.merge(area_src[["year", "area_lte2_km2"]], on="year", how="inner")
+                  if area_src is not None and "area_lte2_km2" in area_src.columns else None)
+    else:
+        amerge = df if "area_lte2_km2" in df.columns else None   # model df already has both
+    if amerge is not None and amerge["area_lte2_km2"].notna().sum() >= 3:
+        analogs = analog_years(yr, amerge["year"].values,
+                               amerge["southern_extent_lat"].values,
+                               amerge["area_lte2_km2"].values, k=3)
+        analog_caption = "Most similar years (by position and cold-pool area): "
+    else:
+        analogs = analog_years(yr, df["year"].values, series.values, k=3)
+        analog_caption = "Most similar years (by southern extent): "
     if analogs:
-        st.caption("Most similar years (by southern extent): " + ", ".join(str(a) for a in analogs) + ".")
+        st.caption(analog_caption + ", ".join(str(a) for a in analogs) + ".")
 
     # Time series: observed (black) + each model (dashed); observed climatological-mean line.
     fig = go.Figure()
