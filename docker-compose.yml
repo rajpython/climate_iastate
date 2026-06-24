@@ -24,7 +24,7 @@ services:
     networks:
       - mhw_net
     command: >
-      streamlit run src/dashboard/MHW_Dashboard.py
+      streamlit run src/dashboard/Alaska_Dashboard.py
       --server.port=8501
       --server.address=0.0.0.0
     volumes:
@@ -40,7 +40,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Route everything on the host except /api → dashboard
-      - "traefik.http.routers.dashboard.rule=Host(`mhw.iastate.ai`) && !PathPrefix(`/api`)"
+      - "traefik.http.routers.dashboard.rule=Host(`marine.iastate.ai`) && !PathPrefix(`/api`)"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.dashboard.priority=1"
@@ -48,6 +48,16 @@ services:
       # Sticky sessions so WebSocket reconnects hit the same container
       - "traefik.http.services.dashboard.loadbalancer.sticky.cookie=true"
       - "traefik.http.services.dashboard.loadbalancer.sticky.cookie.name=mhw_dashboard"
+      # ── Legacy host: 301-redirect mhw.iastate.ai → marine.iastate.ai (keeps old links alive) ──
+      - "traefik.http.routers.legacy.rule=Host(`mhw.iastate.ai`)"
+      - "traefik.http.routers.legacy.entrypoints=websecure"
+      - "traefik.http.routers.legacy.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.legacy.priority=20"
+      - "traefik.http.routers.legacy.service=dashboard"   # required, though the redirect short-circuits
+      - "traefik.http.routers.legacy.middlewares=legacy-redirect@docker"
+      - "traefik.http.middlewares.legacy-redirect.redirectregex.regex=^https?://mhw\\.iastate\\.ai/(.*)"
+      - "traefik.http.middlewares.legacy-redirect.redirectregex.replacement=https://marine.iastate.ai/$${1}"
+      - "traefik.http.middlewares.legacy-redirect.redirectregex.permanent=true"
 
   # ── FastAPI REST layer ──────────────────────────────────────────────────────
   api:
@@ -75,7 +85,7 @@ services:
     labels:
       - "traefik.enable=true"
       # /api/* → API service (strip the /api prefix before forwarding)
-      - "traefik.http.routers.api.rule=Host(`mhw.iastate.ai`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.api.rule=Host(`marine.iastate.ai`) && PathPrefix(`/api`)"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls.certresolver=letsencrypt"
       - "traefik.http.routers.api.priority=10"

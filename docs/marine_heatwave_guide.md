@@ -99,9 +99,9 @@ In production the dashboard refreshes automatically each day at 14:00 UTC, after
 
 A programmatic API is available for researchers who want to access the data directly:
 
-- **Swagger UI**: [mhw.iastate.ai/api/docs](https://mhw.iastate.ai/api/docs)
-- **ReDoc**: [mhw.iastate.ai/api/redoc](https://mhw.iastate.ai/api/redoc)
-- **Health check**: [mhw.iastate.ai/api/health](https://mhw.iastate.ai/api/health)
+- **Swagger UI**: [marine.iastate.ai/api/docs](https://marine.iastate.ai/api/docs)
+- **ReDoc**: [marine.iastate.ai/api/redoc](https://marine.iastate.ai/api/redoc)
+- **Health check**: [marine.iastate.ai/api/health](https://marine.iastate.ai/api/health)
 
 All data endpoints are versioned under `/api/v1/`. The service-level health check stays unversioned at `/api/health`.
 

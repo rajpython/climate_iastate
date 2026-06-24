@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A marine-heatwave (MHW) monitoring dashboard for the Alaska shelf seas (Gulf of Alaska, Eastern/Northern Bering, Chukchi, Beaufort), operationalizing the Hobday et al. (2016) hierarchical MHW definition on NOAA OISST v2.1. It is **actively expanding beyond SST** into a comprehensive Alaska-shelf data board — bottom ocean state (cold pool) and survey catch are the newest layers. Live at `mhw.iastate.ai`.
+A marine-heatwave (MHW) monitoring dashboard for the Alaska shelf seas (Gulf of Alaska, Eastern/Northern Bering, Chukchi, Beaufort), operationalizing the Hobday et al. (2016) hierarchical MHW definition on NOAA OISST v2.1. It is **actively expanding beyond SST** into a comprehensive Alaska-shelf data board — bottom ocean state (cold pool) and survey catch are the newest layers. Live at `marine.iastate.ai`.
 
 Forecasting is deliberately **out of scope** for this board — it is owned by a separate research cell under `docs/forecast_extension/`. The board may display a forecast product later but does not build one. (`src/mhw/forecast/` exists as a source-agnostic engine but is not wired to the dashboard/API.)
 

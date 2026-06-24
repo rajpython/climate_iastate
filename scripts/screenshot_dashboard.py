@@ -1,7 +1,7 @@
 """Drive the running Streamlit dashboard with Playwright and capture screenshots.
 
 Reusable visual-check tool for this project. Assumes the dashboard is already
-running (``streamlit run src/dashboard/MHW_Dashboard.py``) on --port (default 8501).
+running (``streamlit run src/dashboard/Alaska_Dashboard.py``) on --port (default 8501).
 
 Usage:
     # start the app first (headless), then:

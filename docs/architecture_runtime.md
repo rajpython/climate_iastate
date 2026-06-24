@@ -42,7 +42,7 @@ Python CLI entry points are declared in [pyproject.toml](/Users/rajpython/dev/cl
 
 Runtime service entry points:
 
-- Dashboard: [src/dashboard/MHW_Dashboard.py](/Users/rajpython/dev/climate_iastate/src/dashboard/MHW_Dashboard.py)
+- Dashboard: [src/dashboard/Alaska_Dashboard.py](/Users/rajpython/dev/climate_iastate/src/dashboard/Alaska_Dashboard.py)
 - API: [src/api/main.py](/Users/rajpython/dev/climate_iastate/src/api/main.py)
 - Daily refresh orchestrator: [scripts/daily_refresh.sh](/Users/rajpython/dev/climate_iastate/scripts/daily_refresh.sh)
 
@@ -228,7 +228,7 @@ This keeps the current edge of the dataset fresh without recomputing the full 19
 
 Entry point:
 
-- [src/dashboard/MHW_Dashboard.py](/Users/rajpython/dev/climate_iastate/src/dashboard/MHW_Dashboard.py)
+- [src/dashboard/Alaska_Dashboard.py](/Users/rajpython/dev/climate_iastate/src/dashboard/Alaska_Dashboard.py)
 
 Streamlit discovers pages from:
 
@@ -308,7 +308,7 @@ Defined services:
 
 - `dashboard`
   - runs Streamlit
-  - command: `streamlit run src/dashboard/MHW_Dashboard.py`
+  - command: `streamlit run src/dashboard/Alaska_Dashboard.py`
   - mounts `./data:/app/data:ro`
 - `api`
   - runs FastAPI via uvicorn

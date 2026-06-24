@@ -2,8 +2,8 @@
 
 **Climate • Ocean • Ecosystems • Fisheries** — a regionally-organised board surfacing public Alaska-shelf ocean and fisheries data (observed surveys + ocean models). Its current modules are Alaska-wide marine-heatwave monitoring, Bering Sea bottom conditions (the cold pool), cold-pool validation / model comparison, and catch × thermal habitat. Covers the sub-arctic to Arctic waters around Alaska — Gulf of Alaska, Bering Sea (Eastern and Northern), Chukchi, and Beaufort.
 
-**Live dashboard**: [mhw.iastate.ai](https://mhw.iastate.ai)
-**API docs**: [mhw.iastate.ai/api/docs](https://mhw.iastate.ai/api/docs)
+**Live dashboard**: [marine.iastate.ai](https://marine.iastate.ai)
+**API docs**: [marine.iastate.ai/api/docs](https://marine.iastate.ai/api/docs)
 
 ## Overview
 
@@ -62,7 +62,11 @@ aggregates regional metrics, recomputes risk percentile tables, and refreshes th
 AO/PDO indices. Set a recurring calendar reminder (monthly is plenty) to run it.
 
 In production, `scripts/daily_refresh.sh` runs inside Docker Compose on a 14:00 UTC
-cron and keeps `mhw.iastate.ai` current automatically.
+cron and keeps `marine.iastate.ai` current automatically. The Bering bottom-state layers
+follow their slower cadence: `scripts/bottom_state_refresh.sh` re-fetches the (annual,
+lagged) AFSC cold-pool index and FOSS catch on a monthly cron, while the heavy model
+rebuild (`scripts/rebuild_bottom_models.sh` — OPeNDAP + full-shelf regrid of Bering10K /
+MOM6) is run locally and rsynced to the VM when a new hindcast year is published.
 
 ## Project Structure
 

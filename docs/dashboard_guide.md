@@ -75,9 +75,9 @@ single page until enough material exists to warrant dedicated pages.
 
 A programmatic REST API exposes the underlying data for the implemented indicators.
 
-- Swagger UI: [mhw.iastate.ai/api/docs](https://mhw.iastate.ai/api/docs)
-- ReDoc: [mhw.iastate.ai/api/redoc](https://mhw.iastate.ai/api/redoc)
-- Health check: [mhw.iastate.ai/api/health](https://mhw.iastate.ai/api/health)
+- Swagger UI: [marine.iastate.ai/api/docs](https://marine.iastate.ai/api/docs)
+- ReDoc: [marine.iastate.ai/api/redoc](https://marine.iastate.ai/api/redoc)
+- Health check: [marine.iastate.ai/api/health](https://marine.iastate.ai/api/health)
 
 Data endpoints are versioned under `/api/v1/`; responses are JSON with snake_case fields. The
 Marine Heatwave Guide lists the marine-heatwave endpoints in detail.
