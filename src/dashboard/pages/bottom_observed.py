@@ -116,20 +116,25 @@ def _southern_extent_panel(region: str) -> None:
         rank, rank_word = ordinal_rank(val, series, smallest=True), "farthest south"
     rank_phrase = f"{_ordinal(rank)} {rank_word} since {start_year}"
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric(f"{yr} southern extent", f"{val:.1f} °N")
-    c2.metric(f"Historical mean position ({BASELINE_START}–{BASELINE_END})",
-              f"{base_mean:.1f} °N" if pd.notna(base_mean) else "—")
-    c3.metric(f"Percentile ({span})", f"{pct:.0f}th",
-              help=f"{rank_phrase} ({len(series)} survey years).")
+    # The comparison Current vs Historical-mean position is the heart of the indicator, so it
+    # gets its own prominent top row (the difference shown directionally as a delta under
+    # Current); the statistical context (percentile, rank) sits in a second row.
+    r1c1, r1c2 = st.columns(2)
+    r1c1.metric(f"{yr} southern extent", f"{val:.1f} °N",
+                delta=(phrase if pd.notna(anom) else None), delta_color="off")
+    r1c2.metric(f"Historical mean position ({BASELINE_START}–{BASELINE_END})",
+                f"{base_mean:.1f} °N" if pd.notna(base_mean) else "—")
+    r2c1, r2c2 = st.columns(2)
+    r2c1.metric(f"Percentile ({span})", f"{pct:.0f}th")
+    r2c2.metric(f"Rank — {rank_word}", f"{_ordinal(rank)} of {len(series)}",
+                help=f"{rank_phrase}.")
 
     eco = ("a northward-contracted cold pool, reducing southern cold-water habitat" if pct >= 70
            else "a southward-expanded cold pool" if pct <= 30
            else "a near-typical cold-pool position")
     st.markdown(
         f"**{category}** — in {yr} the {head_label} reached about **{val:.1f} °N**, **{phrase}** "
-        f"({_ordinal(int(round(pct)))} percentile of the {span} record — the **{rank_phrase}**), "
-        f"indicating {eco}."
+        f"({_ordinal(int(round(pct)))} percentile of the {span} record), indicating {eco}."
     )
 
     # Analog years: joint similarity in [southern extent, cold-pool area] (z-scored Euclidean) so
