@@ -19,6 +19,14 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from dashboard.components.bottom_ui import (
+    BLUE,
+    callout,
+    footer,
+    inject_css,
+    page_header,
+    section_title,
+)
 from dashboard.components.coldpool_data import list_bottom_state_regions, region_label
 from mhw.bottom.regions import get_region
 
@@ -145,6 +153,7 @@ def _slope_summary_html(dy: pd.DataFrame) -> str:
 def render(group: str = "bering") -> None:
     """Render the Catch × Bottom State page for one geographic group (page config/fonts are
     owned by the navigation shell)."""
+    inject_css()
     st.sidebar.header("Controls")
     regions = [r for r in list_bottom_state_regions(group) if r in REGION_TO_SRVY]
     if not regions:
@@ -156,104 +165,109 @@ def render(group: str = "bering") -> None:
 
     sp_label = st.sidebar.selectbox("Species", list(SPECIES_LABELS), index=0)
     code = SPECIES_LABELS[sp_label]
+    chip = f"{region_label(region)} ({region.upper()})"
+    cap = ("Explore how key species' catch relates to bottom-temperature conditions — AFSC "
+           "bottom-trawl survey (observed; exploratory, not causal).")
 
     df = load_catch(code)
     if df is None:
-        st.markdown(f"## {_title_icon_html(sp_label)} {sp_label}", unsafe_allow_html=True)
+        page_header(_title_icon_html(sp_label), "Catch × Bottom State", sp_label, chip, caption=cap)
         st.error(f"Catch not built for **{sp_label}**. Run: "
                  f"`mhw-fetch-catch --species {code} --regions EBS NBS BSS`")
         return
 
     d = df[(df["region"] == srvy) & df["bottom_temperature_c"].notna()].copy()
     if d.empty:
+        page_header(_title_icon_html(sp_label), "Catch × Bottom State", sp_label, chip, caption=cap)
         st.warning(f"No {sp_label} catch records for {region.upper()}.")
         return
     years = sorted(int(y) for y in d["year"].unique())
     year = st.sidebar.select_slider("Year", years, value=years[-1])
     dy = d[d["year"] == year]
 
-    # ---- Top header: region · year · species, shown once above the first table ----
-    st.markdown(f"## {_title_icon_html(sp_label)} {sp_label} · {region_label(region)} · {year}",
-                unsafe_allow_html=True)
+    page_header(_title_icon_html(sp_label), "Catch × Bottom State",
+                f"{sp_label} · {region_label(region)} · {year}", chip, caption=cap)
 
     corr = dy["bottom_temperature_c"].corr(dy["cpue_kgkm2"])
     corr_txt = f"corr(CPUE, °C) = {corr:+.2f}" if pd.notna(corr) else None
 
     # ---- Section 1: tabular summary (thermal partition for cold-pool regions) ----
-    st.markdown(f"### {'Catch partitioned by thermal regime' if is_cold_pool else 'Catch summary'}")
-    if is_cold_pool:
-        caught = int((dy["cpue_kgkm2"] > 0).sum())
-        st.caption(f"{len(dy):,} survey hauls · {caught:,} caught {sp_label.lower()}.")
-        st.markdown(_styled_breakdown_html(dy), unsafe_allow_html=True)
-        cold = dy[dy["bottom_temperature_c"] <= COLD_POOL_C]
-        warm = dy[dy["bottom_temperature_c"] > COLD_POOL_C]
-        cw = warm["cpue_kgkm2"].mean()
-        if len(cold) and len(warm) and cw > 0:
-            ratio = cold["cpue_kgkm2"].mean() / cw
-            in_share = 100 * cold["cpue_kgkm2"].sum() / dy["cpue_kgkm2"].sum()
-            haul_share = 100 * len(cold) / len(dy)
-            st.caption(
-                f"{sp_label} were **{ratio:.1f}× denser** in the cold pool — concentrating "
-                f"**{in_share:.0f}%** of the biomass into **{haul_share:.0f}%** of the hauls."
-            )
-    else:
-        st.markdown(_slope_summary_html(dy), unsafe_allow_html=True)
+    with st.container(border=True):
+        section_title("Catch partitioned by thermal regime"
+                      + (" (≤ 2 °C threshold)" if is_cold_pool else "") if is_cold_pool
+                      else "Catch summary")
+        if is_cold_pool:
+            caught = int((dy["cpue_kgkm2"] > 0).sum())
+            st.caption(f"{len(dy):,} survey hauls · {caught:,} caught {sp_label.lower()}.")
+            st.markdown(_styled_breakdown_html(dy), unsafe_allow_html=True)
+            cold = dy[dy["bottom_temperature_c"] <= COLD_POOL_C]
+            warm = dy[dy["bottom_temperature_c"] > COLD_POOL_C]
+            cw = warm["cpue_kgkm2"].mean()
+            if len(cold) and len(warm) and cw > 0:
+                ratio = cold["cpue_kgkm2"].mean() / cw
+                in_share = 100 * cold["cpue_kgkm2"].sum() / dy["cpue_kgkm2"].sum()
+                haul_share = 100 * len(cold) / len(dy)
+                callout(
+                    f"{sp_label} were <b>{ratio:.1f}× denser</b> in the cold pool — concentrating "
+                    f"<b>{in_share:.0f}%</b> of the biomass into <b>{haul_share:.0f}%</b> of the hauls.",
+                    icon="🦀", tint=BLUE)
+        else:
+            st.markdown(_slope_summary_html(dy), unsafe_allow_html=True)
 
     # ---- Section 2: density–temperature relationship ----
-    st.markdown("### Catch density as a function of bottom temperature")
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=dy["bottom_temperature_c"], y=dy["cpue_kgkm2"], mode="markers",
-        marker={"size": 8, "color": dy["bottom_temperature_c"], "colorscale": TEMP_COLORSCALE,
-                "showscale": False, "line": {"width": 0.5, "color": "rgba(90,90,90,0.4)"}},
-        hovertemplate="bottom temp %{x:.1f} °C<br>CPUE %{y:,.0f} kg/km²<extra></extra>"))
-    if is_cold_pool:   # mark the cold-pool boundary (no line for the slope, which has no cold pool)
-        fig.add_vline(x=COLD_POOL_C, line_dash="dash", line_color="#444", line_width=1.5,
-                      annotation_text="2 °C", annotation_position="top", annotation_font={"size": 13})
-    fig.update_xaxes(title_text="Bottom temperature (°C)", title_font={"size": 18}, tickfont={"size": 14})
-    fig.update_yaxes(title_text="CPUE (kg/km²)", title_font={"size": 18}, tickfont={"size": 14})
-    if corr_txt:
-        fig.add_annotation(xref="paper", yref="paper", x=0.98, y=0.98, xanchor="right", yanchor="top",
-                           text=corr_txt, showarrow=False, font={"size": 16, "color": "#1f2a36"},
-                           bgcolor="rgba(255,255,255,0.8)", bordercolor="#9aa7b5", borderwidth=1, borderpad=5)
-    fig.update_layout(height=440, template="plotly_white", font={"size": 15},
-                      margin={"l": 80, "r": 20, "t": 20, "b": 60})
-    st.plotly_chart(fig, use_container_width=True)
+    with st.container(border=True):
+        section_title("Catch density vs bottom temperature")
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=dy["bottom_temperature_c"], y=dy["cpue_kgkm2"], mode="markers",
+            marker={"size": 8, "color": dy["bottom_temperature_c"], "colorscale": TEMP_COLORSCALE,
+                    "showscale": False, "line": {"width": 0.5, "color": "rgba(90,90,90,0.4)"}},
+            hovertemplate="bottom temp %{x:.1f} °C<br>CPUE %{y:,.0f} kg/km²<extra></extra>"))
+        if is_cold_pool:   # mark the cold-pool boundary (no line for the slope, which has no cold pool)
+            fig.add_vline(x=COLD_POOL_C, line_dash="dash", line_color="#444", line_width=1.5,
+                          annotation_text="2 °C", annotation_position="top", annotation_font={"size": 13})
+        fig.update_xaxes(title_text="Bottom temperature (°C)", title_font={"size": 18}, tickfont={"size": 14})
+        fig.update_yaxes(title_text="CPUE (kg/km²)", title_font={"size": 18}, tickfont={"size": 14})
+        if corr_txt:
+            fig.add_annotation(xref="paper", yref="paper", x=0.98, y=0.98, xanchor="right", yanchor="top",
+                               text=corr_txt, showarrow=False, font={"size": 16, "color": "#1f2a36"},
+                               bgcolor="rgba(255,255,255,0.8)", bordercolor="#9aa7b5", borderwidth=1, borderpad=5)
+        fig.update_layout(height=440, template="plotly_white", font={"size": 15},
+                          margin={"l": 80, "r": 20, "t": 20, "b": 60})
+        st.plotly_chart(fig, use_container_width=True)
 
     # ---- Section 3: map — bottom temperature (colour) × CPUE (marker size) ----
-    # Same tile-basemap style as the live MHW Operational map (go.Scattermap on
-    # open-street-map). Colour = bottom temperature on a sequential blue scale (deeper =
-    # colder); marker size = catch density.
-    st.markdown("### Spatial co-distribution of catch and bottom temperature")
-    cpue = dy["cpue_kgkm2"].to_numpy()
-    cmax = float(max(cpue.max(), 1.0))
-    size = 4 + 26 * np.sqrt(np.clip(cpue, 0, None) / cmax)   # sqrt scaling; zero-catch ≈ 4 px
-    mfig = go.Figure(go.Scattermap(
-        lat=dy["latitude"], lon=dy["longitude"], mode="markers",
-        marker={"size": size, "color": dy["bottom_temperature_c"], "colorscale": TEMP_COLORSCALE,
-                "opacity": 0.85,
-                "colorbar": {"title": {"text": "Bottom<br>temp °C", "font": {"size": 15}},
-                             "tickfont": {"size": 13}, "thickness": 16}},
-        customdata=np.column_stack([dy["bottom_temperature_c"], cpue]),
-        hovertemplate="%{lat:.2f}, %{lon:.2f}<br>bottom %{customdata[0]:.1f} °C<br>"
-                      "CPUE %{customdata[1]:,.0f} kg/km²<extra></extra>"))
-    if corr_txt:
-        mfig.add_annotation(xref="paper", yref="paper", x=0.01, y=0.99, xanchor="left", yanchor="top",
-                            text=corr_txt, showarrow=False, font={"size": 16, "color": "#1f2a36"},
-                            bgcolor="rgba(255,255,255,0.85)", bordercolor="#9aa7b5", borderwidth=1, borderpad=5)
-    mfig.update_layout(
-        map={"style": "open-street-map",
-             "center": {"lat": float(dy["latitude"].mean()), "lon": float(dy["longitude"].mean())},
-             "zoom": 4.0},
-        height=560, margin={"l": 0, "r": 0, "t": 10, "b": 0}, font={"size": 15})
-    st.plotly_chart(mfig, use_container_width=True)
+    with st.container(border=True):
+        section_title("Spatial co-distribution of catch & bottom temperature")
+        cpue = dy["cpue_kgkm2"].to_numpy()
+        cmax = float(max(cpue.max(), 1.0))
+        size = 4 + 26 * np.sqrt(np.clip(cpue, 0, None) / cmax)   # sqrt scaling; zero-catch ≈ 4 px
+        mfig = go.Figure(go.Scattermap(
+            lat=dy["latitude"], lon=dy["longitude"], mode="markers",
+            marker={"size": size, "color": dy["bottom_temperature_c"], "colorscale": TEMP_COLORSCALE,
+                    "opacity": 0.85,
+                    "colorbar": {"title": {"text": "Bottom<br>temp °C", "font": {"size": 15}},
+                                 "tickfont": {"size": 13}, "thickness": 16}},
+            customdata=np.column_stack([dy["bottom_temperature_c"], cpue]),
+            hovertemplate="%{lat:.2f}, %{lon:.2f}<br>bottom %{customdata[0]:.1f} °C<br>"
+                          "CPUE %{customdata[1]:,.0f} kg/km²<extra></extra>"))
+        if corr_txt:
+            mfig.add_annotation(xref="paper", yref="paper", x=0.01, y=0.99, xanchor="left", yanchor="top",
+                                text=corr_txt, showarrow=False, font={"size": 16, "color": "#1f2a36"},
+                                bgcolor="rgba(255,255,255,0.85)", bordercolor="#9aa7b5", borderwidth=1, borderpad=5)
+        mfig.update_layout(
+            map={"style": "open-street-map",
+                 "center": {"lat": float(dy["latitude"].mean()), "lon": float(dy["longitude"].mean())},
+                 "zoom": 4.0},
+            height=560, margin={"l": 0, "r": 0, "t": 10, "b": 0}, font={"size": 15})
+        st.plotly_chart(mfig, use_container_width=True)
+        note = (" Snow crab is a cold-water specialist — in the eastern Bering it concentrates in the "
+                "cold pool, so the biggest dots sit on the **deepest-blue (coldest)** water."
+                if code == 68580 and is_cold_pool else "")
+        st.caption(
+            "Each dot is a survey tow: **colour = bottom temperature** (deeper blue = colder), "
+            "**size = CPUE** (catch density, kg/km²; tiny dots are tows that caught little or none)."
+            + note)
 
-    note = (" Snow crab is a cold-water specialist — in the eastern Bering it concentrates in the "
-            "cold pool, so the biggest dots sit on the **deepest-blue (coldest)** water."
-            if code == 68580 and is_cold_pool else "")
-    st.caption(
-        "Each dot is a survey tow: **colour = bottom temperature** (deeper blue = colder), "
-        "**size = CPUE** (catch density, kg/km²; tiny dots are tows that caught little or none)."
-        + note +
-        " Source: NOAA **FOSS** AFSC bottom-trawl survey (`haul` ⟕ `catch` on `hauljoin`)."
-    )
+    footer("Source: NOAA FOSS AFSC bottom-trawl survey (haul ⟕ catch on hauljoin). "
+           "Observed · survey footprint · annual · lagged — exploratory, not causal.")
