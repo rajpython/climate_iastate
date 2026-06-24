@@ -26,6 +26,7 @@ from dashboard.components.coldpool_data import (
     list_bottom_state_regions,
     load_model,
     load_observed,
+    load_observed_southern_extent,
     load_survey_replicate,
     region_label,
     threshold_short,
@@ -62,43 +63,46 @@ def _category_badge(label: str) -> str:
 
 
 def _southern_extent_panel(region: str) -> None:
-    """Cold-Pool Southern Extent — a derived position indicator (model-derived, Phase 1).
+    """Cold-pool southern extent — a derived position indicator (observed survey hauls, with
+    model comparison). EBS only.
 
-    Answers 'where is the cold pool', not just 'how big'. Southern extent = the 5th-percentile
-    latitude of ≤2 °C shelf cells (see the Bering Sea Bottom-State Guide). EBS only.
+    Answers 'where does the cold pool reach', not just 'how big'. Southern extent = the
+    5th-percentile latitude of ≤2 °C locations — survey hauls for observed, gridded shelf cells
+    for the models. See the Bering Sea Bottom-State Guide.
     """
     if region != "ebs":
         return
-    loaded = {name: load_model(MODEL_SOURCES[name], region) for name in MODEL_SOURCES}
-    loaded = {n: m for n, m in loaded.items()
+    obs = load_observed_southern_extent(region)
+    models = {name: load_model(MODEL_SOURCES[name], region) for name in MODEL_SOURCES}
+    models = {n: m.dropna(subset=["southern_extent_lat"]).sort_values("year")
+              for n, m in models.items()
               if m is not None and "southern_extent_lat" in m
               and m["southern_extent_lat"].notna().any()}
-    if not loaded:
-        st.markdown("### Cold-pool southern extent — *where* the cold pool reaches (model-derived)")
-        st.info("The southern-extent indicator isn't built yet. Run "
-                "`mhw-build-coldpool-model --source bering10k --region ebs` (and `--source mom6_nep`).")
-        return
 
-    st.markdown("### Cold-pool southern extent — *where* the cold pool reaches (model-derived)")
+    st.markdown("### Cold-pool southern extent — *where* the cold pool reaches")
+    if obs is None and not models:
+        st.info("The southern-extent indicator isn't built yet. Run `mhw-fetch-coldpool "
+                "--region ebs` (observed) and `mhw-build-coldpool-model --region ebs` (models).")
+        return
     st.caption(
-        "A derived **position** indicator complementing area and bottom temperature: the "
-        "southernmost reach of the ≤ 2 °C cold pool (5th-percentile latitude of cold shelf "
-        "cells). Higher latitude = farther north = a northward-contracted cold pool. "
-        "**Model-derived** (Bering10K, CEFI MOM6 NEP); an observed survey version is planned. "
-        "Not an official ESR metric — see the Bering Sea Bottom-State Guide."
+        "A derived **position** indicator complementing area and bottom temperature: the southern "
+        "reach of the ≤ 2 °C cold pool (5th-percentile latitude of cold locations). Higher "
+        "latitude = farther north = a northward-contracted cold pool. **Observed** is the AFSC "
+        "survey hauls; the models are shown for comparison. Not an official ESR metric — see the "
+        "Bering Sea Bottom-State Guide."
     )
 
-    # KPI card driven by one source (default Bering10K — the longer record).
-    src_name = st.radio("Source for the headline", list(loaded), horizontal=True,
-                        key="sext_src")
-    df = loaded[src_name].dropna(subset=["southern_extent_lat"]).sort_values("year")
+    # Headline = observed survey (ground truth) when available; otherwise fall back to a model.
+    if obs is not None:
+        head_label, df = "observed cold pool", obs
+    else:
+        head_label, (name, df) = "modelled cold pool", next(iter(models.items()))
     series = df["southern_extent_lat"]
     latest = df.iloc[-1]
     yr = int(latest["year"])
     val = float(latest["southern_extent_lat"])
     span = f"{int(df['year'].min())}–{int(df['year'].max())}"
-    base = df.loc[(df["year"] >= BASELINE_START) & (df["year"] <= BASELINE_END),
-                  "southern_extent_lat"]
+    base = df.loc[(df["year"] >= BASELINE_START) & (df["year"] <= BASELINE_END), "southern_extent_lat"]
     base_mean = float(base.mean()) if not base.empty else float("nan")
     anom = anomaly(val, base) if not base.empty else float("nan")
     pct = percentile_rank(val, series)
@@ -106,42 +110,43 @@ def _southern_extent_panel(region: str) -> None:
     phrase = direction_phrase(anom)
 
     c1, c2, c3 = st.columns(3)
-    c1.metric(f"{yr} southern extent ({src_name})", f"{val:.1f} °N")
+    c1.metric(f"{yr} southern extent", f"{val:.1f} °N")
     c2.metric(f"Historical mean ({BASELINE_START}–{BASELINE_END})",
               f"{base_mean:.1f} °N" if pd.notna(base_mean) else "—")
     c3.metric(f"Percentile ({span})", f"{pct:.0f}th",
-              help="Percentile of this year's southern-extent latitude in the model record.")
+              help="Percentile of this year's southern-extent latitude in the record.")
 
     eco = ("a northward-contracted cold pool, reducing southern cold-water habitat" if pct >= 70
            else "a southward-expanded cold pool" if pct <= 30
            else "a near-typical cold-pool position")
     st.markdown(
-        f"**{category}** — in {yr} the modelled cold pool reached about **{val:.1f} °N**, "
-        f"**{phrase}** ({_ordinal(int(round(pct)))} percentile of the {span} record), indicating "
-        f"{eco}."
+        f"**{category}** — in {yr} the {head_label} reached about **{val:.1f} °N**, **{phrase}** "
+        f"({_ordinal(int(round(pct)))} percentile of the {span} record), indicating {eco}."
     )
     analogs = analog_years(yr, df["year"].values, series.values, k=3)
     if analogs:
         st.caption("Most similar years (by southern extent): " + ", ".join(str(a) for a in analogs) + ".")
 
-    # Historical time series — each model + the headline source's climatological mean.
+    # Time series: observed (black) + each model (dashed); observed climatological-mean line.
     fig = go.Figure()
-    for name, m in loaded.items():
-        mm = m.dropna(subset=["southern_extent_lat"]).sort_values("year")
-        fig.add_trace(go.Scatter(x=mm["year"], y=mm["southern_extent_lat"], mode="lines+markers",
-                      name=name, line={"color": MODEL_COLORS.get(name, "gray"), "width": 2}))
+    if obs is not None:
+        fig.add_trace(go.Scatter(x=obs["year"], y=obs["southern_extent_lat"], mode="lines+markers",
+                      name="Observed (survey)", line={"color": "black", "width": 2}))
+    for name, m in models.items():
+        fig.add_trace(go.Scatter(x=m["year"], y=m["southern_extent_lat"], mode="lines+markers",
+                      name=name, line={"color": MODEL_COLORS.get(name, "gray"), "width": 2, "dash": "dash"}))
     if pd.notna(base_mean):
-        fig.add_hline(y=base_mean, line_dash="dash", line_color="gray", line_width=1,
-                      annotation_text=f"{src_name} {BASELINE_START}–{BASELINE_END} mean",
-                      annotation_font_size=9)
+        fig.add_hline(y=base_mean, line_dash="dot", line_color="gray", line_width=1,
+                      annotation_text=f"{BASELINE_START}–{BASELINE_END} mean", annotation_font_size=9)
     fig.update_yaxes(title_text="Southern extent (°N) — higher = farther north")
     fig.update_layout(height=380, template="plotly_white",
                       margin={"l": 70, "r": 20, "t": 30, "b": 40},
                       legend={"orientation": "h", "y": 1.06, "yanchor": "bottom",
                               "x": 0, "xanchor": "left"})
     st.plotly_chart(fig, use_container_width=True)
-    st.caption("Descriptive of modelled history — not a forecast. Definition is swappable "
-               "(default: 5th-percentile latitude of ≤ 2 °C shelf cells).")
+    st.caption("Observed = survey hauls (latitudes of ≤ 2 °C tows); models = gridded ≤ 2 °C shelf "
+               "cells — the same 5th-percentile definition, different sampling. Descriptive of "
+               "past state, not a forecast; the definition is swappable.")
 
 
 def _survey_replicate_panel(region: str, model_choices: list[str], yr_range=None) -> bool:

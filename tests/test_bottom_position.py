@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from mhw.bottom.position import cold_pool_position
+from mhw.bottom.position import cold_pool_position, southern_extent_points
 
 
 # A 5-row grid (lats 54..58) x 3 cols, all shelf. Rows 0–1 (lats 54,55) are cold (≤2 °C);
@@ -68,3 +68,23 @@ def test_unknown_method_raises():
 def test_documented_stub_raises():
     with pytest.raises(NotImplementedError):
         cold_pool_position(GRID, SHELF, LATS, LONS, method="contour_edge")
+
+
+# --- southern_extent_points (observed, from survey hauls) ---------------------------------
+def test_southern_extent_points_basic():
+    # hauls: three cold at 55/56/57, two warm at 58/59 → p05 sits near the southernmost cold haul.
+    lats = np.array([55.0, 56.0, 57.0, 58.0, 59.0])
+    temps = np.array([1.0, 1.5, 1.8, 3.0, 4.0])
+    lat = southern_extent_points(lats, temps, threshold=2.0)
+    assert 55.0 <= lat <= 55.3
+
+
+def test_southern_extent_points_nan_when_no_cold_hauls():
+    assert np.isnan(southern_extent_points(np.array([55.0, 56.0]), np.array([3.0, 4.0]), 2.0))
+
+
+def test_southern_extent_points_ignores_nan_temps():
+    lats = np.array([55.0, 56.0, 57.0])
+    temps = np.array([np.nan, 1.0, 1.0])
+    lat = southern_extent_points(lats, temps, threshold=2.0)
+    assert 56.0 <= lat <= 56.1   # the NaN-temp haul at 55 is excluded

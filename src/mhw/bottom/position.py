@@ -69,6 +69,21 @@ _METHODS: dict[str, Callable] = {
 }
 
 
+def southern_extent_points(lats, temps, threshold: float = 2.0,
+                           percentile: float = SOUTHERN_PERCENTILE) -> float:
+    """Observed southern extent from **survey haul points** (no grid, no model, no interpolation).
+
+    The point-based analogue of the default gridded metric: the ``percentile`` (default 5th)
+    latitude of survey hauls whose bottom temperature is ≤ ``threshold``. Mirrors the
+    survey-replication philosophy (observed = the survey itself). Returns NaN if no haul meets
+    the threshold.
+    """
+    lat = np.asarray(lats, dtype=float)
+    t = np.asarray(temps, dtype=float)
+    sel = np.isfinite(lat) & np.isfinite(t) & (t <= threshold)
+    return float(np.percentile(lat[sel], percentile)) if sel.any() else float("nan")
+
+
 def cold_pool_position(
     temp_grid,
     shelf,

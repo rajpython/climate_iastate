@@ -87,6 +87,33 @@ def load_observed(region: str) -> pd.DataFrame | None:
     return pd.read_parquet(p).sort_values("year").reset_index(drop=True)
 
 
+@st.cache_data(show_spinner="Computing observed southern extent …", ttl=3600)
+def load_observed_southern_extent(region: str) -> pd.DataFrame | None:
+    """Annual observed cold-pool southern extent from the survey hauls (model-free).
+
+    Reads the per-haul observed temperatures (``coldpool_hauls_observed_<region>.parquet``) and,
+    per year, takes the 5th-percentile latitude of hauls with bottom temperature ≤ 2 °C — the
+    point-based analogue of the gridded model metric. Returns DataFrame[year, southern_extent_lat]
+    or None if the haul file isn't built.
+    """
+    from mhw.bottom.position import southern_extent_points
+
+    p = RAW_DIR / f"coldpool_hauls_observed_{region}.parquet"
+    if not p.exists():
+        return None
+    h = pd.read_parquet(p)
+    if not {"year", "latitude", "gear_temperature"}.issubset(h.columns):
+        return None
+    rows = [
+        {"year": int(yr),
+         "southern_extent_lat": southern_extent_points(g["latitude"].to_numpy(),
+                                                       g["gear_temperature"].to_numpy())}
+        for yr, g in h.groupby("year")
+    ]
+    out = pd.DataFrame(rows).dropna(subset=["southern_extent_lat"]).sort_values("year")
+    return out.reset_index(drop=True) if not out.empty else None
+
+
 @st.cache_data(show_spinner="Loading modelled cold pool …", ttl=3600)
 def load_model(source_id: str, region: str, monthly: bool = False) -> pd.DataFrame | None:
     suffix = "_monthly" if monthly else ""

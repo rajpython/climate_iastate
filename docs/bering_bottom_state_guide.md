@@ -277,23 +277,25 @@ south the cold pool reaches. Two years can have a similar cold-pool area but a v
 position, and the southern edge of the cold pool acts as a biological barrier, so its position
 matters in its own right.
 
-**What it is.** The **5th-percentile latitude** of the shelf cells at or below 2 °C — the
-southern reach of the cold pool, taken as a low percentile rather than the single
-southernmost cell so it is not thrown off by an isolated cold patch. A **higher** latitude
-means the cold pool's southern edge sits **farther north** (a northward-contracted cold pool,
-typical of warm years); a **lower** latitude means it reaches **farther south**.
+**What it is.** The **5th-percentile latitude** of the cold (≤ 2 °C) locations — the southern
+reach of the cold pool, taken as a low percentile rather than the single southernmost point so
+it is not thrown off by an isolated cold patch. The **observed** value comes straight from the
+survey: the latitudes of the tows that measured ≤ 2 °C bottom water (model-free, no
+interpolation). The **model** values apply the same definition to each model's gridded ≤ 2 °C
+shelf cells, for comparison. A **higher** latitude means the cold pool's southern edge sits
+**farther north** (a northward-contracted cold pool, typical of warm years); a **lower** one
+means it reaches **farther south**.
 
-**How to read it.** The dashboard reports the current value, the historical mean position,
-the difference in spatial language ("0.8° farther north than typical"), a percentile, a
-plain-language category, and the most similar past years. For example, the warm year 2019
-shows a far-north southern extent (a strongly retreated cold pool), while cold years sit
-farther south.
+**How to read it.** The panel leads with the observed value and reports the historical mean
+position, the difference in spatial language ("0.8° farther north than typical"), a percentile,
+a plain-language category, and the most similar past years; the two models are overlaid on the
+time series for comparison. For example, the warm year 2019 shows a far-north southern extent
+(a strongly retreated cold pool), while cold years sit farther south.
 
-**Two honest notes.** This is a **derived position indicator**, not an official ESR metric —
-ESRs convey position through maps; we reduce it to one defensible, clearly-stated number. And
-the current dashboard value is **model-derived** (Bering10K, MOM6); an observed survey version
-is planned. The exact definition is intentionally easy to revise if AFSC scientists prefer an
-alternative convention.
+**Two notes.** This is a **derived position indicator**, not an official ESR metric — ESRs
+convey position through maps; here it is reduced to one clearly-stated number. The headline is
+**observed** (the survey hauls themselves); the models are shown for comparison, and the
+definition is intentionally easy to revise if AFSC scientists prefer an alternative convention.
 
 ---
 
