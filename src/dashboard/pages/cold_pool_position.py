@@ -200,24 +200,24 @@ with right:
             mfig.add_trace(go.Scattergeo(lon=[lon_w, lon_e], lat=[base_mean, base_mean],
                            mode="lines", line={"color": BLUE, "width": 2.5},
                            name=f"Historical mean southern extent ({BASELINE_START}–{BASELINE_END})"))
-            mfig.add_trace(go.Scattergeo(lon=[lon_e], lat=[base_mean], mode="text",
-                           text=[f"{base_mean:.2f}°N"], textposition="bottom left",
-                           textfont={"color": BLUE, "size": 11}, showlegend=False, hoverinfo="skip"))
+            mfig.add_trace(go.Scattergeo(lon=[lon_e - 1.0], lat=[base_mean - 0.45], mode="text",
+                           text=[f"<b>{base_mean:.2f}°N</b>"], textposition="middle center",
+                           textfont={"color": BLUE, "size": 13}, showlegend=False, hoverinfo="skip"))
         mfig.add_trace(go.Scattergeo(lon=[lon_w, lon_e], lat=[val, val], mode="lines",
                        line={"color": GREEN, "width": 3.5}, name=f"Current southern extent ({yr})"))
-        mfig.add_trace(go.Scattergeo(lon=[lon_e], lat=[val], mode="text",
-                       text=[f"{val:.2f}°N"], textposition="top left",
-                       textfont={"color": GREEN, "size": 11}, showlegend=False, hoverinfo="skip"))
+        mfig.add_trace(go.Scattergeo(lon=[lon_e - 1.0], lat=[val + 0.45], mode="text",
+                       text=[f"<b>{val:.2f}°N</b>"], textposition="middle center",
+                       textfont={"color": GREEN, "size": 13}, showlegend=False, hoverinfo="skip"))
         # Degree tick labels (geo subplots don't render graticule labels) — small text in the
         # ocean margins, aligned with the 1° lat / 5° lon gridlines.
         lat_ticks = [54, 55, 56, 57, 58, 59, 60]
         lon_ticks = [-175, -170, -165, -160]
         mfig.add_trace(go.Scattergeo(lon=[-177.6] * len(lat_ticks), lat=lat_ticks, mode="text",
-                       text=[f"{t}°N" for t in lat_ticks],
+                       text=[f"<b>{t}°N</b>" for t in lat_ticks],
                        textfont={"size": 11, "color": "#1f2a36"},
                        showlegend=False, hoverinfo="skip"))
         mfig.add_trace(go.Scattergeo(lon=lon_ticks, lat=[53.5] * len(lon_ticks), mode="text",
-                       text=[f"{abs(t)}°W" for t in lon_ticks],
+                       text=[f"<b>{abs(t)}°W</b>" for t in lon_ticks],
                        textfont={"size": 11, "color": "#1f2a36"},
                        showlegend=False, hoverinfo="skip"))
         mfig.update_geos(
