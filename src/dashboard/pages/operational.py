@@ -51,7 +51,13 @@ from dashboard.components.risk_gauge import (
 )
 from mhw.states.risk import compute_risk_table, save_risk_table
 
+from dashboard.components.bottom_ui import footer, inject_css, page_header
+
 RISK_DIR = Path(__file__).parents[3] / "data" / "derived" / "risk"
+
+# Full region names for the header chip (the five SST regions).
+_REGION_NAMES = {"goa": "Gulf of Alaska", "ebs": "Eastern Bering Sea",
+                 "nbs": "Northern Bering Sea", "chukchi": "Chukchi Sea", "beaufort": "Beaufort Sea"}
 
 # Human-friendly date formatting
 _DATE_FMT = "%b %d, %Y"          # e.g. "Feb 24, 2024"
@@ -68,8 +74,7 @@ def _fmt(d) -> str:
 
 def render() -> None:
     """Operational MHW view — rendered inside the Marine Heatwaves hub."""
-    st.title("🌊 Operational Dashboard")
-
+    inject_css()
     # ---------------------------------------------------------------------------
     # Shared sidebar — region selector
     # ---------------------------------------------------------------------------
@@ -77,10 +82,15 @@ def render() -> None:
 
     regions = list_regions()
     if not regions:
+        page_header("🌊", "Operational MHW", "Live & recent marine-heatwave state", "—")
         st.error("No aggregates parquet found. Run the backfill first.")
         st.stop()
 
     region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="op_region")
+    page_header("🌊", "Operational MHW", "Live & recent marine-heatwave state",
+                f"{_REGION_NAMES.get(region, region.upper())} ({region.upper()})",
+                caption=("Today's and recent marine-heatwave state for the selected region — "
+                         "the live map, event metrics, AO/PDO context, and a composite risk score."))
 
     # ---------------------------------------------------------------------------
     # Load data (all cached — fast after first run)
@@ -399,3 +409,6 @@ def render() -> None:
                 if agg_df is not None:
                     st.plotly_chart(_make_sparkline(risk_df, agg_df, n_days=30),
                                     use_container_width=True, key="risk_sparkline")
+
+    footer("Data sources: NOAA OISST v2.1 (SST + sea ice) · CPC Arctic Oscillation · PSL Pacific "
+           "Decadal Oscillation. Daily; OISST typically lags real time by 1–2 days.")

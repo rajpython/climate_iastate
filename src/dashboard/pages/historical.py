@@ -20,9 +20,15 @@ import streamlit as st
 import yaml
 from plotly.subplots import make_subplots
 
+from dashboard.components.bottom_ui import footer, inject_css, page_header, section_title
+
 ROOT    = Path(__file__).parents[3]
 AGG_DIR = ROOT / "data" / "derived" / "aggregates_region"
 RAW_DIR = ROOT / "data" / "raw"
+
+# Full region names for the header chip (the five SST regions).
+_REGION_NAMES = {"goa": "Gulf of Alaska", "ebs": "Eastern Bering Sea",
+                 "nbs": "Northern Bering Sea", "chukchi": "Chukchi Sea", "beaufort": "Beaufort Sea"}
 
 _cfg = yaml.safe_load((ROOT / "config" / "climatology.yml").read_text())
 AREA_THRESH  = float(_cfg["regional_events"]["area_frac_threshold"])
@@ -119,7 +125,7 @@ def _regime_df(region: str) -> pd.DataFrame:
 
 def render() -> None:
     """Historical MHW view — rendered inside the Marine Heatwaves hub."""
-    st.title("📊 Historical Analysis — 1982–present")
+    inject_css()
 
 
     @st.cache_data(show_spinner=False, ttl=3600)
@@ -145,6 +151,24 @@ def render() -> None:
 
 
     _dates = _data_through_dates()
+
+    # ---------------------------------------------------------------------------
+    # Shared sidebar
+    # ---------------------------------------------------------------------------
+    st.sidebar.header("Controls")
+
+    regions = _list_regions()
+    if not regions:
+        page_header("📊", "Historical MHW", "1982–present analysis", "—")
+        st.error("No aggregates parquet found. Run the backfill first.")
+        st.stop()
+
+    region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="hist_region")
+
+    page_header("📊", "Historical MHW", "1982–present analysis",
+                f"{_REGION_NAMES.get(region, region.upper())} ({region.upper()})",
+                caption=("Year-by-year marine-heatwave activity over the full record — annual "
+                         "burden, an event explorer, metric distributions, and AO/PDO regimes."))
     _parts = []
     if "agg" in _dates:
         _parts.append(f"📅 **MHW data through {_dates['agg'].strftime('%b %d, %Y')}**")
@@ -154,18 +178,6 @@ def render() -> None:
         _parts.append(f"PDO through {_dates['pdo'].strftime('%b %Y')}")
     if _parts:
         st.caption(" · ".join(_parts))
-
-    # ---------------------------------------------------------------------------
-    # Shared sidebar
-    # ---------------------------------------------------------------------------
-    st.sidebar.header("Controls")
-
-    regions = _list_regions()
-    if not regions:
-        st.error("No aggregates parquet found. Run the backfill first.")
-        st.stop()
-
-    region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="hist_region")
 
     ann = _annual_summary(region)
     if ann.empty:
@@ -196,7 +208,7 @@ def render() -> None:
     # TAB 1 — Annual Burden
     # ============================================================
     with tab_burden:
-        st.subheader(f"Annual MHW Burden — {region.upper()}  ({y_start}–{y_end})")
+        section_title(f"Annual MHW Burden — {region.upper()}  ({y_start}–{y_end})")
 
         bar_metric = st.radio(
             "Bar metric", ["Peak Area Fraction", "Mean Area Fraction", "Event Days"],
@@ -302,7 +314,7 @@ def render() -> None:
             "event_days": "Event Days", "max_Ibar": "Peak Intensity (°C)",
             "max_Cbar": "Peak Cumul. Int. (°C·days)",
         })
-        st.subheader("Top 10 Years by Peak Area Fraction")
+        section_title("Top 10 Years by Peak Area Fraction")
         st.dataframe(top10, use_container_width=True, hide_index=True)
 
     # ============================================================
@@ -390,7 +402,7 @@ def render() -> None:
             "event_days": "Event Days", "max_area_frac": "Peak Area Frac.",
             "max_Ibar": "Peak Intensity (°C)", "max_Dbar": "Peak Duration (days)",
         })
-        st.subheader(f"Monthly summary — {sel_year}")
+        section_title(f"Monthly summary — {sel_year}")
         st.dataframe(monthly, use_container_width=True)
 
     # ============================================================
@@ -409,7 +421,7 @@ def render() -> None:
             ("Obar",      "Onset Rate",         "°C/day",    "darkorange", True),
         ]
 
-        st.subheader(f"Metric Distributions — {region.upper()}  ({y_start}–{y_end})")
+        section_title(f"Metric Distributions — {region.upper()}  ({y_start}–{y_end})")
 
         n_bins = st.slider("Histogram bins", 20, 100, 50, key="dist_bins")
 
@@ -457,7 +469,7 @@ def render() -> None:
             risk_df["year"] = pd.to_datetime(risk_df["date"]).dt.year
             risk_range = risk_df[(risk_df["year"] >= y_start) & (risk_df["year"] <= y_end)]
             if not risk_range.empty:
-                st.subheader("Composite Risk Score Distribution")
+                section_title("Composite Risk Score Distribution")
                 fig_risk = go.Figure()
                 fig_risk.add_trace(go.Histogram(
                     x=risk_range["composite_risk"], nbinsx=60,
@@ -496,7 +508,7 @@ def render() -> None:
             # Filter by year range
             regime_df = regime_df[(regime_df["year"] >= y_start) & (regime_df["year"] <= y_end)]
 
-            st.subheader(f"AO / PDO Regime Analysis — {region.upper()}  ({y_start}–{y_end})")
+            section_title(f"AO / PDO Regime Analysis — {region.upper()}  ({y_start}–{y_end})")
 
             # Regime counts
             rc = regime_df["regime"].value_counts()
@@ -570,7 +582,7 @@ def render() -> None:
 
             # Regime median table — medians over event days only, so they reflect
             # event severity rather than being diluted to zero by quiet days.
-            st.subheader("Median values by regime (event days only)")
+            section_title("Median values by regime (event days only)")
             medians = []
             for r in REGIME_ORDER:
                 all_days   = regime_df[regime_df["regime"] == r]
@@ -607,7 +619,7 @@ def render() -> None:
 
             # Phase timeline
             st.markdown("---")
-            st.subheader("AO / PDO Phase Timeline")
+            section_title("AO / PDO Phase Timeline")
             ao_yr = (regime_df.groupby("year")
                      .agg(mean_ao=("ao", "mean"), mean_pdo=("pdo", "mean"))
                      .reset_index())
@@ -633,3 +645,6 @@ def render() -> None:
                                   margin={"l": 55, "r": 20, "t": 50, "b": 30})
             fig_ph.update_xaxes(tickmode="linear", dtick=2, row=2, col=1)
             st.plotly_chart(fig_ph, use_container_width=True)
+
+    footer("Data sources: NOAA OISST v2.1 (SST + sea ice) · CPC Arctic Oscillation · PSL Pacific "
+           "Decadal Oscillation. Full backfill 1982–present.")
