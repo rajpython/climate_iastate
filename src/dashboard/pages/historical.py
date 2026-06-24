@@ -20,7 +20,18 @@ import streamlit as st
 import yaml
 from plotly.subplots import make_subplots
 
-from dashboard.components.bottom_ui import footer, inject_css, page_header, section_title
+from dashboard.components.bottom_ui import (
+    AMBER,
+    BLUE,
+    PURPLE,
+    RED,
+    footer,
+    inject_css,
+    kpi_card,
+    kpi_grid,
+    page_header,
+    section_title,
+)
 
 ROOT    = Path(__file__).parents[3]
 AGG_DIR = ROOT / "data" / "derived" / "aggregates_region"
@@ -207,7 +218,7 @@ def render() -> None:
     # ============================================================
     # TAB 1 — Annual Burden
     # ============================================================
-    with tab_burden:
+    with tab_burden, st.container(border=True):
         section_title(f"Annual MHW Burden — {region.upper()}  ({y_start}–{y_end})")
 
         bar_metric = st.radio(
@@ -320,7 +331,7 @@ def render() -> None:
     # ============================================================
     # TAB 2 — Event Explorer
     # ============================================================
-    with tab_explorer:
+    with tab_explorer, st.container(border=True):
         df_full = _load_agg(region)
 
         years_avail = sorted(ann_f["year"].tolist(), reverse=True)
@@ -330,12 +341,13 @@ def render() -> None:
         yr_ann = ann[ann["year"] == sel_year].iloc[0]
 
         # Year header metrics
-        hc1, hc2, hc3, hc4, hc5 = st.columns(5)
-        hc1.metric("Event Days",              int(yr_ann["event_days"]))
-        hc2.metric("Peak Area Frac.",         f"{yr_ann['max_af']:.4f}")
-        hc3.metric("Peak Intensity (°C)",     f"{yr_ann['max_Ibar']:.3f}")
-        hc4.metric("Peak Duration (days)",    f"{yr_ann['max_Dbar']:.1f}")
-        hc5.metric("Peak Cumul. Int.",        f"{yr_ann['max_Cbar']:.2f}")
+        kpi_grid([
+            kpi_card("Event Days", f"{int(yr_ann['event_days'])}", BLUE),
+            kpi_card("Peak Area Frac.", f"{yr_ann['max_af']:.4f}", BLUE),
+            kpi_card("Peak Intensity (°C)", f"{yr_ann['max_Ibar']:.3f}", RED),
+            kpi_card("Peak Duration (days)", f"{yr_ann['max_Dbar']:.1f}", PURPLE),
+            kpi_card("Peak Cumul. Int.", f"{yr_ann['max_Cbar']:.2f}", AMBER),
+        ], cols=5)
 
         # Year time series — area_frac + Ibar + Dbar
         fig_yr = make_subplots(rows=3, cols=1, shared_xaxes=True,
@@ -408,7 +420,7 @@ def render() -> None:
     # ============================================================
     # TAB 3 — Metric Distributions
     # ============================================================
-    with tab_dist:
+    with tab_dist, st.container(border=True):
         df_full = _load_agg(region)
 
         df_range = df_full[(df_full["year"] >= y_start) & (df_full["year"] <= y_end)]
@@ -498,7 +510,7 @@ def render() -> None:
     # ============================================================
     # TAB 4 — Regime Analysis
     # ============================================================
-    with tab_regime:
+    with tab_regime, st.container(border=True):
         regime_df = _regime_df(region)
 
         if regime_df.empty:

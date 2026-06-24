@@ -51,7 +51,18 @@ from dashboard.components.risk_gauge import (
 )
 from mhw.states.risk import compute_risk_table, save_risk_table
 
-from dashboard.components.bottom_ui import footer, inject_css, page_header
+from dashboard.components.bottom_ui import (
+    AMBER,
+    BLUE,
+    PURPLE,
+    RED,
+    SLATE,
+    footer,
+    inject_css,
+    kpi_card,
+    kpi_grid,
+    page_header,
+)
 
 RISK_DIR = Path(__file__).parents[3] / "data" / "derived" / "risk"
 
@@ -123,7 +134,7 @@ def render() -> None:
     # ============================================================
     # TAB 1 — Live MHW Map
     # ============================================================
-    with tab_map:
+    with tab_map, st.container(border=True):
         if not available:
             st.warning("No state zarr files found. Run `mhw-run-states` first.")
         else:
@@ -199,19 +210,23 @@ def render() -> None:
             with c2:
                 st.plotly_chart(fig, use_container_width=True, key="map_chart")
 
-            sc1, sc2, sc3, sc4 = st.columns(4)
             valid = np.isfinite(values)
-            sc1.metric("Min",         f"{np.nanmin(values):{fmt}}")
-            sc2.metric("Max",         f"{np.nanmax(values):{fmt}}")
-            sc3.metric("Mean (valid)",f"{np.nanmean(values[valid]):{fmt}}" if valid.any() else "—")
+            _cards = [
+                kpi_card("Min", f"{np.nanmin(values):{fmt}}", SLATE),
+                kpi_card("Max", f"{np.nanmax(values):{fmt}}", SLATE),
+                kpi_card("Mean (valid)",
+                         f"{np.nanmean(values[valid]):{fmt}}" if valid.any() else "—", SLATE),
+            ]
             if metric_key == "A":
                 n_act = int((values > 0).sum())
-                sc4.metric("Active cells", f"{n_act} / {values.size}  ({100*n_act/values.size:.1f}%)")
+                _cards.append(kpi_card("Active cells",
+                              f"{n_act} / {values.size} ({100 * n_act / values.size:.1f}%)", BLUE))
+            kpi_grid(_cards, cols=len(_cards))
 
     # ============================================================
     # TAB 2 — Event Metrics Time Series
     # ============================================================
-    with tab_ts:
+    with tab_ts, st.container(border=True):
         if agg_df is None or agg_df.empty:
             st.warning(f"No aggregates for region '{region}'. Run `mhw-aggregate`.")
         else:
@@ -257,15 +272,16 @@ def render() -> None:
             # Summary
             ev_days = int((df_win["area_frac"] > AREA_THRESH).sum())
             peak    = df_win.loc[df_win["area_frac"].idxmax()]
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Event Days", ev_days)
-            c2.metric("Peak Area Fraction", f"{peak['area_frac']:.4f}")
-            c3.metric("Peak date", _fmt(peak["date"]))
+            kpi_grid([
+                kpi_card("Event Days", f"{ev_days}", BLUE),
+                kpi_card("Peak Area Fraction", f"{peak['area_frac']:.4f}", BLUE),
+                kpi_card("Peak date", _fmt(peak["date"]), SLATE),
+            ], cols=3)
 
     # ============================================================
     # TAB 3 — Predictability Context
     # ============================================================
-    with tab_pred:
+    with tab_pred, st.container(border=True):
         if ao_df is None:
             st.error("AO data not found.")
         else:
@@ -342,18 +358,21 @@ def render() -> None:
             fig.update_xaxes(range=[str(t_start), str(t_end)])
             st.plotly_chart(fig, use_container_width=True, key="pred_chart")
 
-            pc1, pc2, pc3, pc4 = st.columns(4)
-            pc1.metric("Latest AO",       f"{float(ao_df['ao'].iloc[-1]):.3f}")
-            pc2.metric("Mean AO (window)",f"{float(ao_win['ao'].mean()):.3f}")
+            _cards = [
+                kpi_card("Latest AO", f"{float(ao_df['ao'].iloc[-1]):.3f}", SLATE),
+                kpi_card("Mean AO (window)", f"{float(ao_win['ao'].mean()):.3f}", SLATE),
+            ]
             if pdo_df is not None and not pdo_df.empty:
-                pc3.metric("Latest PDO", f"{float(pdo_df['pdo'].iloc[-1]):.3f}")
+                _cards.append(kpi_card("Latest PDO", f"{float(pdo_df['pdo'].iloc[-1]):.3f}", SLATE))
             if agg_win is not None and not agg_win.empty:
-                pc4.metric("MHW event days", int((agg_win["area_frac"] > AREA_THRESH).sum()))
+                _cards.append(kpi_card("MHW event days",
+                              f"{int((agg_win['area_frac'] > AREA_THRESH).sum())}", BLUE))
+            kpi_grid(_cards, cols=len(_cards))
 
     # ============================================================
     # TAB 4 — Risk Gauge
     # ============================================================
-    with tab_risk:
+    with tab_risk, st.container(border=True):
         if risk_df is None:
             st.error("Risk table not found. Run `mhw-compute-risk`.")
         else:
@@ -382,12 +401,12 @@ def render() -> None:
                         agg_row = agg_df[agg_df["date"].dt.date == sel_date]
                         if not agg_row.empty:
                             agg_row = agg_row.iloc[0]
-                            mc1, mc2 = st.columns(2)
-                            mc1.metric("Area Fraction",           f"{agg_row['area_frac']:.4f}")
-                            mc2.metric("Mean Intensity (°C)",     f"{agg_row['Ibar']:.2f}")
-                            mc3, mc4 = st.columns(2)
-                            mc3.metric("Mean Duration (days)",    f"{agg_row['Dbar']:.1f}")
-                            mc4.metric("Cumul. Intensity (°C·days)", f"{agg_row['Cbar']:.2f}")
+                            kpi_grid([
+                                kpi_card("Area Fraction", f"{agg_row['area_frac']:.4f}", BLUE),
+                                kpi_card("Mean Intensity (°C)", f"{agg_row['Ibar']:.2f}", RED),
+                                kpi_card("Mean Duration (days)", f"{agg_row['Dbar']:.1f}", PURPLE),
+                                kpi_card("Cumul. Intensity (°C·days)", f"{agg_row['Cbar']:.2f}", AMBER),
+                            ], cols=2)
 
                 with p_col:
                     st.plotly_chart(_make_pct_bars(row_r), use_container_width=True, key="risk_pct_bars")

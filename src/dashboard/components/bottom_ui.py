@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import streamlit as st
 
-GREEN, BLUE, RED, AMBER, SLATE, MUTED = (
-    "#2e7d32", "#1565c0", "#c62828", "#b35900", "#1f2a36", "#5f6b7a")
+GREEN, BLUE, RED, AMBER, PURPLE, SLATE, MUTED = (
+    "#2e7d32", "#1565c0", "#c62828", "#b35900", "#6a3d9a", "#1f2a36", "#5f6b7a")
 
 _CSS = """<style>
 .bs-title { font-size:2.1rem; font-weight:800; color:#16407a; line-height:1.15; margin:0; }
