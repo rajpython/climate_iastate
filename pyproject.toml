@@ -36,7 +36,10 @@ geo = [
 # plotly belongs here (imported only under src/dashboard/), so importing dashboard
 # modules needs just `.[dashboard]` — keeps CI off the heavy `geo` build.
 dashboard = [
-    "streamlit>=1.30.0",
+    # Pinned: the top-`position` nav overflow logic changed after 1.54 (1.58 collapses
+    # the Guides section into "N more"). Pin to the version we design against locally so
+    # rebuilds render identically; bump deliberately after a visual check, not implicitly.
+    "streamlit==1.54.0",
     "plotly>=5.18.0",
 ]
 # API: FastAPI layer — needed from Step 10 onward
