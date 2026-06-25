@@ -30,12 +30,14 @@ geo = [
     "rasterio>=1.3.0",
     "matplotlib>=3.8.0",
     "cartopy>=0.22.0",
-    "plotly>=5.18.0",
-    "kaleido>=0.2.1",
+    "kaleido>=0.2.1",  # static export of plotly figures (plotly itself lives in `dashboard`)
 ]
-# Dashboard: Streamlit UI — needed from Step 7 onward
+# Dashboard: Streamlit UI + interactive plotting — needed from Step 7 onward.
+# plotly belongs here (imported only under src/dashboard/), so importing dashboard
+# modules needs just `.[dashboard]` — keeps CI off the heavy `geo` build.
 dashboard = [
     "streamlit>=1.30.0",
+    "plotly>=5.18.0",
 ]
 # API: FastAPI layer — needed from Step 10 onward
 api = [
