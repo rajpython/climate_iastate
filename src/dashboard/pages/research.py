@@ -24,19 +24,18 @@ def render() -> None:
     st.divider()
 
     st.markdown("### Literature summaries")
-    st.write("Curated literature on Alaska marine ecosystems, the cold pool, bottom conditions, "
-             "and fisheries. _In preparation._")
+    st.write("Curated, plain-language summaries of literature on Alaska marine ecosystems, the "
+             "cold pool, bottom conditions, fisheries, and the forecasting of marine heatwaves.")
+    st.page_link("pages/literature.py", label="Open Literature Summaries", icon="📚")
 
-    st.markdown("### Research summaries")
-    st.write("Short, plain-language summaries of relevant studies and of this project's findings. "
-             "_In preparation._")
+    st.markdown("### Forecast development")
+    st.write("Methodology and progress on marine-heatwave and ocean-state forecasting, developed "
+             "as a separate research programme and held to a validation gate before any product "
+             "is shown on the board.")
+    st.page_link("pages/forecast_development.py", label="Open Forecast Development", icon="🧭")
 
     st.markdown("### Technical notes & methodology")
     st.write("Methods, data provenance, validation, and reproducibility details. _In preparation._")
-
-    st.markdown("### Forecast development")
-    st.write("Methodology and progress on forecast indicators under development by the research "
-             "cell. _In preparation._")
 
     st.markdown("### Project research")
     st.write("Working notes, presentations, and ongoing analyses from this project. "

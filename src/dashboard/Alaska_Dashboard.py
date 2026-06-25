@@ -178,7 +178,10 @@ nav = {
                 title="Under development", url_path="arctic_under_development"),
     ],
     "Research": [
-        st.Page(research_render, title="Research", url_path="research"),
+        st.Page(research_render, title="Overview", url_path="research"),
+        st.Page("pages/literature.py", title="Literature Summaries", url_path="literature"),
+        st.Page("pages/forecast_development.py", title="Forecast Development",
+                url_path="forecast_development"),
     ],
     "Guides": [
         st.Page(dashboard_guide, title="Dashboard Guide", url_path="dashboard_guide"),

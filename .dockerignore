@@ -28,6 +28,9 @@ docs/
 !docs/dashboard_guide.md
 !docs/marine_heatwave_guide.md
 !docs/bering_bottom_state_guide.md
+# Research → Literature Summaries / Forecast Development read these at runtime.
+!docs/mhw_forecasting_synthesis.md
+!docs/mhw_forecasting_synthesis.pdf
 
 # ── tests (not needed in image) ──────────────────────────────────────────────
 tests/
