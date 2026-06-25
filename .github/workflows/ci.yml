@@ -20,9 +20,11 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Install api + dev dependencies
-        # geo extra omitted — not required for unit tests and adds ~5 min to CI
-        run: pip install -e ".[api,dev]"
+      - name: Install api + dashboard + dev dependencies
+        # geo extra omitted — not required for unit tests and adds ~5 min to CI.
+        # dashboard extra (streamlit) IS required: tests/test_dashboard_regions.py
+        # imports dashboard.components.coldpool_data (uses @st.cache_data).
+        run: pip install -e ".[api,dashboard,dev]"
 
       - name: Run tests
         # Integration tests (test_aggregates, test_api, TestGoaRiskIntegration)

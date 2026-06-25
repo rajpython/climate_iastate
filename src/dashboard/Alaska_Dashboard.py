@@ -33,6 +33,12 @@ st.markdown(
     [data-testid="stTopNavDropdownButton"], [data-testid="stTopNav"] a { font-size: 1.0rem; }
     /* Trim the oversized default gap between the top nav bar and page content. */
     [data-testid="stMainBlockContainer"] { padding-top: 2.5rem; }
+    /* Narrow the sidebar — it carries only page-level controls (region / year range),
+       so Streamlit's ~336px default wastes horizontal space. */
+    [data-testid="stSidebar"] { width: 250px !important; min-width: 250px !important;
+        max-width: 250px !important; }
+    [data-testid="stSidebar"] > div:first-child { width: 250px !important; }
+    [data-testid="stSidebar"] [data-testid="stSidebarHeader"] { padding-bottom: 0.25rem; }
     </style>""",
     unsafe_allow_html=True,
 )

@@ -23,6 +23,11 @@ notebooks/
 docs/
 !docs/user_guide.md
 !docs/user_guide.pdf
+# Guides served by the dashboard (pages/guides.py reads these at runtime) — they
+# must stay in the build context. Add a line when a new guide is registered.
+!docs/dashboard_guide.md
+!docs/marine_heatwave_guide.md
+!docs/bering_bottom_state_guide.md
 
 # ── tests (not needed in image) ──────────────────────────────────────────────
 tests/
