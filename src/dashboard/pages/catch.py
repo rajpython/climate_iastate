@@ -266,14 +266,22 @@ def render(group: str = "bering") -> None:
         cpue = dy["cpue_kgkm2"].to_numpy()
         cmax = float(max(cpue.max(), 1.0))
         size = 4 + 26 * np.sqrt(np.clip(cpue, 0, None) / cmax)   # sqrt scaling; zero-catch ≈ 4 px
+        lats = dy["latitude"].to_numpy()
+        lons = dy["longitude"].to_numpy()
+        # Dateline-safe centring: a region straddling 180° (the Aleutians span ~+172°E to −170°W)
+        # would otherwise average to a centre near 0° (off Europe). Plot such hauls on a 0–360°
+        # axis so the chain stays contiguous and centres on its true mean; the hover still shows
+        # the real −180..180 longitude (via customdata).
+        straddle = float(lons.max() - lons.min()) > 180
+        lon_plot = np.where(lons < 0, lons + 360, lons) if straddle else lons
         mfig = go.Figure(go.Scattermap(
-            lat=dy["latitude"], lon=dy["longitude"], mode="markers",
+            lat=lats, lon=lon_plot, mode="markers",
             marker={"size": size, "color": dy["bottom_temperature_c"], "colorscale": TEMP_COLORSCALE,
                     "opacity": 0.85,
                     "colorbar": {"title": {"text": "Bottom<br>temp °C", "font": {"size": 15}},
                                  "tickfont": {"size": 13}, "thickness": 16}},
-            customdata=np.column_stack([dy["bottom_temperature_c"], cpue]),
-            hovertemplate="%{lat:.2f}, %{lon:.2f}<br>bottom %{customdata[0]:.1f} °C<br>"
+            customdata=np.column_stack([dy["bottom_temperature_c"], cpue, lons]),
+            hovertemplate="%{lat:.2f}, %{customdata[2]:.2f}<br>bottom %{customdata[0]:.1f} °C<br>"
                           "CPUE %{customdata[1]:,.0f} kg/km²<extra></extra>"))
         if corr_txt:
             mfig.add_annotation(xref="paper", yref="paper", x=0.01, y=0.99, xanchor="left", yanchor="top",
@@ -281,8 +289,8 @@ def render(group: str = "bering") -> None:
                                 bgcolor="rgba(255,255,255,0.85)", bordercolor="#9aa7b5", borderwidth=1, borderpad=5)
         mfig.update_layout(
             map={"style": "open-street-map",
-                 "center": {"lat": float(dy["latitude"].mean()), "lon": float(dy["longitude"].mean())},
-                 "zoom": 4.0},
+                 "center": {"lat": float(lats.mean()), "lon": float(lon_plot.mean())},
+                 "zoom": 3.4 if straddle else 4.0},
             height=560, margin={"l": 0, "r": 0, "t": 10, "b": 0}, font={"size": 15})
         st.plotly_chart(mfig, use_container_width=True)
         note = (" Snow crab is a cold-water specialist — in the eastern Bering it concentrates in the "
