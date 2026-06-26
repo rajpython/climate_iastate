@@ -304,7 +304,7 @@ with m_txt:
     st.markdown(
         "Southern extent is a derived indicator defined as the 5th-percentile latitude of ≤ 2 °C "
         "cold-pool locations on the eastern Bering Sea shelf. Observed values are based on AFSC "
-        "summer bottom-temperature survey hauls; model values on gridded shelf cells (Bering10K "
+        "summer survey hauls (read from NOAA FOSS); model values on gridded shelf cells (Bering10K "
         "and MOM6-NEP). It is **not** an official ESR metric."
     )
 with m_btn:
@@ -314,7 +314,8 @@ with m_btn:
 
 st.divider()
 f1, f2 = st.columns([2, 1])
-f1.markdown("<div class='cpp-footer'>Data sources: AFSC bottom-trawl surveys; Bering10K ROMS; "
-            "CEFI MOM6-NEP.</div>", unsafe_allow_html=True)
+f1.markdown("<div class='cpp-footer'>Data sources: observed extent from AFSC bottom-trawl survey "
+            "hauls via NOAA FOSS; model extent from Bering10K ROMS (NOAA PMEL / UW ACLIM) and "
+            "CEFI MOM6-NEP (NOAA GFDL / PSL).</div>", unsafe_allow_html=True)
 f2.markdown(f"<div class='cpp-footer' style='text-align:right'>Derived position indicator · "
             f"latest survey {yr}</div>", unsafe_allow_html=True)

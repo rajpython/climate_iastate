@@ -87,6 +87,72 @@ def fetch_coldpool_index(region: BottomRegion = EBS) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
+# Packaged bottom-temperature index (GOA/AI — by subarea, no cold-pool area)
+# ---------------------------------------------------------------------------
+
+def aggregate_mean_temperature(long_df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate a by-subarea ``*_mean_temperature`` frame to one region-wide row per year.
+
+    The packaged GOA/AI products report mean bottom (gear) temperature *per subarea* with no
+    area weights, so the region-wide annual value is the cross-subarea mean. Per-subarea
+    bottom temps are kept as ``mean_bottom_temp_<slug>`` columns for an optional breakdown
+    (e.g. Western vs Eastern GOA). Network-free + pure, so it is unit-tested directly.
+    """
+    df = long_df.copy()
+    df["year"] = df["year"].astype(int)
+    rows = []
+    for yr, g in df.groupby("year"):
+        row = {"year": int(yr),
+               "mean_bottom_temp": round(float(g["mean_bottom_temp"].mean()), 4)}
+        if "mean_surface_temp" in g:
+            row["mean_surface_temp"] = round(float(g["mean_surface_temp"].mean()), 4)
+        for _, r in g.iterrows():
+            slug = str(r["subarea"]).split()[0].lower()   # "Western Gulf of Alaska" -> "western"
+            row[f"mean_bottom_temp_{slug}"] = round(float(r["mean_bottom_temp"]), 4)
+        if "last_update" in g:
+            row["last_update"] = str(g["last_update"].max())
+        rows.append(row)
+    return pd.DataFrame(rows).sort_values("year").reset_index(drop=True)
+
+
+def fetch_mean_temperature(region: BottomRegion) -> pd.DataFrame:
+    """Fetch *region*'s packaged bottom-temperature index (GOA/AI), aggregated region-wide.
+
+    Reads the ``{region}_mean_temperature.rda`` (one row per subarea per survey year), renames
+    via the region column map, and aggregates across subareas to one annual region-wide mean
+    bottom temperature (plus per-subarea columns). Returns DataFrame sorted by year.
+    """
+    import pyreadr  # local import: optional-ish dep, only needed for this fetch
+
+    obs = region.observed
+    if obs is None or obs.kind != "mean_temperature":
+        raise ValueError(
+            f"Region {region.id!r} has no mean_temperature observed product "
+            f"(kind={getattr(obs, 'kind', None)!r})."
+        )
+
+    print(f"Fetching AFSC observed bottom-temperature index ({region.id}: {obs.r_object}.rda) …")
+    with tempfile.NamedTemporaryFile(suffix=".rda", delete=False) as tmp:
+        urllib.request.urlretrieve(obs.rda_url, tmp.name)
+        result = pyreadr.read_r(tmp.name)
+
+    if obs.r_object not in result:
+        raise KeyError(
+            f"Expected R object {obs.r_object!r} in {obs.rda_url}; found {list(result)}"
+        )
+
+    long_df = result[obs.r_object].rename(columns=dict(obs.column_map))
+    long_df = long_df.dropna(subset=["year"]).copy()
+    out = aggregate_mean_temperature(long_df)
+    print(
+        f"  Bottom-temperature index: {len(out)} years, "
+        f"{out['year'].min()}–{out['year'].max()} "
+        f"(latest mean bottom temp: {out['mean_bottom_temp'].iloc[-1]:.2f} °C)"
+    )
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Per-haul survey temperatures (for survey replication)
 # ---------------------------------------------------------------------------
 
@@ -102,7 +168,9 @@ def fetch_coldpool_hauls(region: BottomRegion = EBS) -> pd.DataFrame:
     obs = region.observed
     if obs is None:
         raise ValueError(f"Region {region.id!r} has no observed product configured.")
-    if obs.kind == "foss_hauls":
+    if obs.kind == "foss_hauls" or obs.foss_srvy:
+        # FOSS survey hauls: bottom-temperature regions (slope) and GOA/AI, whose packaged
+        # index is by-subarea only — the per-haul temps for replication come from FOSS.
         return _fetch_foss_hauls(region)
     if not obs.hauls_url:
         raise ValueError(f"Region {region.id!r} has no per-haul survey product configured.")
@@ -214,6 +282,15 @@ def main(argv: list[str] | None = None) -> None:
         save_parquet(hauls, f"coldpool_hauls_observed_{region.id}.parquet")
         if args.plot:
             plot_coldpool_plotly(df)
+    elif kind == "mean_temperature":
+        # GOA/AI: packaged bottom-temperature index (by subarea → region-wide annual mean) +
+        # FOSS survey hauls for survey-replicated model validation. No cold-pool area index.
+        df = fetch_mean_temperature(region)
+        save_parquet(df, f"coldpool_index_observed_{region.id}.parquet")
+        hauls = fetch_coldpool_hauls(region)
+        save_parquet(hauls, f"coldpool_hauls_observed_{region.id}.parquet")
+        print(f"  ({region.id}: bottom-temperature region — packaged index + FOSS hauls; "
+              "no cold-pool area index)")
     elif kind == "foss_hauls":
         # Bottom-temperature region: no area index. Fetch the survey hauls; the observed
         # annual mean bottom temp is produced by the survey-replicate step.

@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from mhw.bottom.regions import BOTTOM_REGIONS, EBS, NBS, SLOPE, get_region
+from mhw.bottom.regions import AI, BOTTOM_REGIONS, EBS, GOA, NBS, SLOPE, get_region
 
 
 def test_ebs_grid_matches_legacy_constants():
@@ -64,6 +64,34 @@ def test_slope_is_bottom_temp_band():
     assert SLOPE.observed.kind == "foss_hauls"
     assert SLOPE.observed.foss_srvy == "BSS"
     assert SLOPE.observed.rda_url == "" and SLOPE.observed.hauls_url == ""
+
+
+def test_goa_is_bottom_temp_mom6_only():
+    assert get_region("goa") is GOA
+    assert GOA.group == "goa"
+    # GOA has no cold pool (deep, no winter ice) — bottom-temperature conditions only
+    assert GOA.product_kind == "bottom_temp"
+    # Bering10K is out of domain for the Gulf; only MOM6 NEP covers it
+    assert tuple(GOA.valid_sources) == ("mom6_nep",)
+    # observed = packaged by-subarea index (mean_temperature) + FOSS hauls for replication
+    assert GOA.observed.kind == "mean_temperature"
+    assert GOA.observed.r_object == "goa_mean_temperature"
+    assert GOA.observed.rda_url.endswith("goa_mean_temperature.rda")
+    assert GOA.observed.foss_srvy == "GOA"
+    assert GOA.observed.column_map["MEAN_GEAR_TEMPERATURE"] == "mean_bottom_temp"
+
+
+def test_ai_is_bottom_temp_mom6_only():
+    assert get_region("ai") is AI
+    assert AI.group == "ai"
+    assert AI.product_kind == "bottom_temp"          # Aleutians have no cold pool
+    assert tuple(AI.valid_sources) == ("mom6_nep",)  # Bering10K not the AI validated domain
+    assert AI.observed.kind == "mean_temperature"
+    assert AI.observed.r_object == "ai_mean_temperature"
+    assert AI.observed.rda_url.endswith("ai_mean_temperature.rda")
+    assert AI.observed.foss_srvy == "AI"
+    # reuses the shared by-subarea column map (Western/Central/Eastern Aleutians)
+    assert AI.observed.column_map is GOA.observed.column_map
 
 
 def test_shelf_regions_have_zero_min_depth():

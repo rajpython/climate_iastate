@@ -30,8 +30,10 @@ class ObservedProduct:
     ``kind`` selects the fetch/parse branch:
       * ``"cold_pool_index"`` — AFSC EBS R object ``cold_pool_index`` (carries the
         area-by-threshold index + mean gear temp).
-      * ``"mean_temperature"`` — the ``{nbs,goa,ai}_mean_temperature`` products (NBS carries
-        ``AREA_LTE2_KM2``; GOA/AI are temperature-only). [wired in Phase 1]
+      * ``"mean_temperature"`` — the ``{goa,ai}_mean_temperature`` products, which are
+        bottom-temperature-only (no cold-pool area index), reported **by subarea**. The
+        GOA-wide annual mean is aggregated across subareas at fetch time. FOSS survey hauls
+        (``foss_srvy``) are fetched alongside so the model can be survey-replicated.
       * ``None`` — no packaged observed product (e.g. slope = raw survey hauls only).
     """
 
@@ -83,6 +85,10 @@ NBS_RDA_URL = _COLDPOOL_REPO + "nbs_mean_temperature.rda"
 # NBS has no standalone index-haul file; it lives in the combined EBS+NBS full-area haul
 # CSV, distinguished by survey_definition_id 143 (EBS = 98).
 NBS_HAULS_URL = _COLDPOOL_REPO + "ebs_nbs_temperature_full_area.csv"
+# GOA/AI carry a packaged *bottom-temperature* product (by subarea, biennial) — no cold-pool
+# area index. The per-haul survey temps for replication come from FOSS (srvy "GOA"/"AI").
+GOA_RDA_URL = _COLDPOOL_REPO + "goa_mean_temperature.rda"
+AI_RDA_URL = _COLDPOOL_REPO + "ai_mean_temperature.rda"
 
 # R-object column -> snake_case schema (EBS cold_pool_index).
 EBS_COLUMN_MAP: dict[str, str] = {
@@ -95,6 +101,18 @@ EBS_COLUMN_MAP: dict[str, str] = {
     "MEAN_BT_LT100M": "mean_bottom_temp_lt100m",
     "MEAN_SURFACE_TEMPERATURE": "mean_surface_temp",
     "MEAN_GEAR_SALINITY": "mean_bottom_salinity",
+    "LAST_UPDATE": "last_update",
+}
+
+# GOA/AI `*_mean_temperature` schema (by subarea): YEAR, SUBAREA, MEAN_GEAR_TEMPERATURE (the
+# observed bottom temperature), MEAN_SURFACE_TEMPERATURE, MEAN_200M_TEMPERATURE, standard
+# errors, LAST_UPDATE. We keep year, subarea, gear (bottom) temp, surface temp, last update;
+# the GOA-wide annual mean is aggregated across subareas in fetch/coldpool.py.
+MEAN_TEMP_COLUMN_MAP: dict[str, str] = {
+    "YEAR": "year",
+    "SUBAREA": "subarea",
+    "MEAN_GEAR_TEMPERATURE": "mean_bottom_temp",
+    "MEAN_SURFACE_TEMPERATURE": "mean_surface_temp",
     "LAST_UPDATE": "last_update",
 }
 
@@ -117,7 +135,11 @@ EBS = BottomRegion(
         kind="cold_pool_index",
         rda_url=EBS_RDA_URL,
         r_object="cold_pool_index",
+        # Per-haul validation temperatures come from FOSS (current, all survey years) — the
+        # coldpool package is kept only for the official kriged AREA index above. ``hauls_url``
+        # is retained for provenance but is no longer the haul source (foss_srvy takes over).
         hauls_url=EBS_HAULS_URL,
+        foss_srvy="EBS",
         column_map=EBS_COLUMN_MAP,
         years="1982–present (no 2020 — survey cancelled)",
     ),
@@ -146,8 +168,12 @@ NBS = BottomRegion(
         kind="cold_pool_index",
         rda_url=NBS_RDA_URL,
         r_object="nbs_mean_temperature",
+        # Per-haul validation temperatures come from FOSS — identical to the coldpool package
+        # where they overlap, but current (the package's NBS per-haul file lags at 2023; FOSS
+        # has the 2025 survey). The official AREA index above still comes from the package.
         hauls_url=NBS_HAULS_URL,
         hauls_survey_id=143,
+        foss_srvy="NBS",
         column_map=EBS_COLUMN_MAP,   # identical schema (minus MEAN_BT_LT100M, absent in NBS)
         years="2010–2025 (sporadic; survey years only)",
     ),
@@ -181,8 +207,66 @@ SLOPE = BottomRegion(
 )
 
 
-# GOA, AI land here in later phases (see docs/alaska_shelf_expansion_plan.md).
-BOTTOM_REGIONS: dict[str, BottomRegion] = {r.id: r for r in (EBS, NBS, SLOPE)}
+# --- Gulf of Alaska — bottom-temperature region, no cold pool (Phase 2) ------------------
+# Validated 2026-06-25: `goa_mean_temperature` carries MEAN_GEAR_TEMPERATURE by SUBAREA
+# (Western / Eastern GOA), 16 biennial survey years 1993–2025 — bottom temps 4.7–6.2 °C, no
+# sub-2 °C water, so there is NO cold pool (product_kind="bottom_temp"). There is no area
+# column, so the GOA-wide annual mean is the cross-subarea mean (see fetch/coldpool.py).
+# MOM6-only: Bering10K is out of domain for the GOA, so the model side is CEFI MOM6 NEP,
+# survey-replicated at the FOSS GOA haul locations/dates. Grid/depth bounds are set for
+# completeness but are NOT load-bearing here (no full-domain model area series is built).
+GOA = BottomRegion(
+    id="goa",
+    label="Gulf of Alaska",
+    product_kind="bottom_temp",
+    group="goa",
+    lat_min=52.0, lat_max=61.0,
+    lon_min=-170.0, lon_max=-132.0,
+    shelf_max_depth_m=1000.0,
+    valid_sources=("mom6_nep",),
+    has_survey_hauls=True,
+    observed=ObservedProduct(
+        kind="mean_temperature",
+        rda_url=GOA_RDA_URL,
+        r_object="goa_mean_temperature",
+        foss_srvy="GOA",
+        column_map=MEAN_TEMP_COLUMN_MAP,
+        years="1993–2025 (biennial)",
+    ),
+)
+
+
+# --- Aleutian Islands — bottom-temperature region, no cold pool (Phase 2) ----------------
+# Validated 2026-06-26: `ai_mean_temperature` carries MEAN_GEAR_TEMPERATURE by SUBAREA
+# (Western / Central / Eastern Aleutians — three subareas), 14 survey years 1991–2024
+# (triennial early, then ~biennial; no area column) — bottom temps ~3–5 °C, no cold pool
+# (product_kind="bottom_temp"). MOM6-only: Bering10K only partially covers the AI Bering-side
+# and it is not the AI validated domain, so the model side is CEFI MOM6 NEP, survey-replicated
+# at the FOSS AI haul locations/dates. The AI chain CROSSES THE DATELINE; grid/depth bounds
+# below are nominal and NOT load-bearing (no full-domain model area series is built, and the
+# validation scatter is single-series — a clean longitude subarea split is deferred).
+AI = BottomRegion(
+    id="ai",
+    label="Aleutian Islands",
+    product_kind="bottom_temp",
+    group="ai",
+    lat_min=51.0, lat_max=56.0,
+    lon_min=170.0, lon_max=195.0,       # nominal (dateline-crossing); not used for a model grid
+    shelf_max_depth_m=500.0,
+    valid_sources=("mom6_nep",),
+    has_survey_hauls=True,
+    observed=ObservedProduct(
+        kind="mean_temperature",
+        rda_url=AI_RDA_URL,
+        r_object="ai_mean_temperature",
+        foss_srvy="AI",
+        column_map=MEAN_TEMP_COLUMN_MAP,
+        years="1991–2024 (triennial/biennial)",
+    ),
+)
+
+
+BOTTOM_REGIONS: dict[str, BottomRegion] = {r.id: r for r in (EBS, NBS, SLOPE, GOA, AI)}
 
 DEFAULT_REGION_ID = "ebs"
 

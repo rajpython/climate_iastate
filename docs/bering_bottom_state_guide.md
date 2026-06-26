@@ -453,9 +453,14 @@ foundation for everything we want to build on top of them.
 
 All three sources are public and free. Brief attributions:
 
-- **Observed cold-pool index and per-haul temperatures** — NOAA Alaska Fisheries Science
-  Center (AFSC), `afsc-gap-products/coldpool` (Zenodo DOI 10.5281/zenodo.16915337). Eastern
-  Bering Sea shelf, 1982–2025 (no 2020 survey).
+- **Observed cold-pool *area* index** — NOAA Alaska Fisheries Science Center (AFSC),
+  `afsc-gap-products/coldpool` (Zenodo DOI 10.5281/zenodo.16915337). The official ≤ 2 °C
+  area index, spatially interpolated from the survey onto a standardized grid (Eastern and
+  Northern Bering, 1982–2025; no 2020 survey).
+- **Per-haul survey temperatures** (for model validation) — the same AFSC bottom-trawl surveys,
+  read from NOAA's **FOSS** REST API (`apps-st.fisheries.noaa.gov/ods/foss/…`). FOSS is the
+  current operational copy of the survey database; its per-haul temperatures are identical to
+  the coldpool package where they overlap, but reach the latest survey year (e.g. 2025).
 - **Bering10K ROMS** — NOAA PMEL and the University of Washington, Alaska Climate Integrated
   Modeling (ACLIM) program. Bering Sea, 1970–2024 hindcast.
 - **CEFI MOM6 NEP** — NOAA GFDL and PSL, Climate, Ecosystems & Fisheries Initiative (CEFI).

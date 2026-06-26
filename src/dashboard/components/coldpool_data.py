@@ -74,9 +74,16 @@ def load_survey_footprint(region: str):
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def list_coldpool_regions() -> list[str]:
-    """Cold-pool regions with an observed index on disk, in canonical south→north order."""
+    """Cold-pool regions with an observed index on disk, in canonical south→north order.
+
+    Restricted to ``product_kind == "cold_pool"`` so a bottom-temperature region's packaged
+    index (GOA/AI also save a ``coldpool_index_observed_*.parquet``) can never leak onto the
+    cold-pool-only pages (e.g. Cold-Pool Position).
+    """
     regs = {p.stem.replace("coldpool_index_observed_", "")
             for p in RAW_DIR.glob("coldpool_index_observed_*.parquet")}
+    regs = {rid for rid in regs
+            if rid in BOTTOM_REGIONS and BOTTOM_REGIONS[rid].product_kind == "cold_pool"}
     return sorted(regs, key=_region_key)
 
 
@@ -149,6 +156,16 @@ def load_model(source_id: str, region: str, monthly: bool = False) -> pd.DataFra
     if not p.exists():
         return None
     return pd.read_parquet(p).sort_values("year").reset_index(drop=True)
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
+def load_survey_replicate_hauls(source_id: str, region: str) -> pd.DataFrame | None:
+    """Per-haul survey-replicate frame (year, lat, lon, obs_bottom_temp, model_bottom_temp)
+    for haul-level diagnostics (e.g. observed-vs-model scatter). None if not built."""
+    p = MODEL_DIR / f"survey_replicate_{source_id}_{region}.parquet"
+    if not p.exists():
+        return None
+    return pd.read_parquet(p)
 
 
 @st.cache_data(show_spinner="Loading survey-replicated comparison …", ttl=3600)

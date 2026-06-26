@@ -27,10 +27,21 @@ Two indicator areas are implemented today:
   from the AFSC summer bottom-trawl survey, a derived cold-pool **southern-extent** position
   indicator, model validation and model comparison (Bering10K ROMS, CEFI MOM6 NEP), and
   catch–environment relationships.
+- **Gulf of Alaska — Bottom Temperature & Catch.** The Gulf shelf has **no cold pool** (deep
+  water, no winter sea ice), so the product is bottom-temperature *conditions*: the official
+  AFSC summer bottom-trawl survey bottom temperature (region-wide and by subarea, biennial),
+  validated against CEFI MOM6 NEP sampled at the survey hauls, plus catch–environment
+  relationships for the Gulf's key groundfish. Bering10K ROMS is out of the Gulf domain, so the
+  Gulf is MOM6-only and its model panels are labelled as less-validated outside the Bering.
 
-The Gulf of Alaska, Aleutian Islands, and Arctic (Chukchi and Beaufort) ecosystem sections are
-**under development**. Additional ocean-health indicators and forecast indicators will be added
-over time.
+- **Aleutian Islands — Bottom Temperature & Catch.** Like the Gulf, the Aleutian shelf has no
+  cold pool, so it surfaces the official AFSC survey bottom temperature (region-wide and by
+  Western / Central / Eastern Aleutian subarea, 1991–2024), validated against CEFI MOM6 NEP at
+  the survey hauls, plus catch–environment relationships for the chain's key species (Atka
+  mackerel, Pacific ocean perch, Pacific cod). MOM6-only, labelled less-validated.
+
+The Arctic (Chukchi and Beaufort) ecosystem section is **under development**. Additional
+ocean-health indicators and forecast indicators will be added over time.
 
 ## Planned expansion
 
@@ -51,7 +62,8 @@ region-specific ecosystem sections, with research and documentation kept separat
 | **Overview** | Orientation and current coverage |
 | **Alaska-wide Climate** | **Marine Heatwaves** → Operational and Historical views (region-selectable) |
 | **Bering Sea** | **Cold Pool & Bottom Temperature**, **Model Comparison**, **Cold-Pool Position**, and **Catch × Bottom State** |
-| **Gulf of Alaska** · **Aleutian Islands** · **Arctic** | Distinct ecosystem sections — under development |
+| **Gulf of Alaska** · **Aleutian Islands** | **Bottom Temperature** and **Catch × Bottom State** (no cold pool; MOM6-only) |
+| **Arctic** | Distinct ecosystem section — under development |
 | **Research** | Recent papers, research summaries, forecast development, technical notes, and project research (in preparation) |
 | **Guides** | This guide, the Marine Heatwave Guide, and the Bering Sea Bottom-State Guide |
 
@@ -64,9 +76,12 @@ additional entries here.
 eastern Bering shelf, the northern Bering shelf, and the Bering slope; the panels adapt to each
 area. See the Bering Sea Bottom-State Guide for detail.
 
-**Gulf of Alaska, Aleutian Islands, and Arctic** are reserved as distinct ecosystem sections.
-Each has observed survey and/or model coverage being prepared; the sections are present so that
-indicators can be added without reorganising the platform.
+**Gulf of Alaska** carries bottom-temperature conditions and catch–environment relationships
+for the Gulf shelf. The Gulf has no cold pool, so it leads with the observed survey bottom
+temperature (region-wide and by subarea), MOM6 validation at the survey hauls, and catch for the
+Gulf's key groundfish. **Aleutian Islands and Arctic** are reserved as distinct ecosystem
+sections; each has observed survey and/or model coverage being prepared, and the sections are
+present so that indicators can be added without reorganising the platform.
 
 **Research** consolidates literature, summaries, methodology, and forecast development into a
 single page until enough material exists to warrant dedicated pages.
@@ -96,14 +111,32 @@ near-real-time.
 
 **Which regions are covered?**
 Marine heatwaves span the five Alaska shelf seas (Gulf of Alaska, eastern and northern Bering,
-Chukchi, Beaufort). Bottom-state indicators currently cover the Bering Sea; other ecosystem
-sections are under development.
+Chukchi, Beaufort). Bottom-state indicators cover the Bering Sea (eastern, northern, slope),
+the Gulf of Alaska, and the Aleutian Islands; the Arctic section is under development.
 
 **Where do I go for methods and definitions?**
 The Marine Heatwave Guide covers the Hobday-style definition, the operational and historical
 views, climatology and thresholds, and the API. The Bering Sea Bottom-State Guide covers the
 cold pool, bottom temperature, survey index, model validation and comparison, and
 catch–environment relationships.
+
+## Data sources & attribution
+
+All products are public and free; each panel also carries a short source note in its footer.
+
+- **Marine heatwaves** — NOAA OISST v2.1 (sea-surface temperature); climate indices (AO/PDO)
+  from NOAA.
+- **Observed cold-pool *area* index** (≤ 2/1/0/−1 °C) — NOAA AFSC `afsc-gap-products/coldpool`
+  (Zenodo DOI 10.5281/zenodo.16915337), spatially interpolated from the survey.
+- **Per-haul survey temperatures and catch** — NOAA **FOSS** REST API
+  (`apps-st.fisheries.noaa.gov/ods/foss/…`), the operational copy of the AFSC bottom-trawl
+  survey database. Used for model validation, the southern-extent position, and catch.
+- **Bering10K ROMS** — NOAA PMEL / University of Washington, ACLIM program.
+- **CEFI MOM6 NEP** — NOAA GFDL / PSL, Climate, Ecosystems & Fisheries Initiative (CEFI).
+
+The Bering Sea Bottom-State Guide gives the per-product detail; survey temperatures and the
+cold-pool index come from the *same* AFSC surveys, distributed through two channels (FOSS is
+current; the coldpool package is the official, curated index and lags).
 
 ---
 

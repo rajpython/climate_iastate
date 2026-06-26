@@ -225,5 +225,6 @@ def render(group: str = "bering") -> None:
     else:
         _bottom_temp_models(region, model_choices)
 
-    footer("Models: Bering10K ROMS (NOAA PMEL / UW ACLIM) · CEFI MOM6 NEP (NOAA GFDL / PSL). "
-           "All lagged (recent-historical), not near-real-time.")
+    footer("Models: Bering10K ROMS (NOAA PMEL / UW ACLIM) · CEFI MOM6 NEP (NOAA GFDL / PSL), "
+           "compared to the observed cold-pool index (NOAA AFSC <code>afsc-gap-products/coldpool</code>, "
+           "Zenodo 10.5281/zenodo.16915337). All lagged (recent-historical), not near-real-time.")

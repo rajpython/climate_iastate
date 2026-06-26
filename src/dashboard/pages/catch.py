@@ -39,24 +39,43 @@ COLD_POOL_C = 2.0
 TEMP_COLORSCALE = [[0.0, "#08306b"], [0.45, "#3b7bbf"], [1.0, "#dceaf7"]]
 
 # Dashboard region id -> FOSS survey code (the catch frame's `region` column).
-REGION_TO_SRVY = {"ebs": "EBS", "nbs": "NBS", "slope": "BSS"}
+REGION_TO_SRVY = {"ebs": "EBS", "nbs": "NBS", "slope": "BSS", "goa": "GOA", "ai": "AI"}
 
-# Pretty label -> FOSS species_code (headline first).
-SPECIES_LABELS = {
-    "Snow crab": 68580,
-    "Red king crab": 69322,
-    "Pacific cod": 21720,
-    "Walleye pollock": 21740,
-    "Arrowtooth flounder": 10110,
+# Per-group key species (pretty label -> FOSS species_code, headline first). The Bering leads
+# with the cold-water crabs (the cold-pool story); the Gulf of Alaska — no cold pool — leads
+# with its groundfish (Pacific cod, pollock, sablefish, arrowtooth, Pacific ocean perch).
+SPECIES_BY_GROUP: dict[str, dict[str, int]] = {
+    "bering": {
+        "Snow crab": 68580,
+        "Red king crab": 69322,
+        "Pacific cod": 21720,
+        "Walleye pollock": 21740,
+        "Arrowtooth flounder": 10110,
+    },
+    "goa": {
+        "Pacific cod": 21720,
+        "Walleye pollock": 21740,
+        "Sablefish": 20510,
+        "Arrowtooth flounder": 10110,
+        "Pacific ocean perch": 30060,
+    },
+    "ai": {
+        "Atka mackerel": 21921,
+        "Pacific ocean perch": 30060,
+        "Pacific cod": 21720,
+    },
 }
 
-# A distinct title icon per species (crabs vs the various fish).
+# A distinct title icon per species (crabs vs the various fish; fish fall back to 🎣).
 SPECIES_ICONS = {
     "Snow crab": "🦀",
     "Red king crab": "🦀",     # rendered as a crowned crab in _title_icon_html
     "Pacific cod": "🐟",
     "Walleye pollock": "🐠",
     "Arrowtooth flounder": "🐡",
+    "Sablefish": "🐟",
+    "Pacific ocean perch": "🐠",
+    "Atka mackerel": "🐟",
 }
 
 
@@ -163,8 +182,9 @@ def render(group: str = "bering") -> None:
     srvy = REGION_TO_SRVY[region]
     is_cold_pool = get_region(region).product_kind == "cold_pool"
 
-    sp_label = st.sidebar.selectbox("Species", list(SPECIES_LABELS), index=0)
-    code = SPECIES_LABELS[sp_label]
+    species = SPECIES_BY_GROUP.get(group, SPECIES_BY_GROUP["bering"])
+    sp_label = st.sidebar.selectbox("Species", list(species), index=0)
+    code = species[sp_label]
     chip = f"{region_label(region)} ({region.upper()})"
     cap = ("Explore how key species' catch relates to bottom-temperature conditions — AFSC "
            "bottom-trawl survey (observed; exploratory, not causal).")
@@ -173,7 +193,7 @@ def render(group: str = "bering") -> None:
     if df is None:
         page_header(_title_icon_html(sp_label), "Catch × Bottom State", sp_label, chip, caption=cap)
         st.error(f"Catch not built for **{sp_label}**. Run: "
-                 f"`mhw-fetch-catch --species {code} --regions EBS NBS BSS`")
+                 f"`mhw-fetch-catch --species {code} --regions {srvy}`")
         return
 
     d = df[(df["region"] == srvy) & df["bottom_temperature_c"].notna()].copy()
@@ -196,6 +216,10 @@ def render(group: str = "bering") -> None:
         section_title("Catch partitioned by thermal regime"
                       + (" (≤ 2 °C threshold)" if is_cold_pool else "") if is_cold_pool
                       else "Catch summary")
+        st.caption("All catch values are **CPUE** — survey catch *density* (kg/km² swept), a "
+                   "relative abundance index. It is **not** total stock biomass or commercial "
+                   "landings: the population over the whole shelf is far larger and depends on the "
+                   "stock's area and survey catchability.")
         if is_cold_pool:
             caught = int((dy["cpue_kgkm2"] > 0).sum())
             st.caption(f"{len(dy):,} survey hauls · {caught:,} caught {sp_label.lower()}.")
@@ -270,4 +294,6 @@ def render(group: str = "bering") -> None:
             + note)
 
     footer("Source: NOAA FOSS AFSC bottom-trawl survey (haul ⟕ catch on hauljoin). "
-           "Observed · survey footprint · annual · lagged — exploratory, not causal.")
+           "Observed · survey footprint · annual · lagged — exploratory, not causal. "
+           "<b>CPUE is a survey density index (kg/km² swept)</b> — a relative abundance measure, "
+           "not total stock biomass or commercial landings.")

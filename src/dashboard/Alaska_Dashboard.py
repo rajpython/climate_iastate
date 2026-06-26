@@ -67,8 +67,12 @@ _COVERAGE = [
     ("Bering Sea", "Bottom Conditions &amp; Climate–Fisheries Relationships",
      "Cold-pool indicators, bottom-temperature assessments, model validation, and "
      "climate–fisheries relationships.", False),
-    ("Gulf of Alaska", "Regional Ecosystem Indicators", "", True),
-    ("Aleutian Islands", "Regional Ecosystem Indicators", "", True),
+    ("Gulf of Alaska", "Bottom Conditions &amp; Climate–Fisheries Relationships",
+     "Bottom-temperature conditions and catch–environment relationships for the Gulf shelf "
+     "(survey index + MOM6 validation; no cold pool).", False),
+    ("Aleutian Islands", "Bottom Conditions &amp; Climate–Fisheries Relationships",
+     "Bottom-temperature conditions and catch–environment relationships for the Aleutian "
+     "shelf (survey index + MOM6 validation; no cold pool).", False),
     ("Arctic", "Chukchi and Beaufort Shelf Ecosystems", "", True),
     ("Research", "Research Resources",
      "Literature summaries, technical notes, forecast development, and project research.", False),
@@ -165,13 +169,22 @@ nav = {
         st.Page(lambda: catch_render(group="bering"),
                 title="Catch × Bottom State", url_path="bering_catch"),
     ],
+    # GOA has no cold pool and only MOM6 covers it (Bering10K is out of domain), so it carries
+    # the bottom-temperature + catch pages — not the Bering's model-comparison / cold-pool-
+    # position pages (which need two models / a cold pool).
     "Gulf of Alaska": [
-        st.Page(coming_soon("Gulf of Alaska", phase="Phase 2"),
-                title="Under development", url_path="goa_under_development"),
+        st.Page(lambda: bottom_observed_render(group="goa"),
+                title="Bottom Temperature", url_path="goa_bottom_observed"),
+        st.Page(lambda: catch_render(group="goa"),
+                title="Catch × Bottom State", url_path="goa_catch"),
     ],
+    # Like the Gulf, the Aleutians have no cold pool and are MOM6-only — bottom-temperature
+    # + catch pages (no model-comparison / cold-pool-position page).
     "Aleutian Islands": [
-        st.Page(coming_soon("Aleutian Islands", phase="Phase 2"),
-                title="Under development", url_path="ai_under_development"),
+        st.Page(lambda: bottom_observed_render(group="ai"),
+                title="Bottom Temperature", url_path="ai_bottom_observed"),
+        st.Page(lambda: catch_render(group="ai"),
+                title="Catch × Bottom State", url_path="ai_catch"),
     ],
     "Arctic": [
         st.Page(coming_soon("Arctic — Chukchi & Beaufort", phase="Phase 3"),
