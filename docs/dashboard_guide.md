@@ -40,8 +40,12 @@ Two indicator areas are implemented today:
   the survey hauls, plus catch–environment relationships for the chain's key species (Atka
   mackerel, Pacific ocean perch, Pacific cod). MOM6-only, labelled less-validated.
 
-The Arctic (Chukchi and Beaufort) ecosystem section is **under development**. Additional
-ocean-health indicators and forecast indicators will be added over time.
+- **Arctic (Chukchi & Beaufort) — Bottom Temperature (model-only).** The Arctic shelves have no
+  AFSC bottom-trawl survey, so there is no observed index, catch, or in-region validation — these
+  pages show only the CEFI MOM6 NEP modelled bottom temperature over the ≤ 200 m shelf, prominently
+  labelled **model-only / unvalidated here**.
+
+Additional ocean-health indicators and forecast indicators will be added over time.
 
 ## Planned expansion
 
@@ -63,7 +67,7 @@ region-specific ecosystem sections, with research and documentation kept separat
 | **Alaska-wide Climate** | **Marine Heatwaves** → Operational and Historical views (region-selectable) |
 | **Bering Sea** | **Cold Pool & Bottom Temperature**, **Model Comparison**, **Cold-Pool Position**, and **Catch × Bottom State** |
 | **Gulf of Alaska** · **Aleutian Islands** | **Bottom Temperature** and **Catch × Bottom State** (no cold pool; MOM6-only) |
-| **Arctic** | Distinct ecosystem section — under development |
+| **Arctic** | **Bottom Temperature** — Chukchi & Beaufort, MOM6 model-only (no survey/validation) |
 | **Research** | Recent papers, research summaries, forecast development, technical notes, and project research (in preparation) |
 | **Guides** | This guide, the Marine Heatwave Guide, and the Bering Sea Bottom-State Guide |
 
@@ -112,7 +116,7 @@ near-real-time.
 **Which regions are covered?**
 Marine heatwaves span the five Alaska shelf seas (Gulf of Alaska, eastern and northern Bering,
 Chukchi, Beaufort). Bottom-state indicators cover the Bering Sea (eastern, northern, slope),
-the Gulf of Alaska, and the Aleutian Islands; the Arctic section is under development.
+the Gulf of Alaska, the Aleutian Islands, and the Arctic (Chukchi & Beaufort, model-only).
 
 **Where do I go for methods and definitions?**
 The Marine Heatwave Guide covers the Hobday-style definition, the operational and historical

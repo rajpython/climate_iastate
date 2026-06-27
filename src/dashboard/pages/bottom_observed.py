@@ -317,9 +317,10 @@ def _packaged_index_card(region: str, df: pd.DataFrame) -> None:
 
 
 def _modelled_shelf_card(region: str) -> None:
-    """Continuous modelled shelf bottom-temperature series (the B2 upgrade) for a packaged
-    bottom-temp region (GOA/AI) — fills the gaps between the sparse survey years with the model's
-    own ≤ 200 m shelf mean, validated separately at the survey hauls (panel below)."""
+    """Continuous modelled shelf bottom-temperature series over the ≤ 200 m shelf.
+
+    For GOA/AI (B2) it fills the gaps between sparse survey years and overlays the survey dots;
+    for the model-only Arctic (B3) it is the *only* product (no observed series to overlay)."""
     reg = get_region(region)
     id_to_label = {v: k for k, v in MODEL_SOURCES.items()}
     loaded = []
@@ -330,15 +331,24 @@ def _modelled_shelf_card(region: str) -> None:
                            df.dropna(subset=["mean_bottom_temp"]).sort_values("year")))
     if not loaded:
         return
+    obs = load_observed(region)
+    has_obs = obs is not None and "mean_bottom_temp" in obs.columns
 
     with st.container(border=True):
         section_title("Modelled shelf bottom temperature — continuous (full hindcast)")
-        st.caption(
-            "The model's area-weighted mean bottom temperature over the **≤ 200 m shelf**, every "
-            "year — continuous, filling the gaps between the sparse survey years above. This is the "
-            "model's own shelf domain (a different footprint than the survey index); the fair "
-            "model-vs-survey skill comparison is the validation panel below."
-        )
+        if has_obs:
+            st.caption(
+                "The model's area-weighted mean bottom temperature over the **≤ 200 m shelf**, every "
+                "year — continuous, filling the gaps between the sparse survey years above. This is the "
+                "model's own shelf domain (a different footprint than the survey index); the fair "
+                "model-vs-survey skill comparison is the validation panel below."
+            )
+        else:
+            st.caption(
+                "The model's area-weighted mean bottom temperature over the **≤ 200 m shelf**, every "
+                "year. With **no in-region survey**, this is the only available product — read it as "
+                "modelled conditions, not measurements."
+            )
         name0, d0 = loaded[0]
         latest = d0.iloc[-1]
         yr = int(latest["year"])
@@ -358,8 +368,7 @@ def _modelled_shelf_card(region: str) -> None:
             fig.add_trace(go.Scatter(x=d["year"], y=d["mean_bottom_temp"], mode="lines+markers",
                           name=name, line={"color": MODEL_COLORS.get(name, "darkorange"), "width": 2.5},
                           marker={"size": 5}, hovertemplate="%{x} modelled: %{y:.2f} °C<extra></extra>"))
-        obs = load_observed(region)   # overlay the survey dots so the gap-filling is visible
-        if obs is not None and "mean_bottom_temp" in obs.columns:
+        if has_obs:   # overlay the survey dots so the gap-filling is visible
             fig.add_trace(go.Scatter(x=obs["year"], y=obs["mean_bottom_temp"], mode="markers",
                           name="Observed (survey)", marker={"color": "black", "size": 8,
                           "symbol": "circle-open", "line": {"width": 1.5}},
@@ -370,9 +379,13 @@ def _modelled_shelf_card(region: str) -> None:
         fig.update_layout(height=360, template="plotly_white", margin={"l": 60, "r": 20, "t": 50, "b": 40},
                           legend={"orientation": "h", "y": 1.04, "yanchor": "bottom", "x": 0, "xanchor": "left"})
         st.plotly_chart(fig, use_container_width=True)
-        st.caption("Continuous modelled line (≤ 200 m shelf, standalone-bathymetry mask) with the "
-                   "survey observations (open circles) overlaid — close in level here but different "
-                   "domains. MOM6 NEP is less-validated outside the Bering. Descriptive — not a forecast.")
+        if has_obs:
+            st.caption("Continuous modelled line (≤ 200 m shelf, standalone-bathymetry mask) with the "
+                       "survey observations (open circles) overlaid — close in level here but different "
+                       "domains. MOM6 NEP is less-validated outside the Bering. Descriptive — not a forecast.")
+        else:
+            st.caption("Modelled over the ≤ 200 m shelf (standalone-bathymetry/ETOPO mask). MOM6 NEP "
+                       "is model-only / unvalidated in this region. Descriptive — not a forecast.")
 
 
 def _survey_derived_card(region: str) -> None:
@@ -606,6 +619,21 @@ def _obs_vs_model_scatter(region: str, model_choices: list[str]) -> None:
                    + (" The pooled row is the haul-weighted mean over the selection." if has_split else ""))
 
 
+def _modelled_only(region: str) -> None:
+    """Model-only region view (Arctic: Chukchi/Beaufort) — no survey, so the continuous modelled
+    shelf series is the only product, shown with a prominent unvalidated-here banner."""
+    st.warning(
+        "**Model-only region.** The Chukchi and Beaufort have no AFSC bottom-trawl survey, so there "
+        "is no observed index, catch, or in-region validation here. The series below is the CEFI "
+        "MOM6 NEP hindcast over the ≤ 200 m shelf — modelled conditions, not measurements, and "
+        "unvalidated in this region."
+    )
+    _modelled_shelf_card(region)
+    footer("Source: CEFI MOM6 NEP (NOAA GFDL / PSL) — modelled bottom temperature over the ≤ 200 m "
+           "shelf (standalone-bathymetry/ETOPO mask). No in-region survey → model-only, unvalidated "
+           "here. Lagged, not near-real-time.")
+
+
 def render(group: str = "bering") -> None:
     """Render the Cold Pool & Bottom Temperature page (page config/fonts owned by the nav shell)."""
     inject_css()
@@ -618,6 +646,14 @@ def render(group: str = "bering") -> None:
     region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="bs_obs_region")
     reg = get_region(region)
     is_cold_pool = reg.product_kind == "cold_pool"
+
+    # Model-only regions (Arctic: no survey, no observed) — distinct lean render.
+    if reg.observed is None and not reg.has_survey_hauls:
+        page_header("🧊", "Bottom Temperature", region_label(region),
+                    f"{region_label(region)} ({region.upper()})",
+                    caption="Modelled bottom-temperature conditions — model-only (no in-region survey).")
+        _modelled_only(region)
+        return
 
     # Only offer the models valid for this region (e.g. GOA is MOM6-only — Bering10K is out of
     # the Gulf domain). Bottom-temp regions default the survey-replication validation on.

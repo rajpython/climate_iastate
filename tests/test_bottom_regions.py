@@ -2,7 +2,8 @@
 import numpy as np
 import pytest
 
-from mhw.bottom.regions import AI, BOTTOM_REGIONS, EBS, GOA, NBS, SLOPE, get_region
+from mhw.bottom.regions import (
+    AI, BEAUFORT, BOTTOM_REGIONS, CHUKCHI, EBS, GOA, NBS, SLOPE, get_region)
 
 
 def test_ebs_grid_matches_legacy_constants():
@@ -92,6 +93,18 @@ def test_ai_is_bottom_temp_mom6_only():
     assert AI.observed.foss_srvy == "AI"
     # reuses the shared by-subarea column map (Western/Central/Eastern Aleutians)
     assert AI.observed.column_map is GOA.observed.column_map
+
+
+def test_arctic_regions_are_model_only():
+    # Chukchi/Beaufort have no survey → no observed product, no survey hauls, MOM6-only, ETOPO mask
+    for reg in (CHUKCHI, BEAUFORT):
+        assert reg.group == "arctic"
+        assert reg.product_kind == "bottom_temp"
+        assert reg.observed is None
+        assert reg.has_survey_hauls is False
+        assert tuple(reg.valid_sources) == ("mom6_nep",)
+        assert reg.mask_source == "etopo2022"
+    assert get_region("chukchi") is CHUKCHI and get_region("beaufort") is BEAUFORT
 
 
 def test_mask_source_is_etopo_outside_the_bering():

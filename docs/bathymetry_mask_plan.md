@@ -1,6 +1,7 @@
 # Bathymetry-Masking Pass — Plan
 
-**Status:** B0 ✅, B1 ✅, B2 ✅ (on branch `feat/bathymetry-mask`); **B3 (Arctic) next.**
+**Status:** B0 ✅, B1 ✅, B2 ✅, **B3 ✅** (on branch `feat/bathymetry-mask`) — pass complete; ready
+to merge + deploy (bathymetry pass + Arctic).
 Prerequisite for Phase 3 (Arctic) and an upgrade for GOA/AI; includes an EBS/NBS cross-validation
 experiment. Conventions per `CLAUDE.md`.
 
@@ -14,6 +15,12 @@ experiment. Conventions per `CLAUDE.md`.
 - **B2** — GOA/AI got their continuous 1993–2025 modelled shelf bottom-temperature series (ETOPO
   ≤200 m mask), with a frame-aware regrid for the AI dateline; surfaced as a "Modelled shelf
   bottom temperature — continuous" card (modelled line + survey dots overlaid).
+- **B3 (Arctic)** — Chukchi & Beaufort region descriptors (`group="arctic"`, model-only:
+  `observed=None`, `has_survey_hauls=False`, MOM6, ETOPO ≤200 m mask). New model-only render path
+  (prominent "model-only / unvalidated here" banner + the continuous modelled series, no survey
+  overlay). Arctic nav = Bottom Temperature only (no catch). Beaufort basin excluded by the
+  ≤200 m cut (narrow ~50k km² shelf vs Chukchi's broad ~250k km²); Arctic bottom temps near
+  freezing (−1.2..0.7 °C), physically sensible. Suite 123 green.
 
 ## 1. Problem
 

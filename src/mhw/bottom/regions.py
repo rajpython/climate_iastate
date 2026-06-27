@@ -273,7 +273,44 @@ AI = BottomRegion(
 )
 
 
-BOTTOM_REGIONS: dict[str, BottomRegion] = {r.id: r for r in (EBS, NBS, SLOPE, GOA, AI)}
+# --- Arctic — Chukchi & Beaufort: MODEL-ONLY (no survey) bottom temperature (Phase 3) ----
+# There is no routine AFSC bottom-trawl survey in the Chukchi/Beaufort, so these regions have
+# NO observed index, NO catch, and NO survey replication — the only product is the MOM6 modelled
+# bottom temperature over the ≤200 m shelf (ETOPO mask; Bering10K is out of domain). The Beaufort
+# shelf is narrow and drops to a >3000 m basin that the ≤200 m cut excludes (verified: shelf ~44 m
+# vs basin ~3800 m). Pages are prominently labelled "model-only, no in-region validation".
+CHUKCHI = BottomRegion(
+    id="chukchi",
+    label="Chukchi Sea",
+    product_kind="bottom_temp",
+    group="arctic",
+    lat_min=66.0, lat_max=73.0,
+    lon_min=-172.0, lon_max=-156.0,
+    shelf_max_depth_m=200.0,
+    mask_source="etopo2022",
+    valid_sources=("mom6_nep",),
+    has_survey_hauls=False,
+    observed=None,
+)
+
+BEAUFORT = BottomRegion(
+    id="beaufort",
+    label="Beaufort Sea",
+    product_kind="bottom_temp",
+    group="arctic",
+    lat_min=69.0, lat_max=73.0,
+    lon_min=-156.0, lon_max=-130.0,
+    shelf_max_depth_m=200.0,            # narrow shelf; the ≤200 m cut excludes the deep basin
+    mask_source="etopo2022",
+    valid_sources=("mom6_nep",),
+    has_survey_hauls=False,
+    observed=None,
+)
+
+
+BOTTOM_REGIONS: dict[str, BottomRegion] = {
+    r.id: r for r in (EBS, NBS, SLOPE, GOA, AI, CHUKCHI, BEAUFORT)
+}
 
 DEFAULT_REGION_ID = "ebs"
 

@@ -55,7 +55,6 @@ from dashboard.pages.guides import (  # noqa: E402
     marine_heatwave_guide,
 )
 from dashboard.pages.research import render as research_render  # noqa: E402
-from dashboard.pages._placeholders import coming_soon  # noqa: E402
 
 
 # --- Overview front door ------------------------------------------------------------------
@@ -73,7 +72,9 @@ _COVERAGE = [
     ("Aleutian Islands", "Bottom Conditions &amp; Climate–Fisheries Relationships",
      "Bottom-temperature conditions and catch–environment relationships for the Aleutian "
      "shelf (survey index + MOM6 validation; no cold pool).", False),
-    ("Arctic", "Chukchi and Beaufort Shelf Ecosystems", "", True),
+    ("Arctic", "Chukchi and Beaufort Shelf Ecosystems",
+     "Modelled bottom-temperature conditions for the Arctic shelf (MOM6; model-only — no "
+     "in-region survey or validation).", False),
     ("Research", "Research Resources",
      "Literature summaries, technical notes, forecast development, and project research.", False),
     ("Guides", "Documentation",
@@ -186,9 +187,11 @@ nav = {
         st.Page(lambda: catch_render(group="ai"),
                 title="Catch × Bottom State", url_path="ai_catch"),
     ],
+    # Arctic (Chukchi & Beaufort) is MODEL-ONLY — no AFSC survey, so no catch / cold-pool /
+    # validation pages; just the modelled bottom-temperature conditions, clearly labelled.
     "Arctic": [
-        st.Page(coming_soon("Arctic — Chukchi & Beaufort", phase="Phase 3"),
-                title="Under development", url_path="arctic_under_development"),
+        st.Page(lambda: bottom_observed_render(group="arctic"),
+                title="Bottom Temperature", url_path="arctic_bottom_observed"),
     ],
     "Research": [
         st.Page(research_render, title="Overview", url_path="research"),
