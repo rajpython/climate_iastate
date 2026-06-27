@@ -63,32 +63,37 @@ def _ordered_slice(coord: xr.DataArray, lo: float, hi: float) -> slice:
     return slice(lo, hi) if float(coord.values[0]) <= float(coord.values[-1]) else slice(hi, lo)
 
 
-def fetch_region_depth(region: BottomRegion, source: BathySource = ETOPO_2022,
-                       stride_deg: float = _FETCH_STRIDE_DEG) -> np.ndarray:
-    """Fetch ETOPO over *region* and bin to its 0.25° grid (mean ocean depth, m)."""
-    lats, lons = region.analysis_lats, region.analysis_lons
-    lon360 = np.sort(lons % 360.0)                     # region lon on ETOPO's 0–360 axis
+def depth_grid_for(lats: np.ndarray, lons: np.ndarray, res: float = 0.25,
+                   source: BathySource = ETOPO_2022,
+                   stride_deg: float = _FETCH_STRIDE_DEG) -> np.ndarray:
+    """Fetch ETOPO over an arbitrary regular grid and bin to it (mean ocean depth, m).
+
+    Works for any (lats, lons) — a region's analysis grid *or* the OISST region grid (used by
+    the bottom-vs-surface diagnostic). Returns depth ``[len(lats), len(lons)]``, NaN over land.
+    """
+    lats = np.sort(np.asarray(lats, dtype="float64"))
+    lon360 = np.sort(np.asarray(lons, dtype="float64") % 360.0)
     ds = xr.open_dataset(source.opendap_url)
     lat_c, lon_c = ds[source.lat_coord], ds[source.lon_coord]
     res_native = abs(float(lat_c.values[1]) - float(lat_c.values[0]))
     step = max(1, int(round(stride_deg / res_native)))
-
     sub = ds[source.var].sel({
-        source.lat_coord: _ordered_slice(lat_c, float(lats.min()), float(lats.max()) + region.grid_res),
-        source.lon_coord: _ordered_slice(lon_c, float(lon360.min()), float(lon360.max()) + region.grid_res),
+        source.lat_coord: _ordered_slice(lat_c, float(lats.min()), float(lats.max()) + res),
+        source.lon_coord: _ordered_slice(lon_c, float(lon360.min()), float(lon360.max()) + res),
     }).isel({source.lat_coord: slice(None, None, step),
              source.lon_coord: slice(None, None, step)}).load()
-
-    elat = sub[source.lat_coord].values
-    elon = sub[source.lon_coord].values
-    lon_mesh, lat_mesh = np.meshgrid(elon, elat)
-    elev = sub.values
-    depth = np.where(elev < 0, -elev.astype("float64"), np.nan)   # ocean depth (m); land → NaN
-
+    lon_mesh, lat_mesh = np.meshgrid(sub[source.lon_coord].values, sub[source.lat_coord].values)
+    depth = np.where(sub.values < 0, -sub.values.astype("float64"), np.nan)   # ocean depth; land→NaN
     flat_lat, flat_lon, flat_d = lat_mesh.ravel(), lon_mesh.ravel(), depth.ravel()
     ok = np.isfinite(flat_d)
-    grid = bin_depth_to_grid(flat_lat[ok], flat_lon[ok], flat_d[ok],
-                             np.sort(lats), lon360, res=region.grid_res)
+    return bin_depth_to_grid(flat_lat[ok], flat_lon[ok], flat_d[ok], lats, lon360, res=res)
+
+
+def fetch_region_depth(region: BottomRegion, source: BathySource = ETOPO_2022,
+                       stride_deg: float = _FETCH_STRIDE_DEG) -> np.ndarray:
+    """Fetch ETOPO over *region* and bin to its 0.25° analysis grid (mean ocean depth, m)."""
+    grid = depth_grid_for(region.analysis_lats, region.analysis_lons, region.grid_res,
+                          source, stride_deg)
     print(f"{source.id}: {region.id.upper()} depth grid {grid.shape}, "
           f"{int(np.isfinite(grid).sum())} ocean cells "
           f"(≤{region.shelf_max_depth_m:.0f} m: {int(np.nansum(grid <= region.shelf_max_depth_m))})")

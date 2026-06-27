@@ -159,6 +159,26 @@ def load_model(source_id: str, region: str, monthly: bool = False) -> pd.DataFra
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
+def load_observed_hauls(region: str) -> pd.DataFrame | None:
+    """Per-haul survey temperatures (year, lat/lon, gear_temperature, surface_temperature) for the
+    observed surface-vs-bottom diagnostic. None if no haul file (e.g. the Arctic — no survey)."""
+    p = RAW_DIR / f"coldpool_hauls_observed_{region}.parquet"
+    if not p.exists():
+        return None
+    return pd.read_parquet(p)
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
+def load_shelf_surface(region: str) -> pd.DataFrame | None:
+    """Observed summer open-water shelf-surface SST series (OISST) for the bottom-vs-surface
+    diagnostic. None if not built (e.g. regions with no OISST file, like AI / slope)."""
+    p = MODEL_DIR / f"oisst_shelf_surface_{region}.parquet"
+    if not p.exists():
+        return None
+    return pd.read_parquet(p).sort_values("year").reset_index(drop=True)
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
 def load_survey_replicate_hauls(source_id: str, region: str) -> pd.DataFrame | None:
     """Per-haul survey-replicate frame (year, lat, lon, obs_bottom_temp, model_bottom_temp)
     for haul-level diagnostics (e.g. observed-vs-model scatter). None if not built."""

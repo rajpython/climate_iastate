@@ -37,6 +37,8 @@ from dashboard.components.coldpool_data import (
     list_bottom_state_regions,
     load_model,
     load_observed,
+    load_observed_hauls,
+    load_shelf_surface,
     load_survey_replicate,
     load_survey_replicate_hauls,
     ordinal,
@@ -213,6 +215,8 @@ def _cold_pool_observed(region: str, model_choices: list[str]) -> None:
     else:
         st.info("Pick one or both models in the sidebar to see the survey-replicated validation.")
 
+    _obs_surface_bottom_card(region)   # observed surface-vs-bottom (the cold pool's stratification)
+
     last_update = str(df["last_update"].iloc[-1])[:10] if "last_update" in df else "—"
     footer(
         "Sources — observed cold-pool <b>area index</b> (≤ 2/1/0/−1 °C): NOAA AFSC "
@@ -388,6 +392,113 @@ def _modelled_shelf_card(region: str) -> None:
                        "is model-only / unvalidated in this region. Descriptive — not a forecast.")
 
 
+def _obs_surface_bottom_card(region: str) -> None:
+    """OBSERVED surface-vs-bottom stratification, from the survey hauls (survey regions).
+
+    The survey measures surface and bottom (gear) temperature at the *same cast*, so this is the
+    directly observed stratification, perfectly co-located — no model, no OISST. A haul-level
+    scatter (surface x, bottom y) with the 1:1 line; points far below 1:1 are strongly stratified
+    (the cold pool). NOT a validation — it characterises the shelf's thermal structure."""
+    h = load_observed_hauls(region)
+    if h is None or not {"surface_temperature", "gear_temperature", "year"}.issubset(h.columns):
+        return
+    h = h.dropna(subset=["surface_temperature", "gear_temperature"])
+    if h.empty:
+        return
+    years = sorted(int(y) for y in h["year"].unique())
+
+    with st.container(border=True):
+        section_title("Surface vs bottom temperature — observed (survey hauls)")
+        st.caption(
+            "Each point is one survey haul: **surface** vs **bottom (gear)** temperature measured at "
+            "the **same cast** — the directly *observed* stratification, perfectly co-located. Points "
+            "on the dashed **1:1 line** are well-mixed; points far **below** it (bottom colder than "
+            "surface) are strongly stratified (e.g. the cold pool). Not a validation."
+        )
+        c1, c2 = st.columns([1, 1.4])
+        mode = c1.radio("Years", ["Cumulative (start → year)", "Single year"], key=f"sb_mode_{region}")
+        if mode == "Single year":
+            yr = c2.selectbox("Year", years, index=len(years) - 1, key=f"sb_yr_{region}")
+            sel, label = h[h["year"] == yr], str(yr)
+        else:
+            end = c2.select_slider("Include survey years up to", years, value=years[-1], key=f"sb_end_{region}")
+            sel, label = h[h["year"] <= end], f"{years[0]}–{end}"
+        if sel.empty:
+            st.info("No hauls in the selected range.")
+            return
+        gap = sel["surface_temperature"] - sel["gear_temperature"]
+        r = sel["surface_temperature"].corr(sel["gear_temperature"])
+        regime = ("strongly stratified" if gap.mean() >= 4 else
+                  "moderately stratified" if gap.mean() >= 2 else "weakly stratified / well-mixed")
+        kpi_grid([
+            kpi_card("Mean surface − bottom", f"{gap.mean():+.1f} °C", RED, sub=regime,
+                     label_note=f"({label})"),
+            kpi_card("Surface–bottom corr", f"{r:+.2f}" if pd.notna(r) else "—", BLUE,
+                     sub=f"{len(sel):,} hauls"),
+        ], cols=2, template="1fr 1fr 0.9fr")
+        lo = float(min(sel["surface_temperature"].min(), sel["gear_temperature"].min())) - 0.3
+        hi = float(max(sel["surface_temperature"].max(), sel["gear_temperature"].max())) + 0.3
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=[lo, hi], y=[lo, hi], mode="lines", name="1:1 (well-mixed)",
+                                 line={"color": "#444", "width": 1, "dash": "dash"}, hoverinfo="skip"))
+        fig.add_trace(go.Scatter(
+            x=sel["surface_temperature"], y=sel["gear_temperature"], mode="markers",
+            name=f"hauls (n={len(sel):,})",
+            marker={"color": "#1f77b4", "size": 5, "opacity": 0.4, "line": {"width": 0}},
+            hovertemplate="surface %{x:.1f} °C<br>bottom %{y:.1f} °C<extra></extra>"))
+        fig.update_xaxes(title_text="Surface temperature (°C)", range=[lo, hi])
+        fig.update_yaxes(title_text="Bottom temperature (°C)", range=[lo, hi], scaleanchor="x", scaleratio=1)
+        fig.update_layout(height=460, template="plotly_white", margin={"l": 60, "r": 20, "t": 44, "b": 50},
+                          legend={"orientation": "h", "y": 1.03, "yanchor": "bottom", "x": 0, "xanchor": "left"})
+        st.markdown(f"**{label}** · {len(sel):,} hauls")
+        st.plotly_chart(fig, use_container_width=True)
+
+
+def _arctic_surface_bottom_card(region: str) -> None:
+    """Co-located surface-vs-bottom for the model-only Arctic: observed OISST surface and modelled
+    bottom over the **same open-water ≤ 200 m shelf cells and the same summer window** (both stored
+    in the shelf-surface parquet by mhw-build-shelf-surface). NOT a validation — the gap is the
+    stratification signal; surface does not constrain the bottom."""
+    surf = load_shelf_surface(region)
+    if surf is None or not {"mean_surface_temp", "model_bottom_temp"}.issubset(surf.columns):
+        return
+    d = surf.dropna(subset=["mean_surface_temp", "model_bottom_temp"])
+    if len(d) < 2:
+        return
+
+    with st.container(border=True):
+        section_title("Shelf surface vs bottom temperature — co-located (no survey here)")
+        st.caption(
+            "With no survey, surface and bottom are taken over the **same open-water ≤ 200 m shelf "
+            "cells in the same summer (Jul–Sep) window**: observed **OISST surface** and modelled "
+            "(MOM6) **bottom**. Their gap is summer stratification (here the ice-melt-capped Arctic "
+            "is strongly stratified). A diagnostic — **not** a validation; the bottom stays model-only."
+        )
+        gap = d["mean_surface_temp"] - d["model_bottom_temp"]
+        r = d["mean_surface_temp"].corr(d["model_bottom_temp"])
+        regime = ("strongly stratified" if gap.mean() >= 4 else
+                  "moderately stratified" if gap.mean() >= 2 else "weakly stratified / well-mixed")
+        kpi_grid([
+            kpi_card("Mean summer surface − bottom", f"{gap.mean():+.1f} °C", RED, sub=regime,
+                     label_note=f"({int(d['year'].min())}–{int(d['year'].max())})"),
+            kpi_card("Surface–bottom corr", f"{r:+.2f}" if pd.notna(r) else "—", BLUE,
+                     sub="interannual co-movement"),
+        ], cols=2, template="1fr 1fr 0.9fr")
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=d["year"], y=d["mean_surface_temp"], mode="lines+markers",
+                      name="Observed surface (OISST)", line={"color": "#d62728", "width": 2.5},
+                      marker={"size": 5}, hovertemplate="%{x} surface: %{y:.2f} °C<extra></extra>"))
+        fig.add_trace(go.Scatter(x=d["year"], y=d["model_bottom_temp"], mode="lines+markers",
+                      name="Modelled bottom (MOM6)", line={"color": "#1f77b4", "width": 2.5},
+                      marker={"size": 5}, hovertemplate="%{x} bottom: %{y:.2f} °C<extra></extra>"))
+        fig.update_yaxes(title_text="Temperature (°C)")
+        fig.update_layout(height=340, template="plotly_white", margin={"l": 60, "r": 20, "t": 46, "b": 40},
+                          legend={"orientation": "h", "y": 1.04, "yanchor": "bottom", "x": 0, "xanchor": "left"})
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption("Both series are averaged over the same open-water (ice < 15%) ≤ 200 m shelf cells "
+                   "(OISST grid) in the same Jul–Sep window, so they are co-located in space and time.")
+
+
 def _survey_derived_card(region: str) -> None:
     """Fallback observed card for a bottom-temp region with no packaged index (slope): the
     observed survey bottom temperature derived from the survey-replicate output."""
@@ -434,6 +545,7 @@ def _bottom_temp_observed(region: str, model_choices: list[str]) -> None:
     if packaged is not None and "mean_bottom_temp" in packaged.columns:
         _packaged_index_card(region, packaged)
         _modelled_shelf_card(region)
+        _obs_surface_bottom_card(region)   # observed surface-vs-bottom from the survey hauls
         src_line = (f"Sources — observed bottom-temperature index ({region.upper()}, by subarea, "
                     "biennial): NOAA AFSC <code>afsc-gap-products/coldpool</code> "
                     "(Zenodo 10.5281/zenodo.16915337). Per-haul validation temperatures: NOAA FOSS "
@@ -441,6 +553,7 @@ def _bottom_temp_observed(region: str, model_choices: list[str]) -> None:
                     "outside the Bering). All lagged, not near-real-time.")
     else:
         _survey_derived_card(region)
+        _obs_surface_bottom_card(region)   # slope hauls carry surface + bottom too
         src_line = ("Sources — per-haul survey bottom temperatures: NOAA FOSS AFSC bottom-trawl survey "
                     "(BSS slope survey, 2002–2016, discontinued). Models: Bering10K ROMS "
                     "(NOAA PMEL / UW ACLIM) · CEFI MOM6 NEP (NOAA GFDL / PSL). All lagged, not "
@@ -629,9 +742,10 @@ def _modelled_only(region: str) -> None:
         "unvalidated in this region."
     )
     _modelled_shelf_card(region)
-    footer("Source: CEFI MOM6 NEP (NOAA GFDL / PSL) — modelled bottom temperature over the ≤ 200 m "
-           "shelf (standalone-bathymetry/ETOPO mask). No in-region survey → model-only, unvalidated "
-           "here. Lagged, not near-real-time.")
+    _arctic_surface_bottom_card(region)   # OISST surface + model bottom, co-located (context, not validation)
+    footer("Sources: CEFI MOM6 NEP (NOAA GFDL / PSL) — modelled bottom temperature over the ≤ 200 m "
+           "shelf (ETOPO mask); NOAA OISST — observed summer surface temperature. No in-region "
+           "survey → bottom is model-only, unvalidated here. Lagged, not near-real-time.")
 
 
 def render(group: str = "bering") -> None:
