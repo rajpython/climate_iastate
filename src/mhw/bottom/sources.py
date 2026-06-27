@@ -8,7 +8,7 @@ Adding a source (e.g. MOM6 NEP10k) is a new descriptor here — not new code.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -102,3 +102,37 @@ MOM6_NEP = BottomSource(
 SOURCES: dict[str, BottomSource] = {
     s.id: s for s in (BERING10K_K20_CORECFS, MOM6_NEP)
 }
+
+
+# --- Standalone bathymetry (model-agnostic depth source for the shelf mask) -------
+@dataclass(frozen=True)
+class BathySource:
+    """A standalone global bathymetry used to build a region's shelf-depth grid.
+
+    The shelf mask (depth ≤ region.shelf_max_depth_m) was originally derived from Bering10K's
+    own ``z_w`` bathymetry, which only exists in the Bering. A standalone bathymetry lets the
+    same mask be built for ANY region (GOA, AI, Arctic) and gives every model an identical,
+    model-neutral footprint. See docs/bathymetry_mask_plan.md.
+    """
+
+    id: str
+    label: str
+    opendap_url: str
+    var: str                        # elevation variable (metres; negative = below sea level)
+    lat_coord: str
+    lon_coord: str
+    lon_convention: str = "0-360"   # ETOPO ERDDAP serves longitude on 0..360
+
+
+# ETOPO 2022 15-arcsec global relief, via NOAA PIFSC OceanWatch ERDDAP (clean lat/lon OPeNDAP
+# subset). Verified live 2026-06-27: var `z` (elevation, m), coords latitude/longitude on
+# 0..360; resolves EBS/NBS/GOA/AI/Chukchi/Beaufort and cleanly separates the Beaufort shelf
+# (~44 m) from the deep basin (~3800 m).
+ETOPO_2022 = BathySource(
+    id="etopo2022",
+    label="ETOPO 2022 15-arcsec (NOAA NCEI)",
+    opendap_url="https://oceanwatch.pifsc.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s",
+    var="z",
+    lat_coord="latitude",
+    lon_coord="longitude",
+)
