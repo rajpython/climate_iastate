@@ -35,6 +35,7 @@ from dashboard.components.coldpool_data import (
     MODEL_SOURCES,
     THRESHOLDS,
     list_bottom_state_regions,
+    load_model,
     load_observed,
     load_survey_replicate,
     load_survey_replicate_hauls,
@@ -315,6 +316,65 @@ def _packaged_index_card(region: str, df: pd.DataFrame) -> None:
                    "past observed state — not a forecast.")
 
 
+def _modelled_shelf_card(region: str) -> None:
+    """Continuous modelled shelf bottom-temperature series (the B2 upgrade) for a packaged
+    bottom-temp region (GOA/AI) — fills the gaps between the sparse survey years with the model's
+    own ≤ 200 m shelf mean, validated separately at the survey hauls (panel below)."""
+    reg = get_region(region)
+    id_to_label = {v: k for k, v in MODEL_SOURCES.items()}
+    loaded = []
+    for sid in reg.valid_sources:
+        df = load_model(sid, region)
+        if df is not None and not df.empty and "mean_bottom_temp" in df.columns:
+            loaded.append((id_to_label.get(sid, sid),
+                           df.dropna(subset=["mean_bottom_temp"]).sort_values("year")))
+    if not loaded:
+        return
+
+    with st.container(border=True):
+        section_title("Modelled shelf bottom temperature — continuous (full hindcast)")
+        st.caption(
+            "The model's area-weighted mean bottom temperature over the **≤ 200 m shelf**, every "
+            "year — continuous, filling the gaps between the sparse survey years above. This is the "
+            "model's own shelf domain (a different footprint than the survey index); the fair "
+            "model-vs-survey skill comparison is the validation panel below."
+        )
+        name0, d0 = loaded[0]
+        latest = d0.iloc[-1]
+        yr = int(latest["year"])
+        span = f"{int(d0['year'].min())}–{int(d0['year'].max())}"
+        base = d0.loc[(d0["year"] >= BASELINE_START) & (d0["year"] <= BASELINE_END), "mean_bottom_temp"]
+        anom = anomaly(latest["mean_bottom_temp"], base) if not base.empty else float("nan")
+        anom_sub = (f"<span style='color:{RED}'>{'▲' if anom >= 0 else '▼'} {anom:+.2f} °C vs "
+                    f"{BASELINE_START}–{BASELINE_END}</span>") if pd.notna(anom) else "&nbsp;"
+        kpi_grid([
+            kpi_card(f"{yr} modelled shelf BT", f"{latest['mean_bottom_temp']:.2f} °C", RED,
+                     sub=anom_sub, label_note=f"({name0})"),
+            kpi_card("Hindcast span", span, BLUE, sub="continuous, every year"),
+        ], cols=2, template="1fr 1fr 0.9fr")
+
+        fig = go.Figure()
+        for name, d in loaded:
+            fig.add_trace(go.Scatter(x=d["year"], y=d["mean_bottom_temp"], mode="lines+markers",
+                          name=name, line={"color": MODEL_COLORS.get(name, "darkorange"), "width": 2.5},
+                          marker={"size": 5}, hovertemplate="%{x} modelled: %{y:.2f} °C<extra></extra>"))
+        obs = load_observed(region)   # overlay the survey dots so the gap-filling is visible
+        if obs is not None and "mean_bottom_temp" in obs.columns:
+            fig.add_trace(go.Scatter(x=obs["year"], y=obs["mean_bottom_temp"], mode="markers",
+                          name="Observed (survey)", marker={"color": "black", "size": 8,
+                          "symbol": "circle-open", "line": {"width": 1.5}},
+                          hovertemplate="%{x} observed: %{y:.2f} °C<extra></extra>"))
+        fig.add_hline(y=float(d0["mean_bottom_temp"].mean()), line_dash="dash", line_color="gray",
+                      line_width=1, annotation_text=f"{span} modelled mean", annotation_font_size=9)
+        fig.update_yaxes(title_text="Shelf mean bottom temp (°C)")
+        fig.update_layout(height=360, template="plotly_white", margin={"l": 60, "r": 20, "t": 50, "b": 40},
+                          legend={"orientation": "h", "y": 1.04, "yanchor": "bottom", "x": 0, "xanchor": "left"})
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption("Continuous modelled line (≤ 200 m shelf, standalone-bathymetry mask) with the "
+                   "survey observations (open circles) overlaid — close in level here but different "
+                   "domains. MOM6 NEP is less-validated outside the Bering. Descriptive — not a forecast.")
+
+
 def _survey_derived_card(region: str) -> None:
     """Fallback observed card for a bottom-temp region with no packaged index (slope): the
     observed survey bottom temperature derived from the survey-replicate output."""
@@ -360,6 +420,7 @@ def _bottom_temp_observed(region: str, model_choices: list[str]) -> None:
     packaged = load_observed(region)
     if packaged is not None and "mean_bottom_temp" in packaged.columns:
         _packaged_index_card(region, packaged)
+        _modelled_shelf_card(region)
         src_line = (f"Sources — observed bottom-temperature index ({region.upper()}, by subarea, "
                     "biennial): NOAA AFSC <code>afsc-gap-products/coldpool</code> "
                     "(Zenodo 10.5281/zenodo.16915337). Per-haul validation temperatures: NOAA FOSS "

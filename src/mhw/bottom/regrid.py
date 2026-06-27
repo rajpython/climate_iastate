@@ -80,15 +80,23 @@ def regrid_curvilinear_to_regular(
     array (len(tgt_lats), len(tgt_lons))
         Regridded field; NaN where no source data is within range.
     """
+    tgt_lons = np.asarray(tgt_lons, dtype="float64")
+    # Longitude frame must match the target grid. The Alaska regions are in the OISST
+    # [-180,180) frame, EXCEPT the Aleutians, whose box straddles the dateline and is defined
+    # on 0–360 (e.g. 170..195). Pick the frame from the target so a dateline-spanning region
+    # stays contiguous; behaviour is unchanged for every [-180,180) region.
+    src_lon_arr = np.asarray(src_lon).ravel()
+    if float(tgt_lons.max()) > 180.0:
+        slon = src_lon_arr % 360.0
+    else:
+        slon = normalize_lon(src_lon_arr)
     slat = np.asarray(src_lat, dtype="float64").ravel()
-    slon = normalize_lon(np.asarray(src_lon).ravel())
     sval = np.asarray(field, dtype="float64").ravel()
 
     good = np.isfinite(sval) & np.isfinite(slat) & np.isfinite(slon)
     slat, slon, sval = slat[good], slon[good], sval[good]
 
-    tgt_lats = np.asarray(tgt_lats, dtype="float64")
-    tgt_lons = np.asarray(tgt_lons, dtype="float64")
+    tgt_lats = np.asarray(tgt_lats, dtype="float64")  # tgt_lons already coerced above
     nlat, nlon = tgt_lats.size, tgt_lons.size
     # Cell spacing from the regular grid; fall back to OISST 0.25° for a 1-cell axis.
     dlat = float(tgt_lats[1] - tgt_lats[0]) if nlat > 1 else 0.25

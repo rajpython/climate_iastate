@@ -65,6 +65,11 @@ class BottomRegion:
     shelf_min_depth_m: float = 0.0      # depth mask lower bound (0 for shelf; 200 m for slope)
     observed: ObservedProduct | None = None
     grid_res: float = 0.25              # analysis-grid resolution (°)
+    # Source of the seafloor depth used to build the shelf mask. "bering10k" reads the model's
+    # own z_w bathymetry (the validated default for the Bering); "etopo2022" reads a standalone
+    # global bathymetry so the mask works outside the Bering (GOA/AI/Arctic). The two were shown
+    # to give essentially identical EBS/NBS cold-pool metrics (B1), so the Bering keeps Bering10K.
+    mask_source: str = "bering10k"
 
     @property
     def analysis_lats(self) -> np.ndarray:
@@ -222,7 +227,8 @@ GOA = BottomRegion(
     group="goa",
     lat_min=52.0, lat_max=61.0,
     lon_min=-170.0, lon_max=-132.0,
-    shelf_max_depth_m=1000.0,
+    shelf_max_depth_m=200.0,            # ≤200 m shelf for the modelled-conditions domain
+    mask_source="etopo2022",           # Bering10K out of domain → standalone bathymetry
     valid_sources=("mom6_nep",),
     has_survey_hauls=True,
     observed=ObservedProduct(
@@ -242,17 +248,18 @@ GOA = BottomRegion(
 # (triennial early, then ~biennial; no area column) — bottom temps ~3–5 °C, no cold pool
 # (product_kind="bottom_temp"). MOM6-only: Bering10K only partially covers the AI Bering-side
 # and it is not the AI validated domain, so the model side is CEFI MOM6 NEP, survey-replicated
-# at the FOSS AI haul locations/dates. The AI chain CROSSES THE DATELINE; grid/depth bounds
-# below are nominal and NOT load-bearing (no full-domain model area series is built, and the
-# validation scatter is single-series — a clean longitude subarea split is deferred).
+# at the FOSS AI haul locations/dates. The AI chain CROSSES THE DATELINE, so its grid is on the
+# 0–360 frame (lon 170..195); the regrid + ETOPO mask are dateline-aware. The validation scatter
+# stays single-series (a clean longitude subarea split is still deferred).
 AI = BottomRegion(
     id="ai",
     label="Aleutian Islands",
     product_kind="bottom_temp",
     group="ai",
     lat_min=51.0, lat_max=56.0,
-    lon_min=170.0, lon_max=195.0,       # nominal (dateline-crossing); not used for a model grid
-    shelf_max_depth_m=500.0,
+    lon_min=170.0, lon_max=195.0,       # 0–360 frame (dateline-crossing Aleutian chain)
+    shelf_max_depth_m=200.0,            # ≤200 m shelf for the modelled-conditions domain
+    mask_source="etopo2022",           # Bering10K not the AI domain → standalone bathymetry
     valid_sources=("mom6_nep",),
     has_survey_hauls=True,
     observed=ObservedProduct(

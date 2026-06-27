@@ -1,7 +1,19 @@
 # Bathymetry-Masking Pass — Plan
 
-**Status:** Plan. Prerequisite for Phase 3 (Arctic) and an upgrade for GOA/AI; includes an
-EBS/NBS cross-validation experiment. Conventions per `CLAUDE.md`.
+**Status:** B0 ✅, B1 ✅, B2 ✅ (on branch `feat/bathymetry-mask`); **B3 (Arctic) next.**
+Prerequisite for Phase 3 (Arctic) and an upgrade for GOA/AI; includes an EBS/NBS cross-validation
+experiment. Conventions per `CLAUDE.md`.
+
+**Progress:**
+- **B0** — ETOPO 2022 bathymetry layer (`BathySource`, `mhw-build-bathymetry`,
+  `shelf_mask_from_bathymetry`). EBS sanity: ETOPO vs Bering10K mask 91.3% agreement / 86% IoU.
+- **B1** — EBS/NBS cross-validation: the two masks give **essentially identical cold-pool metrics**
+  (area corr 1.000; mean shelf BT diff ≤ 0.08 °C) because they differ only in cells where the
+  *model* has no data. **Decision: keep Bering10K mask for the Bering (unchanged), use ETOPO for
+  new regions** (`region.mask_source`); no user-facing toggle.
+- **B2** — GOA/AI got their continuous 1993–2025 modelled shelf bottom-temperature series (ETOPO
+  ≤200 m mask), with a frame-aware regrid for the AI dateline; surfaced as a "Modelled shelf
+  bottom temperature — continuous" card (modelled line + survey dots overlaid).
 
 ## 1. Problem
 

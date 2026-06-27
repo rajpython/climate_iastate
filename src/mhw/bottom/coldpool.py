@@ -104,11 +104,17 @@ def shelf_mask_from_model(ds: xr.Dataset, source: BottomSource,
 def build_shelf_mask(region: BottomRegion = EBS, force: bool = False) -> np.ndarray:
     """Return the shared shelf mask on *region*'s 0.25° grid, building+caching if needed.
 
-    The mask is derived **once** from Bering10K bathymetry (its high-resolution ROMS
-    grid is the most authoritative depth we have) and reused for *every* model source,
-    so each model's cold-pool area is computed over the **identical** shelf footprint —
-    which makes the two models directly comparable to each other.
+    The depth source is per-region (``region.mask_source``):
+      * ``"bering10k"`` (Bering: EBS/NBS/slope) — derived from Bering10K's own z_w bathymetry,
+        the validated, modeler-tuned depth for the Bering.
+      * ``"etopo2022"`` (GOA/AI/Arctic) — a standalone global bathymetry, so the mask can be
+        built where Bering10K is out of domain. Shown equivalent to the Bering10K mask on
+        EBS/NBS cold-pool metrics (B1), so the Bering deliberately keeps Bering10K.
+    Either way all model sources share the *identical* footprint, keeping them comparable.
     """
+    if region.mask_source == "etopo2022":
+        from mhw.bottom.bathymetry import shelf_mask_from_bathymetry
+        return shelf_mask_from_bathymetry(region, force=force)
     cache = _shelf_mask_cache(region)
     if cache.exists() and not force:
         return np.load(cache)["shelf"]

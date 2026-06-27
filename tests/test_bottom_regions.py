@@ -94,6 +94,19 @@ def test_ai_is_bottom_temp_mom6_only():
     assert AI.observed.column_map is GOA.observed.column_map
 
 
+def test_mask_source_is_etopo_outside_the_bering():
+    # Bering keeps the Bering10K-derived mask; GOA/AI use the standalone ETOPO bathymetry
+    # (Bering10K out of domain) — shown equivalent on EBS/NBS cold-pool metrics (B1).
+    assert EBS.mask_source == "bering10k"
+    assert NBS.mask_source == "bering10k"
+    assert SLOPE.mask_source == "bering10k"
+    assert GOA.mask_source == "etopo2022"
+    assert AI.mask_source == "etopo2022"
+    # GOA/AI modelled domain is the ≤200 m shelf
+    assert GOA.shelf_max_depth_m == 200.0
+    assert AI.shelf_max_depth_m == 200.0
+
+
 def test_shelf_regions_have_zero_min_depth():
     # the min-depth band must stay 0 for the cold-pool shelves (behaviour-preserving)
     assert EBS.shelf_min_depth_m == 0.0
