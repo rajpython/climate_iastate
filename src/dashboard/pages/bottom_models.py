@@ -27,6 +27,7 @@ from dashboard.components.bottom_ui import (
     kpi_grid,
     page_header,
     section_title,
+    styled_table,
 )
 from dashboard.components.coldpool_data import (
     MODEL_COLORS,
@@ -107,7 +108,8 @@ def _cold_pool_models(region: str, model_choices: list[str]) -> None:
             st.plotly_chart(cfig, use_container_width=True)
             if rows:
                 st.markdown("**Pattern agreement with the survey** (*r* = correlation):")
-                st.dataframe(pd.DataFrame(rows).set_index("Model"), use_container_width=True)
+                st.markdown(styled_table(pd.DataFrame(rows).set_index("Model")),
+                            unsafe_allow_html=True)
 
     # ---- Panel B2: model vs model, identical footing (≤200 m shelf, monthly) ----
     if len(model_choices) >= 2:

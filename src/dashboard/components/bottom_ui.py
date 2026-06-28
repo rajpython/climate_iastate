@@ -8,6 +8,7 @@ temperature, amber = caution). Page config / fonts are owned by the navigation s
 """
 from __future__ import annotations
 
+import pandas as pd
 import streamlit as st
 
 GREEN, BLUE, RED, AMBER, PURPLE, SLATE, MUTED = (
@@ -98,3 +99,30 @@ def footer(left_html: str, guide_url: str = "/bottom_state_guide") -> None:
         st.markdown(f"<div style='text-align:right;'><a class='bs-guidebtn' target='_self' "
                     f"href='{guide_url}'>Learn more in the guide →</a></div>",
                     unsafe_allow_html=True)
+
+
+# Shared table look (dark borders, bold shaded headers) — the single design for every data table
+# across the bottom-state pages (catch breakdown, validation skill, model agreement, depth profile).
+TABLE_STYLES = [
+    {"selector": "", "props": [("border-collapse", "collapse"), ("border", "2px solid #2c3e50")]},
+    {"selector": "th", "props": [("border", "1px solid #2c3e50"), ("padding", "9px 18px"),
+                                 ("background-color", "#dfe6ee"), ("font-weight", "700"),
+                                 ("font-size", "1.05rem"), ("text-align", "center"), ("color", "#1f2a36")]},
+    {"selector": "td", "props": [("border", "1px solid #7b8a9a"), ("padding", "9px 18px"),
+                                 ("text-align", "right"), ("font-size", "1.05rem")]},
+    {"selector": "th.row_heading", "props": [("text-align", "left")]},
+]
+
+
+def styled_table(df: pd.DataFrame, row_bg: dict | None = None, precision: int = 2,
+                 na_rep: str = "—") -> str:
+    """Render any DataFrame as the shared styled HTML table (dark borders, bold shaded headers).
+
+    Numbers are formatted to ``precision`` decimals (ints keep a thousands separator; already-string
+    cells pass through); ``row_bg`` maps an index label → a cell background colour for that row.
+    Use as ``st.markdown(styled_table(df), unsafe_allow_html=True)``.
+    """
+    sty = df.style.format(precision=precision, na_rep=na_rep, thousands=",")
+    if row_bg:
+        sty = sty.apply(lambda r: [f"background-color:{row_bg.get(r.name, '')}"] * len(r), axis=1)
+    return sty.set_table_styles(TABLE_STYLES).to_html()

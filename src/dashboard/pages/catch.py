@@ -26,6 +26,7 @@ from dashboard.components.bottom_ui import (
     inject_css,
     page_header,
     section_title,
+    styled_table,
 )
 from dashboard.components.coldpool_data import list_bottom_state_regions, region_label
 from mhw.bottom.regions import get_region
@@ -133,29 +134,10 @@ def _breakdown_table(dy: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-_TABLE_STYLES = [
-    {"selector": "", "props": [("border-collapse", "collapse"), ("border", "2px solid #2c3e50")]},
-    {"selector": "th", "props": [("border", "1px solid #2c3e50"), ("padding", "9px 18px"),
-                                 ("background-color", "#dfe6ee"), ("font-weight", "700"),
-                                 ("font-size", "1.05rem"), ("text-align", "center"), ("color", "#1f2a36")]},
-    {"selector": "td", "props": [("border", "1px solid #7b8a9a"), ("padding", "9px 18px"),
-                                 ("text-align", "right"), ("font-size", "1.05rem")]},
-    {"selector": "th.row_heading", "props": [("text-align", "left")]},
-]
-
-
-def _style_table(df: pd.DataFrame, row_bg: dict | None = None) -> str:
-    """Render any DataFrame as the shared styled HTML table (dark borders, bold headers)."""
-    sty = df.style
-    if row_bg:
-        sty = sty.apply(lambda r: [f"background-color:{row_bg.get(r.name, '')}"] * len(r), axis=1)
-    return sty.set_table_styles(_TABLE_STYLES).to_html()
-
-
 def _styled_breakdown_html(dy: pd.DataFrame) -> str:
     """Cold/warm/all breakdown table, rows tinted (cold = blue, warm = red) to match the map."""
     row_bg = {"Cold pool (≤ 2 °C)": "#e8f1fb", "Warmer (> 2 °C)": "#fdecea", "All hauls": "#f3f4f6"}
-    return _style_table(_breakdown_table(dy), row_bg)
+    return styled_table(_breakdown_table(dy), row_bg)
 
 
 def _slope_summary_html(dy: pd.DataFrame) -> str:
@@ -166,7 +148,7 @@ def _slope_summary_html(dy: pd.DataFrame) -> str:
                        "Mean CPUE (kg/km²)": _fmt_cpue(dy["cpue_kgkm2"].mean())}},
         orient="index",
     )
-    return _style_table(df, {"All hauls": "#f3f4f6"})
+    return styled_table(df, {"All hauls": "#f3f4f6"})
 
 
 def render(group: str = "bering") -> None:

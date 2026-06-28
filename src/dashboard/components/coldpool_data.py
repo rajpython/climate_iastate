@@ -170,7 +170,7 @@ def load_observed_hauls(region: str) -> pd.DataFrame | None:
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def load_arctic_depth_profile() -> pd.DataFrame | None:
-    """Arctic T_b(z) depth profile (Chukchi + Beaufort) for the Simpson's-paradox panel. None if
+    """Arctic bottom-temperature depth profile (Chukchi + Beaufort) for the Simpson's-paradox panel. None if
     not built (`mhw-build-arctic-profile`)."""
     p = MODEL_DIR / "depth_profile_arctic.parquet"
     if not p.exists():

@@ -605,10 +605,10 @@ is the *warmer* shelf, which is **misleading**. It is a textbook **composition e
 paradox)**: the two shelves have very different **depth distributions**, and a whole-shelf average
 mixes depth and temperature together.
 
-Look at **bottom temperature by depth bin, T_b(z)** (area-weighted; the same table shown on the
+Look at **bottom temperature by depth bin** (area-weighted; the same table shown on the
 dashboard pages):
 
-| Depth bin | Chukchi T_b | Beaufort T_b | Chukchi shelf area % | Beaufort shelf area % |
+| Depth bin | Chukchi bottom temp | Beaufort bottom temp | Chukchi shelf area % | Beaufort shelf area % |
 |---|---|---|---|---|
 | 0–10 m | **+8.6 °C** | +6.9 °C | 2.3 % | 10.2 % |
 | 10–20 m | **+6.7 °C** | +3.4 °C | 6.1 % | 15.2 % |

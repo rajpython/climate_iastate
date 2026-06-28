@@ -30,6 +30,7 @@ from dashboard.components.bottom_ui import (
     kpi_grid,
     page_header,
     section_title,
+    styled_table,
 )
 from dashboard.components.coldpool_data import (
     MODEL_COLORS,
@@ -101,7 +102,7 @@ def _survey_replicate_panel(region: str, model_choices: list[str], yr_range=None
         st.plotly_chart(srfig, use_container_width=True)
         if sr_rows:
             st.markdown("**Validation skill (model sampled at survey hauls):**")
-            st.dataframe(pd.DataFrame(sr_rows).set_index("Model"), use_container_width=True)
+            st.markdown(styled_table(pd.DataFrame(sr_rows).set_index("Model")), unsafe_allow_html=True)
             st.caption("Bias = model − observed bottom temperature, co-located at hauls — the "
                        "defensible, literature-comparable numbers.")
     return True
@@ -658,7 +659,7 @@ def _model_scatter_panel(name: str, sel: pd.DataFrame, has_split: bool, height: 
                      "Bias (°C)": round(float(d.mean()), 2),
                      "RMSE (°C)": round(float(np.sqrt((d ** 2).mean())), 2),
                      "r": round(float(sel["model_bottom_temp"].corr(sel["obs_bottom_temp"])), 2)})
-    st.dataframe(pd.DataFrame(rows).set_index("Group"), use_container_width=True)
+    st.markdown(styled_table(pd.DataFrame(rows).set_index("Group")), unsafe_allow_html=True)
 
 
 def _obs_vs_model_scatter(region: str, model_choices: list[str]) -> None:
@@ -735,14 +736,14 @@ def _obs_vs_model_scatter(region: str, model_choices: list[str]) -> None:
 
 
 def _depth_profile_card(region: str) -> None:
-    """T_b(z) by depth bin for the two Arctic shelves + the Simpson's-paradox explanation: why the
+    """Bottom temperature by depth bin for the two Arctic shelves + the Simpson's-paradox explanation: why the
     whole-shelf *headline mean* must not be compared across regions. Built by mhw-build-arctic-profile."""
     prof = load_arctic_depth_profile()
     if prof is None or prof.empty:
         return
     _names = {"chukchi": "Chukchi", "beaufort": "Beaufort"}
     with st.container(border=True):
-        section_title("Why the headline mean isn't comparable across shelves — depth profile T_b(z)")
+        section_title("Why the headline mean isn't comparable across shelves — bottom temperature by depth")
         callout(
             "The headline above is a <b>whole-shelf model average</b>. Comparing it between the "
             "Chukchi and Beaufort is misleading, because the two shelves have very different "
@@ -755,15 +756,22 @@ def _depth_profile_card(region: str) -> None:
             "Read the per-depth table, not the single headline.",
             icon="⚖️", tint=AMBER)
         idx = ["0–10 m", "10–20 m", "20–30 m", "30–50 m", "50–100 m", "100–200 m"]
-        tbl = pd.DataFrame(index=idx)
-        for rid in ("chukchi", "beaufort"):
-            d = prof[prof["region"] == rid].set_index("depth_bin")
-            nm = _names.get(rid, rid.title())
-            tbl[f"{nm} T_b (°C)"] = d["mean_bottom_temp"].reindex(idx)
-            tbl[f"{nm} shelf area %"] = d["area_pct"].reindex(idx)
-        st.dataframe(tbl, use_container_width=True)
+        c = prof[prof["region"] == "chukchi"].set_index("depth_bin")
+        b = prof[prof["region"] == "beaufort"].set_index("depth_bin")
+
+        def _fmt(series, spec):
+            return [spec.format(v) if pd.notna(v) else "—" for v in series.reindex(idx)]
+
+        tbl = pd.DataFrame({   # two-level header: Bottom Temperature / Shelf Area → Chukchi / Beaufort
+            ("Bottom Temperature (°C)", "Chukchi"): _fmt(c["mean_bottom_temp"], "{:.2f}"),
+            ("Bottom Temperature (°C)", "Beaufort"): _fmt(b["mean_bottom_temp"], "{:.2f}"),
+            ("Shelf Area (%)", "Chukchi"): _fmt(c["area_pct"], "{:.1f}%"),
+            ("Shelf Area (%)", "Beaufort"): _fmt(b["area_pct"], "{:.1f}%"),
+        }, index=idx)
+        tbl.columns = pd.MultiIndex.from_tuples(tbl.columns)
+        st.markdown(styled_table(tbl), unsafe_allow_html=True)
         st.caption(
-            "Area-weighted modelled bottom temperature T_b and each bin's share of shelf area — "
+            "Area-weighted modelled bottom temperature and each bin's share of shelf area — "
             "CEFI MOM6 NEP, Jul–Sep climatology 2014–2024, ≤ 200 m (ETOPO mask). The Chukchi's broad "
             "cold mid-shelf (≈ 83 % of its area at 30–100 m) pulls its whole-shelf mean down; the "
             "narrow Beaufort carries far more warm shallow area. The upper-shelf Chukchi-warm pattern "
@@ -781,7 +789,7 @@ def _modelled_only(region: str) -> None:
         "unvalidated in this region."
     )
     _modelled_shelf_card(region)
-    _depth_profile_card(region)           # T_b(z) + Simpson's-paradox explanation (cross-shelf)
+    _depth_profile_card(region)           # bottom-temp-by-depth + Simpson's-paradox explanation (cross-shelf)
     _arctic_surface_bottom_card(region)   # OISST surface + model bottom, co-located (context, not validation)
     footer("Sources: CEFI MOM6 NEP (NOAA GFDL / PSL) — modelled bottom temperature over the ≤ 200 m "
            "shelf (ETOPO mask); NOAA OISST — observed summer surface temperature. Depth profile: "

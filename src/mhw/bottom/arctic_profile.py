@@ -1,8 +1,9 @@
-"""Depth-binned bottom-temperature profile T_b(z) for the model-only Arctic regions.
+"""Depth-binned bottom-temperature profile for the model-only Arctic regions.
 
 Backs the dashboard's Simpson's-paradox explanation on the Chukchi/Beaufort bottom-temperature
 pages: the whole-shelf *mean* differs between the two shelves mostly because of their different
-**depth distributions**, not because the water is warmer — so the page shows T_b(z) (area-weighted
+**depth distributions**, not because the water is warmer — so the page shows bottom temperature by
+depth bin (area-weighted
 bottom temperature *by depth bin*) and each bin's share of shelf area. Climatology: CEFI MOM6 NEP,
 Jul–Sep, 2014–2024, area-weighted (cos-lat) on each region's analysis grid, ETOPO ≤ 200 m shelf.
 
@@ -63,7 +64,7 @@ def depth_profile_table(depth: np.ndarray, area: np.ndarray, bt: np.ndarray,
 
 def build_profile(regions=(CHUKCHI, BEAUFORT), start: str = "2014-07-01",
                   end: str = "2024-09-30") -> pd.DataFrame:
-    """Jul–Sep climatology T_b(z) for each Arctic region (one frame, a ``region`` column)."""
+    """Jul–Sep climatology bottom-temperature depth profile for each Arctic region (one frame, a ``region`` column)."""
     mds = open_bottom_dataset(MOM6_NEP)
     da = load_bottom_temp(MOM6_NEP, start, end, ds=mds)
     jas = da.sel(time=da["time"].dt.month.isin([7, 8, 9])).mean("time")   # climatology field
@@ -97,7 +98,7 @@ def save_parquet(df: pd.DataFrame) -> Path:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Build Arctic T_b(z) depth profile (Chukchi & Beaufort).")
+    p = argparse.ArgumentParser(description="Build Arctic bottom-temperature depth profile (Chukchi & Beaufort).")
     p.add_argument("--start", default="2014-07-01")
     p.add_argument("--end", default="2024-09-30")
     return p.parse_args(argv)
