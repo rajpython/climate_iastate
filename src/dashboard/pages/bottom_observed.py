@@ -351,8 +351,8 @@ def _modelled_shelf_card(region: str) -> None:
     with st.container(border=True):
         section_title("Modelled shelf bottom temperature — continuous (full hindcast)")
         when_note("Each year's modelled bottom for <b>early July (~4 Jul)</b>, the survey season — "
-                  "MOM6 July monthly field (Bering10K: week nearest 4 Jul). A summer snapshot, not an "
-                  "annual mean.")
+                  "the CEFI MOM6 NEP July monthly field over the ≤ 200 m shelf (the only model "
+                  "covering this region). A summer snapshot, not an annual mean.")
         if has_obs:
             st.caption(
                 "The model's area-weighted mean bottom temperature over the **≤ 200 m shelf**, every "
