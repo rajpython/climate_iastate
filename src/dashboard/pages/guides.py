@@ -1,9 +1,9 @@
 """Guides — rendered markdown documentation, matching the platform architecture.
 
 Three guides (no documentation sprawl):
-  • Dashboard Guide               — platform-level orientation (docs/dashboard_guide.md)
-  • Marine Heatwave Guide         — Alaska-wide MHW indicators (docs/marine_heatwave_guide.md)
-  • Bering Sea Bottom-State Guide — Bering bottom state        (docs/bering_bottom_state_guide.md)
+  • Dashboard Guide       — platform-level orientation     (docs/dashboard_guide.md)
+  • Marine Heatwave Guide — Alaska-wide MHW indicators      (docs/marine_heatwave_guide.md)
+  • Bottom-State Guide    — bottom state, all regions       (docs/bottom_state_guide.md)
 
 Each markdown file carries its own H1 title, so this module just renders it. Page config and
 fonts are owned by the navigation shell.
@@ -37,5 +37,5 @@ def marine_heatwave_guide() -> None:
     _render("marine_heatwave_guide.md")
 
 
-def bering_bottom_state_guide() -> None:
-    _render("bering_bottom_state_guide.md")
+def bottom_state_guide() -> None:
+    _render("bottom_state_guide.md")

@@ -50,7 +50,7 @@ from dashboard.pages.bottom_observed import render as bottom_observed_render  # 
 from dashboard.pages.bottom_models import render as bottom_models_render  # noqa: E402
 from dashboard.pages.catch import render as catch_render  # noqa: E402
 from dashboard.pages.guides import (  # noqa: E402
-    bering_bottom_state_guide,
+    bottom_state_guide,
     dashboard_guide,
     marine_heatwave_guide,
 )
@@ -203,8 +203,8 @@ nav = {
         st.Page(dashboard_guide, title="Dashboard Guide", url_path="dashboard_guide"),
         st.Page(marine_heatwave_guide, title="Marine Heatwave Guide",
                 url_path="marine_heatwave_guide"),
-        st.Page(bering_bottom_state_guide, title="Bering Sea Bottom-State Guide",
-                url_path="bering_bottom_state_guide"),
+        st.Page(bottom_state_guide, title="Bottom-State Guide",
+                url_path="bottom_state_guide"),
     ],
 }
 

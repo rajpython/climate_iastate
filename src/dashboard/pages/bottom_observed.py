@@ -19,6 +19,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from dashboard.components.bottom_ui import (
+    AMBER,
     BLUE,
     GREEN,
     RED,
@@ -35,6 +36,7 @@ from dashboard.components.coldpool_data import (
     MODEL_SOURCES,
     THRESHOLDS,
     list_bottom_state_regions,
+    load_arctic_depth_profile,
     load_model,
     load_observed,
     load_observed_hauls,
@@ -732,6 +734,43 @@ def _obs_vs_model_scatter(region: str, model_choices: list[str]) -> None:
                    + (" The pooled row is the haul-weighted mean over the selection." if has_split else ""))
 
 
+def _depth_profile_card(region: str) -> None:
+    """T_b(z) by depth bin for the two Arctic shelves + the Simpson's-paradox explanation: why the
+    whole-shelf *headline mean* must not be compared across regions. Built by mhw-build-arctic-profile."""
+    prof = load_arctic_depth_profile()
+    if prof is None or prof.empty:
+        return
+    _names = {"chukchi": "Chukchi", "beaufort": "Beaufort"}
+    with st.container(border=True):
+        section_title("Why the headline mean isn't comparable across shelves — depth profile T_b(z)")
+        callout(
+            "The headline above is a <b>whole-shelf model average</b>. Comparing it between the "
+            "Chukchi and Beaufort is misleading, because the two shelves have very different "
+            "<b>depth distributions</b> (a Simpson's-paradox effect). A formal decomposition of the "
+            "small whole-shelf gap (Beaufort − Chukchi ≈ +0.2 °C) splits into a large "
+            "<b>composition</b> term (+1.0 °C, from the depth mix) that is offset by a "
+            "<b>within-depth</b> term (−0.8 °C): <b>at matched depths the Chukchi is the warmer "
+            "shelf in the upper ~60 m</b> (warm Pacific Summer Water inflow), while the Beaufort "
+            "edges ahead only deeper — so the near-equal whole-shelf means hide opposite structure. "
+            "Read the per-depth table, not the single headline.",
+            icon="⚖️", tint=AMBER)
+        idx = ["0–10 m", "10–20 m", "20–30 m", "30–50 m", "50–100 m", "100–200 m"]
+        tbl = pd.DataFrame(index=idx)
+        for rid in ("chukchi", "beaufort"):
+            d = prof[prof["region"] == rid].set_index("depth_bin")
+            nm = _names.get(rid, rid.title())
+            tbl[f"{nm} T_b (°C)"] = d["mean_bottom_temp"].reindex(idx)
+            tbl[f"{nm} shelf area %"] = d["area_pct"].reindex(idx)
+        st.dataframe(tbl, use_container_width=True)
+        st.caption(
+            "Area-weighted modelled bottom temperature T_b and each bin's share of shelf area — "
+            "CEFI MOM6 NEP, Jul–Sep climatology 2014–2024, ≤ 200 m (ETOPO mask). The Chukchi's broad "
+            "cold mid-shelf (≈ 83 % of its area at 30–100 m) pulls its whole-shelf mean down; the "
+            "narrow Beaufort carries far more warm shallow area. The upper-shelf Chukchi-warm pattern "
+            "is consistent with Pacific Summer Water (Pacini et al. 2019); the deep bins are "
+            "near-freezing in both. Model-only — not validated against in-region observations.")
+
+
 def _modelled_only(region: str) -> None:
     """Model-only region view (Arctic: Chukchi/Beaufort) — no survey, so the continuous modelled
     shelf series is the only product, shown with a prominent unvalidated-here banner."""
@@ -742,10 +781,13 @@ def _modelled_only(region: str) -> None:
         "unvalidated in this region."
     )
     _modelled_shelf_card(region)
+    _depth_profile_card(region)           # T_b(z) + Simpson's-paradox explanation (cross-shelf)
     _arctic_surface_bottom_card(region)   # OISST surface + model bottom, co-located (context, not validation)
     footer("Sources: CEFI MOM6 NEP (NOAA GFDL / PSL) — modelled bottom temperature over the ≤ 200 m "
-           "shelf (ETOPO mask); NOAA OISST — observed summer surface temperature. No in-region "
-           "survey → bottom is model-only, unvalidated here. Lagged, not near-real-time.")
+           "shelf (ETOPO mask); NOAA OISST — observed summer surface temperature. Depth profile: "
+           "MOM6 Jul–Sep climatology 2014–2024. No in-region survey → bottom is model-only, "
+           "unvalidated here. Pacific Summer Water context: Pacini et al. 2019 (doi:10.1029/2019JC015261). "
+           "Lagged, not near-real-time.")
 
 
 def render(group: str = "bering") -> None:

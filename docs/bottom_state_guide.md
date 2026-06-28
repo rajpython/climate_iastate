@@ -1,15 +1,18 @@
-# Bering Sea Bottom-State Guide
+# Alaska Shelf Bottom-State Guide
 *Alaska Marine Ecosystem Dashboard — Climate • Ocean • Ecosystems • Fisheries*
 
-*A plain-language guide to the Bering Sea **Bottom State** indicators — no oceanography or
-statistics background needed. After reading this, you should be able to explain every number
-and chart on the four Bering Sea pages: **Cold Pool & Bottom Temperature**, **Model
-Comparison**, **Cold-Pool Position**, and **Catch × Bottom State**.*
+*A plain-language guide to the **Bottom State** indicators across **all** Alaska shelf regions —
+no oceanography or statistics background needed. After reading this you should be able to explain
+every number and chart on the bottom-temperature pages for the **Bering Sea** (Eastern, Northern,
+Slope), the **Gulf of Alaska**, the **Aleutian Islands**, and the **Arctic** (Chukchi, Beaufort).*
 
-The cold pool is central here, but bottom state is broader: it also covers **bottom
-temperature**, the **observed survey index**, **model validation** and **model comparison**,
-and **catch–environment relationships**. For platform orientation see the **Dashboard Guide**;
-for the Alaska-wide marine-heatwave indicators see the **Marine Heatwave Guide**.
+The **eastern Bering Sea cold pool** is the centrepiece (§§2–8), but bottom state is broader: it
+also covers plain **bottom temperature** in the Gulf and Aleutians, **model validation** and
+**model comparison**, **catch–environment relationships**, and the **model-only Arctic** shelves.
+**The most important thing to know up front is *what the headline number is* in each region** —
+**observed** in the survey regions, **modelled** in the Arctic — which §1a lays out. For platform
+orientation see the **Dashboard Guide**; for the Alaska-wide marine-heatwave indicators see the
+**Marine Heatwave Guide**.
 
 ---
 
@@ -24,6 +27,39 @@ seafloor is**, measured three ways: from a **research survey** that takes the oc
 temperature with a ship, and from **two independent computer models** of the ocean.
 Comparing them validates the models — all three agree closely — and where the two models
 differ we get a direct measure of the uncertainty.
+
+---
+
+## 1a. What the headline number is, region by region
+
+Every bottom-state page leads with a **headline mean bottom-temperature card** (plus, for the
+Bering cold-pool regions, the cold-pool *area*). **Where that headline comes from differs by
+region**, and it is essential to read it correctly:
+
+| Region | Page type | **Headline source** | Observed or modelled? |
+|---|---|---|---|
+| **Eastern Bering Sea (EBS)** | Cold pool & bottom temp | AFSC cold-pool **area index** (≤ 2 °C, kriged) + observed mean bottom temp | **Observed** (survey) |
+| **Northern Bering Sea (NBS)** | Cold pool & bottom temp | Same as EBS (AFSC index; survey years sparser) | **Observed** (survey) |
+| **Bering Slope (BSS)** | Bottom temperature | Survey-derived mean bottom temp (per-haul, FOSS; 2002–2016, discontinued) | **Observed** (survey) |
+| **Gulf of Alaska (GOA)** | Bottom temperature | AFSC packaged **`goa_mean_temperature`** index (by INPFC subarea → annual) | **Observed** (survey) |
+| **Aleutian Islands (AI)** | Bottom temperature | AFSC packaged **`ai_mean_temperature`** index | **Observed** (survey) |
+| **Chukchi Sea** | Bottom temperature | **MOM6 NEP model**, ≤ 200 m shelf (no survey exists here) | **Modelled only** |
+| **Beaufort Sea** | Bottom temperature | **MOM6 NEP model**, ≤ 200 m shelf (no survey exists here) | **Modelled only** |
+
+**Read this as two groups:**
+
+- **Survey regions (EBS, NBS, Slope, GOA, AI) — the headline is *observed*.** The number you see
+  is measured by the NOAA AFSC summer bottom-trawl survey (a temperature sensor on the trawl gear
+  at each station), delivered either as AFSC's official kriged product (the cold-pool *area* index
+  for EBS/NBS; the packaged mean-temperature index for GOA/AI) or, for the discontinued slope
+  survey, as the per-haul mean. On these pages the models appear **only** as a *validation* overlay,
+  sampled at the survey's own hauls (§7). So the headline is ground truth, not a model.
+- **Arctic shelves (Chukchi, Beaufort) — the headline is *modelled*.** There is **no routine
+  bottom-trawl survey** in the Chukchi or Beaufort, so there is nothing to observe and nothing to
+  validate against in-region. The headline is the CEFI **MOM6 NEP** model's shelf-mean bottom
+  temperature — *modelled conditions, not measurements*. These pages are clearly banner-labelled
+  **model-only / unvalidated here**, and they carry an extra explanation (§9b) of why their
+  whole-shelf headline must **not** be compared between the two shelves.
 
 ---
 
@@ -553,6 +589,61 @@ temperature-indifferent species these numbers collapse toward a ~1× ratio and a
 
 ---
 
+## 9b. The Arctic shelves (Chukchi, Beaufort) — model-only, and a warning about the headline
+
+The **Chukchi** and **Beaufort** seas have **no routine AFSC bottom-trawl survey**. So unlike every
+other region, there is nothing observed to lead with: their bottom-temperature page headline is the
+**CEFI MOM6 NEP model's** shelf-mean bottom temperature over the ≤ 200 m shelf — *modelled
+conditions, not measurements*. The page carries a prominent **model-only / unvalidated-here** banner,
+and there is no catch page or validation panel (both need a survey).
+
+### Why you must not compare the two shelves' headline means
+
+The whole-shelf headline means come out **nearly equal** — Chukchi **≈ +1.5 °C**, Beaufort
+**≈ +1.7 °C** (MOM6, Jul–Sep climatology 2014–2024). Taken at face value that suggests the Beaufort
+is the *warmer* shelf, which is **misleading**. It is a textbook **composition effect (Simpson's
+paradox)**: the two shelves have very different **depth distributions**, and a whole-shelf average
+mixes depth and temperature together.
+
+Look at **bottom temperature by depth bin, T_b(z)** (area-weighted; the same table shown on the
+dashboard pages):
+
+| Depth bin | Chukchi T_b | Beaufort T_b | Chukchi shelf area % | Beaufort shelf area % |
+|---|---|---|---|---|
+| 0–10 m | **+8.6 °C** | +6.9 °C | 2.3 % | 10.2 % |
+| 10–20 m | **+6.7 °C** | +3.4 °C | 6.1 % | 15.2 % |
+| 20–30 m | **+4.4 °C** | +2.1 °C | 7.1 % | 12.4 % |
+| 30–50 m | **+1.0 °C** | +0.8 °C | 48.6 % | 28.7 % |
+| 50–100 m | +0.3 °C | −0.0 °C | 34.5 % | 19.9 % |
+| 100–200 m | −1.1 °C | −0.3 °C | 1.5 % | 13.6 % |
+
+**At matched depths the Chukchi is the *warmer* shelf through the upper ~60 m** — consistent with the
+warm **Pacific Summer Water** that flows north across the Chukchi shelf in summer (Pacini et al.
+2019). The Beaufort only edges ahead below ~60 m, where **both are near-freezing** anyway. A formal
+decomposition of the +0.2 °C whole-shelf gap confirms it: a **composition** term of **+1.0 °C** (the
+Beaufort's narrow shelf carries far more *warm shallow* area; the Chukchi's broad shelf is ~83 %
+*cold mid-shelf* at 30–100 m) is offset by a **within-depth** term of **−0.8 °C** (Chukchi warmer at
+like depths). The near-equal headline hides opposite structure — so **read the depth profile, not the
+single headline**, and never rank the two shelves by their whole-shelf mean.
+
+### Two honest caveats
+
+- **No in-region validation.** These are model values with no Chukchi/Beaufort survey to check them
+  against. The matched-depth pattern *agrees with known circulation* (Pacific Summer Water), which is
+  reassuring but is **consistency, not validation**.
+- **The deep difference is "Chukchi is cold," not "Beaufort is warm."** At 100–200 m both shelves are
+  near-freezing; the Chukchi is simply *colder* there (dense winter water draining Herald/Barrow
+  canyons), and that deep band is a tiny fraction of the Chukchi's area. It is **not** evidence of
+  warm Atlantic Water (whose core lies deeper than the 200 m shelf cap). The shallow modelled warmth
+  (7–9 °C at < 10 m) is plausible summer near-coastal warming but is not verified against in-situ
+  data and may be affected by the model's coarse resolution of the narrow shelf.
+
+*(Depth profile and decomposition: our own area-weighted computation from CEFI MOM6 NEP, Jul–Sep
+climatology 2014–2024, ETOPO ≤ 200 m shelf — `mhw-build-arctic-profile`. Pacific Summer Water on the
+Chukchi shelf: Pacini et al. 2019, see References.)*
+
+---
+
 ## 10. Limitations (please read before quoting numbers)
 
 - **No source is real-time.** The survey is annual and only available after each summer is
@@ -672,7 +763,7 @@ have seen is a full-shelf-footprint artifact, not the model's true bias (§7).
 
 ## Appendix A — Data availability across the five Alaska shelf regions
 
-This guide covers the eastern Bering Sea. For context, the table below summarises observed and
+This guide covers all Alaska shelf regions. The table below summarises observed and
 modelled **bottom-temperature** availability across the five Alaska shelf regions, from the
 three sources used throughout: the **survey** (AFSC summer bottom-trawl / cold-pool index),
 **Bering10K ROMS** (the Bering-Sea model), and **MOM6 NEP** (the Northeast Pacific model).
@@ -721,13 +812,18 @@ southern Chukchi edge).
   physical–biogeochemical ocean model for marine resource applications in the Northeast
   Pacific (MOM6-COBALT-NEP10k v1.0).* Geosci. Model Dev., 18, 5245–5290.
   https://doi.org/10.5194/gmd-18-5245-2025 — the MOM6 NEP model description.
+- **Pacini, A., Pickart, R. S., Bahr, F., et al. (2019).** *Characteristics and Transformation
+  of Pacific Winter Water on the Chukchi Sea Shelf in Late Spring.* J. Geophys. Res. Oceans,
+  124, 7153–7177. https://doi.org/10.1029/2019JC015261 — Pacific (winter/summer) water on the
+  Chukchi shelf and its cold near-freezing bottom layer; context for §9b (Arctic).
 - **Alaska Department of Fish & Game** — 2022 and 2023 closures of the Bering Sea snow crab
   fishery (reopened 2024).
 
 *Note on the snow-crab author list: Erin Fedewa (a co-author of Szuwalski et al. 2023) is
 the AFSC scientist who first pointed us toward this work.*
 
-*Data sources: NOAA AFSC cold-pool index (Zenodo 10.5281/zenodo.16915337, via GitHub
-afsc-gap-products/coldpool); NOAA PMEL/UW Bering10K ROMS hindcast (ACLIM, PMEL THREDDS);
-NOAA GFDL/PSL CEFI MOM6 NEP hindcast (PSL THREDDS / CEFI portal). This guide documents the
-**Bering Sea → Bottom State** indicators of the Alaska Marine Ecosystem Dashboard.*
+*Data sources: NOAA AFSC cold-pool index and packaged GOA/AI mean-temperature indices (Zenodo
+10.5281/zenodo.16915337, via GitHub afsc-gap-products/coldpool); per-haul survey temperatures via
+NOAA FOSS; NOAA PMEL/UW Bering10K ROMS hindcast (ACLIM, PMEL THREDDS); NOAA GFDL/PSL CEFI MOM6 NEP
+hindcast (PSL THREDDS / CEFI portal). This guide documents the **Bottom State** indicators across
+all Alaska shelf regions of the Alaska Marine Ecosystem Dashboard.*

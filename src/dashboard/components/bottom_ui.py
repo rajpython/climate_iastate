@@ -89,7 +89,7 @@ def callout(body_html: str, icon: str = "ℹ️", tint: str = BLUE) -> None:
         unsafe_allow_html=True)
 
 
-def footer(left_html: str, guide_url: str = "/bering_bottom_state_guide") -> None:
+def footer(left_html: str, guide_url: str = "/bottom_state_guide") -> None:
     """Footer row: data-sources note (left) + 'Learn more in the guide' link (right)."""
     f1, f2 = st.columns([3, 1])
     with f1:

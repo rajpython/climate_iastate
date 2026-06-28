@@ -309,7 +309,7 @@ with m_txt:
     )
 with m_btn:
     st.markdown("<div style='padding-top:1.6rem;'><a class='cpp-guidebtn' target='_self' "
-                "href='/bering_bottom_state_guide'>Learn more in the guide →</a></div>",
+                "href='/bottom_state_guide'>Learn more in the guide →</a></div>",
                 unsafe_allow_html=True)
 
 st.divider()

@@ -1,6 +1,6 @@
 # Cold Pool — Technical README
 
-Engineering companion to the plain-language `bering_bottom_state_guide.md`. Covers the data
+Engineering companion to the plain-language `bottom_state_guide.md`. Covers the data
 sources, modules, CLIs, derived artifacts, methods, API, dashboard, and validation numbers
 for the eastern Bering Sea (EBS) cold-pool feature.
 
@@ -157,7 +157,7 @@ biases largely cancel over the survey footprint — consistent with Seelanki et 
 
 ## 11. References
 
-See `bering_bottom_state_guide.md` §References: Kinney et al. 2022 (PLOS ONE; cold-pool
+See `bottom_state_guide.md` §References: Kinney et al. 2022 (PLOS ONE; cold-pool
 definition/ecology), Szuwalski et al. 2023 (Science; snow-crab collapse), Seelanki et al.
 2025 (GMD; MOM6-NEP10k Bering evaluation), Drenkard et al. 2025 (GMD; MOM6-COBALT-NEP10k
 v1.0). Discovery + source provenance: `docs/forecast_extension/catalog_report.md`.

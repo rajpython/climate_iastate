@@ -20,7 +20,7 @@ separated from the scientific survey.
 - **Commercial harvest ≠ survey.** Always labelled **fishery-dependent (commercial harvest)** to
   distinguish from the survey pages. The survey is a separate, fishery-independent program; no
   commercial vessel is part of it. See the survey-vs-commercial framing in
-  `bering_bottom_state_guide.md`.
+  `bottom_state_guide.md`.
 - **No forecasting / no confidential data ingest.** Same firm boundaries as the rest of the board.
 
 ## 2. Verified data-availability matrix (live-checked 2026-06-26)

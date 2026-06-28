@@ -169,6 +169,16 @@ def load_observed_hauls(region: str) -> pd.DataFrame | None:
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
+def load_arctic_depth_profile() -> pd.DataFrame | None:
+    """Arctic T_b(z) depth profile (Chukchi + Beaufort) for the Simpson's-paradox panel. None if
+    not built (`mhw-build-arctic-profile`)."""
+    p = MODEL_DIR / "depth_profile_arctic.parquet"
+    if not p.exists():
+        return None
+    return pd.read_parquet(p)
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
 def load_shelf_surface(region: str) -> pd.DataFrame | None:
     """Observed summer open-water shelf-surface SST series (OISST) for the bottom-vs-surface
     diagnostic. None if not built (e.g. regions with no OISST file, like AI / slope)."""
