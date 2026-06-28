@@ -114,6 +114,15 @@ TABLE_STYLES = [
 ]
 
 
+def when_note(text: str) -> None:
+    """Prominent temporal-context line for a card — the date window **and** averaging method, so a
+    reader never has to wonder whether a value is January or July. Place right after section_title."""
+    st.markdown(
+        f"<div style='margin:0.15rem 0 0.55rem 0; padding:0.35rem 0.65rem; background:#eef2f6; "
+        f"border-left:3px solid {BLUE}; border-radius:0.25rem; font-size:0.9rem; color:#1f2a36;'>"
+        f"🗓 <b>When:</b> {text}</div>", unsafe_allow_html=True)
+
+
 def styled_table(df: pd.DataFrame, row_bg: dict | None = None, precision: int = 2,
                  na_rep: str = "—") -> str:
     """Render any DataFrame as the shared styled HTML table (dark borders, bold shaded headers).

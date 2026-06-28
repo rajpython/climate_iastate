@@ -27,6 +27,7 @@ from dashboard.components.bottom_ui import (
     page_header,
     section_title,
     styled_table,
+    when_note,
 )
 from dashboard.components.coldpool_data import list_bottom_state_regions, region_label
 from mhw.bottom.regions import get_region
@@ -198,6 +199,8 @@ def render(group: str = "bering") -> None:
         section_title("Catch partitioned by thermal regime"
                       + (" (≤ 2 °C threshold)" if is_cold_pool else "") if is_cold_pool
                       else "Catch summary")
+        when_note("The selected year's <b>summer bottom-trawl survey</b> hauls — catch and bottom "
+                  "temperature recorded on the <b>same tow</b> (so each pairing is exact).")
         st.caption("All catch values are **CPUE** — survey catch *density* (kg/km² swept), a "
                    "relative abundance index. It is **not** total stock biomass or commercial "
                    "landings: the population over the whole shelf is far larger and depends on the "

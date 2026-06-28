@@ -28,6 +28,7 @@ from dashboard.components.bottom_ui import (
     page_header,
     section_title,
     styled_table,
+    when_note,
 )
 from dashboard.components.coldpool_data import (
     MODEL_COLORS,
@@ -70,6 +71,8 @@ def _cold_pool_models(region: str, model_choices: list[str]) -> None:
     if loaded:
         with st.container(border=True):
             section_title(f"Full-shelf model view — {' & '.join(loaded)}")
+            when_note("Model = each year's <b>early-July (~4 Jul)</b> survey-season snapshot over the "
+                      "≤200 m shelf; observed = AFSC <b>summer survey</b>. One value per year.")
             st.caption(
                 f"Each model's cold pool over its full ≤200 m shelf domain (its *own* view), shown "
                 f"against the observed survey at the **{thr_short}** threshold. The model domain is "
@@ -118,6 +121,8 @@ def _cold_pool_models(region: str, model_choices: list[str]) -> None:
         if len(monthly) >= 2:
             with st.container(border=True):
                 section_title("Model vs model — identical footing (≤200 m shelf, monthly)")
+                when_note("Both models on each year's <b>July monthly field</b>, ≤200 m shelf — "
+                          "identical time basis, no observations.")
                 st.caption(
                     f"The two models on **exactly** the same basis — same ≤200 m shelf domain, same "
                     f"July monthly-mean cadence, no observations — at the **{thr_short}** threshold. "
@@ -165,6 +170,8 @@ def _bottom_temp_models(region: str, model_choices: list[str]) -> None:
     full = {n: m for n, m in full.items() if m is not None}
     with st.container(border=True):
         section_title("Model bottom-temperature record — full region domain")
+        when_note("Each year's modelled bottom for <b>early July (~4 Jul)</b>, the survey season, "
+                  "over the ≤200 m shelf — a summer snapshot, not an annual mean.")
         if not full:
             st.warning(f"Model series not built for {region}. Run: "
                        f"`mhw-build-coldpool-model --source bering10k --region {region}` (and mom6_nep).")

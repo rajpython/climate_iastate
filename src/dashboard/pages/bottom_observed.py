@@ -31,6 +31,7 @@ from dashboard.components.bottom_ui import (
     page_header,
     section_title,
     styled_table,
+    when_note,
 )
 from dashboard.components.coldpool_data import (
     MODEL_COLORS,
@@ -67,6 +68,8 @@ def _survey_replicate_panel(region: str, model_choices: list[str], yr_range=None
         return False
     with st.container(border=True):
         section_title("Survey-replicated validation — model co-located with survey stations")
+        when_note("Model sampled at <b>each survey haul's own date and location</b> (nearest model "
+                  "time step within that summer's survey) — co-located in time and space.")
         st.caption(
             "Each model's bottom temperature is sampled **at the survey's own haul locations and "
             "dates**, then compared to observed gear temperature (Kearney 2021; Seelanki et al. "
@@ -139,6 +142,8 @@ def _cold_pool_observed(region: str, model_choices: list[str]) -> None:
 
     with st.container(border=True):
         section_title("Observed cold-pool index — AFSC bottom-trawl survey")
+        when_note("AFSC <b>summer bottom-trawl survey</b> — one value per survey year, kriged from "
+                  "that summer's haul bottom temperatures (no 2020 survey).")
         st.caption(
             f"The validated ground truth: area of the {region.upper()} survey footprint with bottom "
             "temperature at or below the selected threshold, plus mean bottom temperature. Annual, lagged."
@@ -272,6 +277,8 @@ def _packaged_index_card(region: str, df: pd.DataFrame) -> None:
     label = region_label(region)
     with st.container(border=True):
         section_title("Observed bottom temperature — AFSC bottom-trawl survey")
+        when_note("AFSC <b>summer bottom-trawl survey</b> (biennial) — area-weighted across "
+                  "subareas, one value per survey year.")
         st.caption(
             f"The official AFSC summer bottom-trawl survey mean bottom (gear) temperature for the "
             f"**{label}** — region-wide and by subarea, by survey year. This is a triennial/biennial "
@@ -343,6 +350,9 @@ def _modelled_shelf_card(region: str) -> None:
 
     with st.container(border=True):
         section_title("Modelled shelf bottom temperature — continuous (full hindcast)")
+        when_note("Each year's modelled bottom for <b>early July (~4 Jul)</b>, the survey season — "
+                  "MOM6 July monthly field (Bering10K: week nearest 4 Jul). A summer snapshot, not an "
+                  "annual mean.")
         if has_obs:
             st.caption(
                 "The model's area-weighted mean bottom temperature over the **≤ 200 m shelf**, every "
@@ -412,6 +422,8 @@ def _obs_surface_bottom_card(region: str) -> None:
 
     with st.container(border=True):
         section_title("Surface vs bottom temperature — observed (survey hauls)")
+        when_note("<b>Each haul's own summer cast</b> — surface and bottom measured at the same time "
+                  "and place (so the pairing is exact).")
         st.caption(
             "Each point is one survey haul: **surface** vs **bottom (gear)** temperature measured at "
             "the **same cast** — the directly *observed* stratification, perfectly co-located. Points "
@@ -471,6 +483,8 @@ def _arctic_surface_bottom_card(region: str) -> None:
 
     with st.container(border=True):
         section_title("Shelf surface vs bottom temperature — co-located (no survey here)")
+        when_note("<b>July–September</b>, the same summer window for both — OISST daily surface and "
+                  "MOM6 monthly bottom, averaged over open-water days on matching cells.")
         st.caption(
             "With no survey, surface and bottom are taken over the **same open-water ≤ 200 m shelf "
             "cells in the same summer (Jul–Sep) window**: observed **OISST surface** and modelled "
@@ -514,6 +528,8 @@ def _survey_derived_card(region: str) -> None:
 
     with st.container(border=True):
         section_title("Observed bottom temperature — AFSC survey hauls")
+        when_note("AFSC <b>summer slope survey, 2002–2016</b> (discontinued) — per-haul mean, one "
+                  "value per survey year.")
         st.caption("Observed bottom-temperature *conditions* for this deep-water region: the "
                    "survey bottom (gear) temperature, by survey year.")
         if obs is None or obs.empty:
@@ -684,6 +700,8 @@ def _obs_vs_model_scatter(region: str, model_choices: list[str]) -> None:
 
     with st.container(border=True):
         section_title("Observed vs model, haul-by-haul")
+        when_note("Each haul vs the model at <b>that haul's own date and location</b> "
+                  "(summer survey, nearest model time step).")
         split_note = " Western and eastern hauls are coloured separately." if has_split else ""
         models_note = " One panel per model." if len(loaded) > 1 else ""
         st.caption(
@@ -744,6 +762,8 @@ def _depth_profile_card(region: str) -> None:
     _names = {"chukchi": "Chukchi", "beaufort": "Beaufort"}
     with st.container(border=True):
         section_title("Why the headline mean isn't comparable across shelves — bottom temperature by depth")
+        when_note("<b>July–September</b> average, <b>2014–2024</b> climatology (MOM6, area-weighted "
+                  "by depth bin).")
         callout(
             "The headline above is a <b>whole-shelf model average</b>. Comparing it between the "
             "Chukchi and Beaufort is misleading, because the two shelves have very different "
