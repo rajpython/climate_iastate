@@ -1,10 +1,12 @@
-"""Routes for the AFSC observed cold-pool index (EBS bottom-trawl survey).
+"""Routes for AFSC observed bottom-state indices (Alaska shelf bottom-trawl surveys).
 
-The observed cold-pool index is the validation target for modelled bottom
-temperature (Bering10K ROMS, CEFI MOM6 NEP). Annual, summer-survey, lagged —
-clearly *not* near-real-time, and labelled as such.
+Region-aware: the **cold-pool area** index for the cold-pool regions (EBS/NBS) and the
+**mean bottom temperature** index for the bottom-temperature regions (GOA/AI). Both are the
+validation target for modelled bottom temperature (Bering10K ROMS, CEFI MOM6 NEP). Annual,
+summer-survey, lagged — clearly *not* near-real-time, and labelled as such. The modelled and
+apples-to-apples **kriged** cold-pool area are served alongside.
 
-Fetch with: ``mhw-fetch-coldpool``  (writes data/raw/coldpool_index_observed.parquet)
+Fetch with: ``mhw-fetch-coldpool --region <id>`` (writes data/raw/coldpool_index_observed_<id>.parquet)
 """
 from __future__ import annotations
 
@@ -41,6 +43,28 @@ _MODEL_NOTE = (
     "NOT strata-matched to the survey, so absolute areas run larger than observed. "
     "Compare interannual pattern and mean bottom temperature, not absolute area."
 )
+
+_KRIGED_NOTE = (
+    "Modelled cold-pool area produced by kriging the model's survey-replicated bottom "
+    "temperatures through AFSC's exact pipeline (ordinary kriging, 5 km grid EPSG:3338, "
+    "survey-area mask, count ≤ threshold × 25 km²). Differs from the observed index ONLY in "
+    "the temperatures, so it is directly comparable in absolute km² (cold-pool regions only)."
+)
+
+
+def _observed_meta(region: str) -> tuple[str, str]:
+    """Region-aware (source, note) for the observed index — cold-pool vs mean-bottom-temp."""
+    reg = BOTTOM_REGIONS.get(region)
+    name = reg.label if reg else region.upper()
+    kind = getattr(getattr(reg, "observed", None), "kind", None)
+    if kind == "mean_temperature":
+        return (f"AFSC {name} bottom-trawl survey — mean bottom temperature (observed)",
+                "Observed survey-derived mean bottom temperature; annual, summer survey, lagged. "
+                "Bottom-temperature region — there is no cold-pool area index, so the area_* "
+                "fields are null.")
+    return (f"AFSC {name} bottom-trawl survey — cold-pool index (observed)",
+            "Observed survey-derived cold-pool index; annual, summer survey. Lagged "
+            "(not near-real-time). Validation target for modelled bottom temperature.")
 
 
 def _check_region(region: str) -> str:
@@ -90,11 +114,12 @@ def get_cold_pool_observed(
     start_year: int | None = Query(None, description="First survey year (inclusive)"),
     end_year:   int | None = Query(None, description="Last survey year (inclusive)"),
 ):
-    """Return a region's AFSC observed cold-pool index time series.
+    """Return a region's AFSC observed bottom-state index time series.
 
-    Headline field is ``area_lte2_km2`` (area of the survey footprint with bottom
-    temperature ≤ 2 °C). Also returns the ≤1/0/−1 °C areas and mean bottom/surface
-    temperatures.
+    For cold-pool regions (EBS/NBS) the headline field is ``area_lte2_km2`` (survey-footprint
+    area with bottom temperature ≤ 2 °C), with the ≤1/0/−1 °C areas and mean bottom/surface
+    temperatures. For bottom-temperature regions (GOA/AI) the area_* fields are null and the
+    headline is ``mean_bottom_temp`` (see the payload ``source``/``note``).
     """
     region = _check_region(region)
     df = _load(region)
@@ -105,8 +130,11 @@ def get_cold_pool_observed(
     if df.empty:
         raise HTTPException(status_code=404, detail="No cold-pool data in requested range")
 
+    source, note = _observed_meta(region)
     return ColdPoolPayload(
+        source=source,
         region=region,
+        note=note,
         records=[
             ColdPoolRecord(
                 year=int(r["year"]),
@@ -155,6 +183,56 @@ def get_cold_pool_modelled(
                 area_lte0_km2=_clean(r.get("area_lte0_km2")),
                 area_lteminus1_km2=_clean(r.get("area_lteminus1_km2")),
                 mean_bottom_temp=_clean(r.get("mean_bottom_temp")),
+                mean_surface_temp=None,
+            )
+            for _, r in df.iterrows()
+        ],
+    )
+
+
+@router.get("/cold-pool/kriged-area", response_model=ColdPoolPayload, tags=["Cold Pool"])
+def get_cold_pool_kriged_area(
+    source:     str = Query("bering10k", description="Model source id (bering10k, mom6_nep)"),
+    region:     str = Query("ebs", description="Cold-pool region id (ebs, nbs)"),
+    start_year: int | None = Query(None, description="First year (inclusive)"),
+    end_year:   int | None = Query(None, description="Last year (inclusive)"),
+):
+    """Apples-to-apples modelled cold-pool area (kriged the way the survey is).
+
+    The model's survey-replicated bottom temperatures pushed through AFSC's exact kriging →
+    5 km grid → ≤-threshold count, so the area is directly comparable to ``/cold-pool/observed``
+    in absolute km² (cold-pool regions only). See the payload ``note``.
+    """
+    if source not in _MODEL_LABELS:
+        raise HTTPException(status_code=404, detail=f"Unknown model source {source!r}")
+    region = _check_region(region)
+    p = MODEL_DIR / f"kriged_area_{source}_{region}.parquet"
+    if not p.exists():
+        raise HTTPException(
+            status_code=503,
+            detail=f"Kriged area not built for {source!r}/{region!r}. "
+                   f"Run: mhw-build-kriged-area --source {source} --region {region}",
+        )
+    df = pd.read_parquet(p).sort_values("year").reset_index(drop=True)
+    if start_year is not None:
+        df = df[df["year"] >= start_year]
+    if end_year is not None:
+        df = df[df["year"] <= end_year]
+    if df.empty:
+        raise HTTPException(status_code=404, detail="No kriged-area data in requested range")
+
+    return ColdPoolPayload(
+        source=f"{_MODEL_LABELS[source]} — kriged like the survey (apples-to-apples)",
+        region=region,
+        note=_KRIGED_NOTE,
+        records=[
+            ColdPoolRecord(
+                year=int(r["year"]),
+                area_lte2_km2=_clean(r.get("area_lte2_km2")),
+                area_lte1_km2=_clean(r.get("area_lte1_km2")),
+                area_lte0_km2=_clean(r.get("area_lte0_km2")),
+                area_lteminus1_km2=_clean(r.get("area_lteminus1_km2")),
+                mean_bottom_temp=None,
                 mean_surface_temp=None,
             )
             for _, r in df.iterrows()
