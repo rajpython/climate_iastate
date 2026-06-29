@@ -101,6 +101,10 @@ def _kriged_area_panel(region: str, model_choices: list[str], base: pd.DataFrame
             st.markdown("**Agreement with the survey, absolute area** "
                         "(bias = model − observed; a true difference, not a footprint artifact):")
             st.markdown(styled_table(pd.DataFrame(rows).set_index("Model")), unsafe_allow_html=True)
+        if region == "nbs":
+            callout("The NBS survey ran in only a handful of years (sporadic since 2010), so these "
+                    "are <b>6–7 points</b> — read the <b>bias</b> (small for both models), not the "
+                    "year-to-year correlation, which is noisy on so few years.", icon="⚠️", tint=AMBER)
         callout("This kriged area reproduces AFSC's published index when fed the observed haul "
                 "temperatures (mean error ≈0.6 %, r≈1.0), so the modelled curve here is the model's "
                 "cold pool measured on the survey's own terms.", icon="✓", tint=GREEN)

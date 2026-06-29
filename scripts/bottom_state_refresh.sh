@@ -28,20 +28,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
-# Cold pool is an EBS/NBS product; the slope survey is discontinued (static), so it is not
-# re-fetched here. Catch covers all three surveys (EBS, NBS, BSS=slope).
-COLDPOOL_REGIONS=(ebs nbs)
-CATCH_SPECIES=(68580 69322 21720 21740 10110)   # snow crab · red king · cod · pollock · arrowtooth
-CATCH_SRVYS=(EBS NBS BSS)
+# Observed survey products with an annual release: cold pool (EBS/NBS) + the packaged
+# mean-bottom-temperature index (GOA/AI). The slope survey is discontinued (static) and the
+# Arctic has no survey, so neither is re-fetched. Catch is the 8-species union across groups,
+# fetched over every survey at once (single fetch per species avoids clobbering shared species).
+OBSERVED_REGIONS=(ebs nbs goa ai)
+CATCH_SPECIES=(68580 69322 21720 21740 10110 20510 30060 21921)
+# 68580 snow crab · 69322 red king · 21720 cod · 21740 pollock · 10110 arrowtooth
+# · 20510 sablefish · 30060 Pacific ocean perch · 21921 Atka mackerel
+CATCH_SRVYS=(EBS NBS BSS GOA AI)
 
 log() { printf '[%s] %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*"; }
 
 log "=== Bering bottom-state observed refresh ==="
 
-for region in "${COLDPOOL_REGIONS[@]}"; do
-    log "[coldpool] fetching observed index + hauls — ${region} …"
+for region in "${OBSERVED_REGIONS[@]}"; do
+    log "[observed] fetching survey index + hauls — ${region} …"
     docker compose exec -T api mhw-fetch-coldpool --region "${region}" \
-        || log "WARN: coldpool fetch failed for ${region} (continuing)"
+        || log "WARN: observed fetch failed for ${region} (continuing)"
 done
 
 for sp in "${CATCH_SPECIES[@]}"; do
