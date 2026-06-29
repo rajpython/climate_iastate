@@ -59,26 +59,44 @@ from dashboard.pages.research import render as research_render  # noqa: E402
 
 # --- Overview front door ------------------------------------------------------------------
 # Current-coverage cards (one per platform section). Restrained, equal-height grid; emoji kept
-# only in the page title. (title, concept, description, under_dev).
+# only in the page title. (title, concept, description, under_dev, links) where links is a list
+# of (label, url_path) for that section's pages — revealed on hover (see _HOME_CSS) so a visitor
+# can jump straight to a related page. url_paths must match the st.navigation registry below.
 _COVERAGE = [
     ("Marine Heatwaves", "Operational &amp; historical monitoring",
-     "Marine heatwave conditions across Alaska shelf ecosystems.", False),
+     "Marine heatwave conditions across Alaska shelf ecosystems.", False,
+     [("Marine Heatwaves", "marine_heatwaves")]),
     ("Bering Sea", "Bottom Conditions &amp; Climate–Fisheries Relationships",
      "Cold-pool indicators, bottom-temperature assessments, model validation, and "
-     "climate–fisheries relationships.", False),
+     "climate–fisheries relationships.", False,
+     [("Cold Pool & Bottom Temperature", "bering_bottom_observed"),
+      ("Model Comparison", "bering_bottom_models"),
+      ("Cold-Pool Position", "bering_cold_pool_position"),
+      ("Catch × Bottom State", "bering_catch")]),
     ("Gulf of Alaska", "Bottom Conditions &amp; Climate–Fisheries Relationships",
      "Bottom-temperature conditions and catch–environment relationships for the Gulf shelf "
-     "(survey index + MOM6 validation; no cold pool).", False),
+     "(survey index + MOM6 validation; no cold pool).", False,
+     [("Bottom Temperature", "goa_bottom_observed"),
+      ("Catch × Bottom State", "goa_catch")]),
     ("Aleutian Islands", "Bottom Conditions &amp; Climate–Fisheries Relationships",
      "Bottom-temperature conditions and catch–environment relationships for the Aleutian "
-     "shelf (survey index + MOM6 validation; no cold pool).", False),
+     "shelf (survey index + MOM6 validation; no cold pool).", False,
+     [("Bottom Temperature", "ai_bottom_observed"),
+      ("Catch × Bottom State", "ai_catch")]),
     ("Arctic", "Chukchi and Beaufort Shelf Ecosystems",
      "Modelled bottom-temperature conditions for the Arctic shelf (MOM6; model-only — no "
-     "in-region survey or validation).", False),
+     "in-region survey or validation).", False,
+     [("Bottom Temperature", "arctic_bottom_observed")]),
     ("Research", "Research Resources",
-     "Literature summaries, technical notes, forecast development, and project research.", False),
+     "Literature summaries, technical notes, forecast development, and project research.", False,
+     [("Overview", "research"),
+      ("Literature Summaries", "literature"),
+      ("Forecast Development", "forecast_development")]),
     ("Guides", "Documentation",
-     "Documentation, methodology, and background material.", False),
+     "Documentation, methodology, and background material.", False,
+     [("Dashboard Guide", "dashboard_guide"),
+      ("Marine Heatwave Guide", "marine_heatwave_guide"),
+      ("Bottom-State Guide", "bottom_state_guide")]),
 ]
 
 # Custom-class divs (not <p>) so the explanatory-font p-rule does not override these sizes.
@@ -93,11 +111,26 @@ _HOME_CSS = """<style>
     margin-bottom: 1.1rem; }
 .amed-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem;
     grid-auto-rows: 1fr; margin-bottom: 1.4rem; }
+/* Resting look is unchanged; the lift + link panel only appear on hover. A solid background
+   (matches the page) lets a hovered card float cleanly above its neighbours. */
 .amed-card { border: 1px solid rgba(130,130,130,0.28); border-radius: 0.5rem;
-    padding: 1.05rem 1.2rem; display: flex; flex-direction: column; }
+    padding: 1.05rem 1.2rem; display: flex; flex-direction: column; position: relative;
+    background: var(--background-color, #ffffff);
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.amed-card:hover { transform: translateY(-8px) scale(1.02); z-index: 10;
+    border-color: rgba(130,130,130,0.55);
+    box-shadow: 0 18px 38px rgba(0,0,0,0.20), 0 6px 12px rgba(0,0,0,0.12); }
 .amed-card-title { font-size: 1.12rem; font-weight: 700; margin-bottom: 0.3rem; }
 .amed-card-sub { font-size: 0.97rem; font-weight: 600; opacity: 0.95; margin-bottom: 0.35rem; }
 .amed-card-desc { font-size: 0.92rem; line-height: 1.45; opacity: 0.7; }
+/* Related-page links: collapsed (zero height) at rest, revealed on hover. */
+.amed-card-links { display: flex; flex-direction: column; gap: 0.18rem; max-height: 0;
+    overflow: hidden; opacity: 0; margin-top: 0;
+    transition: max-height .25s ease, opacity .2s ease, margin-top .2s ease; }
+.amed-card:hover .amed-card-links { max-height: 340px; opacity: 1; margin-top: 0.7rem; }
+.amed-card-links a { font-size: 0.86rem; font-weight: 600; line-height: 1.5;
+    color: var(--primary-color, #1f77b4); text-decoration: none; }
+.amed-card-links a:hover { text-decoration: underline; }
 .amed-card-tag { margin-top: auto; padding-top: 0.7rem; font-size: 0.72rem; font-weight: 700;
     letter-spacing: 0.09em; text-transform: uppercase; opacity: 0.5; }
 .amed-rule { border: none; border-top: 1px solid rgba(130,130,130,0.25); margin: 1.0rem 0 0.6rem; }
@@ -107,12 +140,18 @@ _HOME_CSS = """<style>
 </style>"""
 
 
-def _card_html(title: str, concept: str, desc: str, under_dev: bool) -> str:
+def _card_html(title: str, concept: str, desc: str, under_dev: bool,
+               links: list[tuple[str, str]] | None = None) -> str:
     parts = [f'<div class="amed-card-title">{title}</div>']
     if concept:
         parts.append(f'<div class="amed-card-sub">{concept}</div>')
     if desc:
         parts.append(f'<div class="amed-card-desc">{desc}</div>')
+    if links:
+        anchors = "".join(
+            f'<a href="/{path}" target="_self">→ {label}</a>' for label, path in links
+        )
+        parts.append(f'<div class="amed-card-links">{anchors}</div>')
     if under_dev:
         parts.append('<div class="amed-card-tag">Under development</div>')
     return f'<div class="amed-card">{"".join(parts)}</div>'
