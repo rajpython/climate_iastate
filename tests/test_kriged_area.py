@@ -1,9 +1,13 @@
 """Tests for the kriged cold-pool AREA pipeline — pure helpers (no network).
 
-The grid/mask/krige/count helpers are exercised on tiny in-memory inputs. The end-to-end
-"reproduce AFSC" check is a skip-if-data-missing integration test (no network: it only runs
-when the survey-replicate parquet and the trimmed survey-area geojson are already on disk).
+The grid/count helpers (make_grid, snap_extent, area_le) are pure NumPy and always run. The
+kriging tests need PyKrige (the optional ``[geo]`` extra, which CI deliberately doesn't build),
+so they ``skipif`` it's absent. The end-to-end "reproduce AFSC" check is a skip-if-data-missing
+integration test (no network: it only runs when the survey-replicate parquet and the trimmed
+survey-area geojson are already on disk).
 """
+import importlib.util
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -16,6 +20,10 @@ from mhw.bottom.kriged_area import (
     make_grid,
     snap_extent,
 )
+
+# PyKrige lives in the optional [geo] extra; CI installs only [api,dashboard,dev].
+needs_pykrige = pytest.mark.skipif(
+    importlib.util.find_spec("pykrige") is None, reason="pykrige ([geo] extra) not installed")
 
 
 # --- make_grid ---------------------------------------------------------------------------
@@ -63,6 +71,7 @@ def test_area_le_ignores_out_of_mask_cold_cells():
 
 
 # --- krige_to_grid -----------------------------------------------------------------------
+@needs_pykrige
 def test_krige_near_constant_field():
     # Kriging a near-constant signal (~5 °C) returns ~5 everywhere, so the area below 4 is
     # empty and the area below 6 is the whole grid. (A *perfectly* constant field is a
@@ -79,6 +88,7 @@ def test_krige_near_constant_field():
     assert area_le(field, inside, 6.0) == field.size * KM2_PER_CELL
 
 
+@needs_pykrige
 def test_krige_recovers_monotonic_gradient_sign():
     # A west→east warming ramp: the kriged field's west half should be colder than the east.
     xs = np.linspace(0, 100000, 60)
@@ -93,6 +103,7 @@ def test_krige_recovers_monotonic_gradient_sign():
 
 
 # --- integration: reproduce AFSC (skips unless data already present, no network) ----------
+@needs_pykrige
 def test_observed_kriged_area_reproduces_afsc_ebs():
     from pathlib import Path
 
