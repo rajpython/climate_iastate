@@ -181,6 +181,50 @@ salty.)
 
 ---
 
+## 3a. How we turn scattered points into an area: *kriging*
+
+The survey (and each model) gives bottom temperature at a few hundred **scattered
+points**, not everywhere. To get an **area**, we first need a temperature map covering the
+*whole* shelf. We build that map with **kriging** — the geostatistical interpolation AFSC
+uses for the official index.
+
+Kriging estimates the temperature at an unmeasured spot as a **weighted average of nearby
+measurements**, with two rules learned from the data itself: **closer points count more**,
+and **tightly-clustered points are discounted** so a cluster doesn't out-vote an isolated
+station. It learns *how fast* similarity fades with distance by fitting a curve called a
+**variogram**, then uses that curve to set the weights. The recipe (identical to AFSC's
+`coldpool` product):
+
+1. Project the haul points onto an equal-area map (Alaska Albers, EPSG:3338).
+2. Krige onto a fixed **5 km grid** masked to the survey area (ordinary kriging, exponential
+   variogram).
+3. **Count the grid cells at or below the threshold × 25 km² each** → the area.
+
+We verified this reproduces AFSC's published ≤ 2 °C index across every survey year (within
+~0.6 % on average), so the same machinery can be trusted on the models.
+
+**The same method for the models — so the comparison is apples-to-apples.** A model produces
+temperature on its *own* grid; integrating that directly would give an area over a different
+footprint by a different method — not comparable to the survey. So instead we **sample each
+model at the exact location and date of every survey haul** ("survey replication," §7),
+giving model temperatures at the **same points** the survey measured, and then push those
+through the **identical** kriging → 5 km grid → ≤ 2 °C count. ("At each haul" means the
+nearest model **grid cell** to the haul's location and the nearest model **time step** to its
+date — the model *week* for Bering10K, the model *month* for MOM6, since that is the finest
+resolution the models output; summer bottom temperature changes slowly enough that this is a
+faithful match.) The result: the model's
+cold-pool area and the observed area differ **only because the temperatures differ** — never
+because of the method, grid, or footprint.
+
+![Apples-to-apples cold-pool area by kriging — observed vs. model sampled at the same haul points](app/static/kriging_explainer.png)
+
+*EBS 2012. Left: the same survey hauls, coloured by observed bottom temperature (top) and by
+the Bering10K model sampled at those exact hauls (bottom). Right: each is kriged onto the
+identical 5 km grid and the ≤ 2 °C cells are summed. The two areas (370,100 vs. 361,175 km²)
+are directly comparable because only the input temperatures changed.*
+
+---
+
 ## 4. Three ways we measure the cold pool
 
 The whole point of the page is that we measure the same thing **three independent ways**
@@ -211,7 +255,7 @@ each haul records the **actual bottom temperature at that spot** (scientists cal
 "gear temperature" because it is measured on the trawl gear).
 
 To turn those hundreds of point measurements into an *area*, they fill in the map between
-stations (interpolation) to make a smooth temperature map of the surveyed shelf, then
+stations (interpolation — **kriging**, see §3a) to make a smooth temperature map of the surveyed shelf, then
 **add up the area of every patch colder than the threshold**. That total is the observed
 cold-pool index. Because the survey only ever visits shelf stations (its official
 footprint is about **490,000 km²** of shelf), its cold-pool number is inherently a
@@ -371,6 +415,15 @@ threshold control does not apply here.
 
 ### Bering Sea → "Model Comparison"
 
+**Panel B0 — Cold-pool area, apples-to-apples (kriged).** The headline panel: each model's
+**area in real km²**, measured the *same way as the survey* (model sampled at every haul, then
+kriged onto AFSC's 5 km grid and counted ≤ the threshold — see §3a). Because only the
+temperatures differ, the model and observed lines are directly comparable and the gap is a
+**genuine bias**, not a footprint artifact. A table reports each model's **bias / RMSE / r**
+against the observed index (EBS ≤ 2 °C: Bering10K +19,600 km², MOM6 +11,500 km² — far smaller
+than the full-shelf gap in B1, because B1's gap was mostly bookkeeping). This panel reproduces
+AFSC's published index to within ~0.6 % when fed the *observed* haul temps, so it is trustworthy.
+
 **Panel B1 — Full-shelf model view.** Each model's cold pool over its full ≤ 200 m shelf
 (its *own* view), shown against observed: a standardized **area** panel (pattern) and an
 absolute **bottom-temperature** panel. Here the MOM6 line sits ~1 °C warm — but this is the
@@ -391,19 +444,25 @@ pattern and correlations get noisier — the page notes this.
 
 ## 7. Understanding the comparison
 
-### Why is the area shown "standardized (z-score)" in the comparison?
-There is one wrinkle worth noting. The survey measures area over its **exact official survey
-footprint**. The models measure area over a slightly **larger shelf region** (everything
-shallower than 200 m). Because the models add up a bigger region, their **raw area numbers
-come out larger** than the survey's — especially in warmer years. That is a difference in
-*bookkeeping boundaries*, not a real disagreement.
+### Why is the area shown "standardized (z-score)" in the *full-shelf* panel?
+There is one wrinkle worth noting — and it applies **only to Panel B1** (the full-shelf view),
+not to the apples-to-apples Panel B0. In B1 the survey measures area over its **exact official
+survey footprint**, while each model measures area over a slightly **larger shelf region**
+(everything shallower than 200 m). Because the models add up a bigger region, their **raw area
+numbers come out larger** than the survey's — especially in warmer years. That is a difference
+in *bookkeeping boundaries*, not a real disagreement.
 
-To compare them **fairly**, the area panel shows each series **standardized** — a
+To compare them **fairly** in B1, the area panel shows each series **standardized** — a
 "z-score." In plain terms: instead of plotting the raw km², we plot **how far each year
 is above or below that series' own average, in standard steps.** This rescales all the
 lines to the same footing, so you can see whether they **rise and fall together** — which
 is the real question — without the boundary difference getting in the way. (The mean
 bottom-temperature panel does *not* need this trick, so it is shown in real °C.)
+
+**Panel B0 removes the need for this trick entirely.** By kriging the model temps the survey's
+own way (§3a), it puts both on the *identical* footprint and method, so it can plot **real km²**
+and read off a true bias. Use B0 for "how big is the model's cold pool, really," and B1 for the
+model's own full-shelf pattern over time.
 
 ### What does "Pearson r" mean?
 **Pearson r** is a single number, between −1 and +1, that measures **how tightly two

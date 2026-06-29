@@ -21,6 +21,8 @@ from plotly.subplots import make_subplots
 from dashboard.components.bottom_ui import (
     AMBER,
     BLUE,
+    GREEN,
+    callout,
     footer,
     inject_css,
     kpi_card,
@@ -35,6 +37,7 @@ from dashboard.components.coldpool_data import (
     MODEL_SOURCES,
     THRESHOLDS,
     list_bottom_state_regions,
+    load_kriged_area,
     load_model,
     load_observed,
     load_survey_replicate,
@@ -45,8 +48,67 @@ from dashboard.components.coldpool_data import (
 from mhw.bottom.regions import get_region
 
 
+def _kriged_area_panel(region: str, model_choices: list[str], base: pd.DataFrame,
+                       thr_col: str, thr_short: str) -> None:
+    """Apples-to-apples ABSOLUTE cold-pool area (B0).
+
+    Each model's survey-replicated temps kriged through AFSC's exact pipeline (same 5 km grid,
+    survey-area mask, ≤-threshold count) → an area directly comparable to the observed index in
+    absolute km². Unlike the full-shelf view below, this differs from observed *only* in the
+    temperatures, so we can show real km² (no z-scoring) and a true bias/RMSE.
+    """
+    kriged = {name: load_kriged_area(MODEL_SOURCES[name], region) for name in model_choices}
+    kriged = {name: k for name, k in kriged.items() if k is not None}
+    if not kriged:
+        return  # not built for this region — silently fall back to the views below
+    with st.container(border=True):
+        section_title("Cold-pool area — apples-to-apples (kriged the way the survey is)")
+        when_note("Each model sampled at <b>every survey haul</b> (nearest cell + time step), then "
+                  "kriged onto AFSC's <b>5 km survey grid</b> and summed below the threshold — the "
+                  "identical recipe used for the observed index.")
+        st.caption(
+            f"The defensible absolute-area comparison at the **{thr_short}** threshold: because the "
+            "model temperatures go through the *same* kriging, grid, mask, and cell count as the "
+            "survey, the two areas differ **only in the temperatures** — so we can compare real "
+            "km² (not just the standardized pattern shown below), and the gap is a genuine bias."
+        )
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=base["year"], y=base[thr_col], mode="lines+markers",
+                      name="Observed (survey, kriged)", line={"color": "black", "width": 2}))
+        rows = []
+        for name, k in kriged.items():
+            color = MODEL_COLORS.get(name, "gray")
+            k = k[(k["year"] >= base["year"].min()) & (k["year"] <= base["year"].max())]
+            fig.add_trace(go.Scatter(x=k["year"], y=k[thr_col], mode="lines+markers",
+                          name=f"{name} (kriged)", line={"color": color, "width": 2, "dash": "dash"}))
+            cc = base[["year", thr_col]].merge(k[["year", thr_col]], on="year",
+                                               suffixes=("_obs", "_mod")).dropna()
+            if len(cc) >= 3:
+                d = cc[f"{thr_col}_mod"] - cc[f"{thr_col}_obs"]
+                rows.append({
+                    "Model": name,
+                    "Bias (km²)": f"{d.mean():+,.0f}",
+                    "RMSE (km²)": f"{np.sqrt((d ** 2).mean()):,.0f}",
+                    "r": round(float(np.corrcoef(cc[f"{thr_col}_obs"], cc[f"{thr_col}_mod"])[0, 1]), 2),
+                    "Years": len(cc),
+                })
+        fig.update_yaxes(title_text=f"Cold-pool area {thr_short} (km²)", rangemode="tozero")
+        fig.update_layout(height=420, template="plotly_white",
+                          margin={"l": 80, "r": 20, "t": 30, "b": 40},
+                          legend={"orientation": "h", "y": 1.04, "yanchor": "bottom", "x": 0, "xanchor": "left"})
+        st.plotly_chart(fig, use_container_width=True)
+        if rows:
+            st.markdown("**Agreement with the survey, absolute area** "
+                        "(bias = model − observed; a true difference, not a footprint artifact):")
+            st.markdown(styled_table(pd.DataFrame(rows).set_index("Model")), unsafe_allow_html=True)
+        callout("This kriged area reproduces AFSC's published index when fed the observed haul "
+                "temperatures (mean error ≈0.6 %, r≈1.0), so the modelled curve here is the model's "
+                "cold pool measured on the survey's own terms.", icon="✓", tint=GREEN)
+
+
 def _cold_pool_models(region: str, model_choices: list[str]) -> None:
-    """Cold-pool-region view: full-shelf model vs observed (B1) + model-vs-model (B2)."""
+    """Cold-pool-region view: apples-to-apples kriged area (B0) + full-shelf model vs observed (B1)
+    + model-vs-model (B2)."""
     df = load_observed(region)
     if df is None:
         st.error(f"Cold-pool parquet not found for {region}. Run: `mhw-fetch-coldpool --region {region}`")
@@ -67,6 +129,9 @@ def _cold_pool_models(region: str, model_choices: list[str]) -> None:
     loaded = {name: m for name, m in loaded.items() if m is not None}
     base = df[(df["year"] >= yr_lo) & (df["year"] <= yr_hi)]
 
+    # ---- Panel B0: apples-to-apples kriged area (absolute km², the headline comparison) ----
+    _kriged_area_panel(region, model_choices, base, thr_col, thr_short)
+
     # ---- Panel B1: full-shelf model view vs observed ----
     if loaded:
         with st.container(border=True):
@@ -78,7 +143,8 @@ def _cold_pool_models(region: str, model_choices: list[str]) -> None:
                 f"against the observed survey at the **{thr_short}** threshold. The model domain is "
                 "larger than the survey footprint, so absolute area runs larger than the observed "
                 "index — area is therefore **standardized** (pattern), bottom temperature in absolute "
-                "°C. *For the model's true bias against the survey, see Cold Pool & Bottom Temperature.*"
+                "°C. *For the absolute, apples-to-apples area, see the kriged panel above; for the "
+                "model's true bias against the survey, see Cold Pool & Bottom Temperature.*"
             )
             cfig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12)
             cfig.add_trace(go.Scatter(x=base["year"], y=_z(base[thr_col]), mode="lines+markers",

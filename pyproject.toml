@@ -31,6 +31,7 @@ geo = [
     "matplotlib>=3.8.0",
     "cartopy>=0.22.0",
     "kaleido>=0.2.1",  # static export of plotly figures (plotly itself lives in `dashboard`)
+    "pykrige>=1.7",    # ordinary kriging — reproduce AFSC cold-pool AREA (mhw.bottom.kriged_area)
 ]
 # Dashboard: Streamlit UI + interactive plotting — needed from Step 7 onward.
 # plotly belongs here (imported only under src/dashboard/), so importing dashboard
@@ -67,6 +68,7 @@ mhw-fetch-coldpool = "mhw.fetch.coldpool:main"
 mhw-fetch-catch = "mhw.fetch.foss_catch:main"
 mhw-build-coldpool-model = "mhw.bottom.coldpool:main"
 mhw-build-survey-replicate = "mhw.bottom.survey_replicate:main"
+mhw-build-kriged-area = "mhw.bottom.kriged_area:main"
 mhw-build-bathymetry = "mhw.bottom.bathymetry:main"
 mhw-build-shelf-surface = "mhw.bottom.surface:main"
 mhw-build-arctic-profile = "mhw.bottom.arctic_profile:main"

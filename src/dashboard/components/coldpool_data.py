@@ -159,6 +159,18 @@ def load_model(source_id: str, region: str, monthly: bool = False) -> pd.DataFra
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
+def load_kriged_area(source_id: str, region: str) -> pd.DataFrame | None:
+    """Apples-to-apples modelled cold-pool AREA — the model's survey-replicated temps kriged
+    through AFSC's exact pipeline (same 5 km grid, survey-area mask, ≤-threshold count), so it
+    is directly comparable to the observed index in absolute km². None if not built
+    (`mhw-build-kriged-area`). Columns: year, area_lte{2,1,0,-1}_km2, n_points."""
+    p = MODEL_DIR / f"kriged_area_{source_id}_{region}.parquet"
+    if not p.exists():
+        return None
+    return pd.read_parquet(p).sort_values("year").reset_index(drop=True)
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
 def load_observed_hauls(region: str) -> pd.DataFrame | None:
     """Per-haul survey temperatures (year, lat/lon, gear_temperature, surface_temperature) for the
     observed surface-vs-bottom diagnostic. None if no haul file (e.g. the Arctic — no survey)."""
