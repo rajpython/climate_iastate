@@ -1,9 +1,9 @@
 """Model Comparison (Bering Sea: EBS, NBS, Slope).
 
 One region dropdown; the panels adapt to the region's product kind:
-  * **Cold-pool regions** (EBS, NBS) — each model's cold pool over its ≤200 m shelf domain vs
-    the observed survey (pattern), and the two models on identical footing (inter-model
-    uncertainty). The threshold dropdown drives the area.
+  * **Cold-pool regions** (SEBS, NBS) — two panels, both in absolute km²: each model's cold-pool
+    area kriged exactly like the survey (apples-to-apples, with bias/RMSE), and the two models on
+    identical footing (inter-model uncertainty). The threshold dropdown drives the area.
   * **Bottom-temperature regions** (Bering slope) — each model's mean bottom temperature over
     its full region domain across the whole period, with the sporadic survey means overlaid.
 
@@ -43,9 +43,67 @@ from dashboard.components.coldpool_data import (
     load_survey_replicate,
     region_label,
     threshold_short,
-    zscore as _z,
 )
 from mhw.bottom.regions import get_region
+
+# Model-validation panels live with the observed page module but render here now (Option 1: the
+# Bottom Temperature page is observed-only; all model comparison lives on this page).
+from dashboard.pages.bottom_observed import (  # noqa: E402
+    _bias_interpretation,
+    _obs_vs_model_scatter,
+    _survey_replicate_panel,
+)
+
+
+def _kriged_temp_panel(region: str, model_choices: list[str], base: pd.DataFrame) -> None:
+    """Apples-to-apples mean bottom TEMPERATURE — companion to the kriged area, from the same kriging.
+
+    Each model's survey-replicated temps are kriged onto AFSC's 5 km grid and averaged over the
+    survey-area mask; the observed reference is AFSC's published mean (which is that same kriged-mean,
+    verified to ≈0.003 °C). So model and survey go through the identical pipeline — the gap is a true
+    bias in °C, not a domain artifact.
+    """
+    kriged = {name: load_kriged_area(MODEL_SOURCES[name], region) for name in model_choices}
+    kriged = {n: k for n, k in kriged.items()
+              if k is not None and "mean_bottom_temp" in k.columns}
+    if not kriged or "mean_bottom_temp" not in base:
+        return
+    with st.container(border=True):
+        section_title("Mean bottom temperature — apples-to-apples (kriged the way the survey is)")
+        when_note("Each model sampled at <b>every survey haul</b>, kriged onto AFSC's <b>5 km survey "
+                  "grid</b>, then averaged over the survey area — the same recipe (and the same kriging) "
+                  "behind the cold-pool area below and behind the observed mean bottom temperature.")
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=base["year"], y=base["mean_bottom_temp"], mode="lines+markers",
+                      name="Observed (survey, kriged)", line={"color": "black", "width": 2}))
+        rows = []
+        for name, k in kriged.items():
+            color = MODEL_COLORS.get(name, "gray")
+            k = k[(k["year"] >= base["year"].min()) & (k["year"] <= base["year"].max())]
+            fig.add_trace(go.Scatter(x=k["year"], y=k["mean_bottom_temp"], mode="lines+markers",
+                          name=f"{name} (kriged)", line={"color": color, "width": 2, "dash": "dash"}))
+            cc = base[["year", "mean_bottom_temp"]].merge(
+                k[["year", "mean_bottom_temp"]], on="year", suffixes=("_obs", "_mod")).dropna()
+            if len(cc) >= 3:
+                d = cc["mean_bottom_temp_mod"] - cc["mean_bottom_temp_obs"]
+                rows.append({
+                    "Model": name,
+                    "Bias (°C)": f"{d.mean():+.2f}",
+                    "RMSE (°C)": f"{np.sqrt((d ** 2).mean()):.2f}",
+                    "r": round(float(np.corrcoef(cc["mean_bottom_temp_obs"], cc["mean_bottom_temp_mod"])[0, 1]), 2),
+                    "Years": len(cc),
+                })
+        fig.add_hline(y=2.0, line_dash="dot", line_color="gray", line_width=1,
+                      annotation_text="2 °C", annotation_font_size=9)
+        fig.update_yaxes(title_text="Mean bottom temp (°C)")
+        fig.update_layout(height=420, template="plotly_white",
+                          margin={"l": 80, "r": 20, "t": 30, "b": 40},
+                          legend={"orientation": "h", "y": 1.04, "yanchor": "bottom", "x": 0, "xanchor": "left"})
+        st.plotly_chart(fig, use_container_width=True)
+        if rows:
+            st.markdown("**Agreement with the survey, mean bottom temperature** "
+                        "(bias = model − observed, °C):")
+            st.markdown(styled_table(pd.DataFrame(rows).set_index("Model")), unsafe_allow_html=True)
 
 
 def _kriged_area_panel(region: str, model_choices: list[str], base: pd.DataFrame,
@@ -101,6 +159,16 @@ def _kriged_area_panel(region: str, model_choices: list[str], base: pd.DataFrame
             st.markdown("**Agreement with the survey, absolute area** "
                         "(bias = model − observed; a true difference, not a footprint artifact):")
             st.markdown(styled_table(pd.DataFrame(rows).set_index("Model")), unsafe_allow_html=True)
+            callout(
+                "<b>How to read this:</b> &nbsp;<b>Bias</b> is the average signed gap "
+                "(model − observed) in km² — <b>+</b> means the model's cold pool runs <i>larger</i> "
+                "than the survey's, <b>−</b> means smaller; it's the systematic offset. &nbsp;"
+                "<b>RMSE</b> is the typical size of the year-to-year error in km² (always ≥ |bias|): "
+                "it folds in both the bias <i>and</i> the scatter, so a small bias with a large RMSE "
+                "means the model is right <i>on average</i> but off in individual years. &nbsp;"
+                "<b>r</b> is the year-to-year pattern correlation — whether the model rises and falls "
+                "<i>in step</i> with the survey (1 = perfect tracking), independent of any offset.",
+                icon="📖", tint=BLUE)
         if region == "nbs":
             callout("The NBS survey ran in only a handful of years (sporadic since 2010), so these "
                     "are <b>6–7 points</b> — read the <b>bias</b> (small for both models), not the "
@@ -111,8 +179,9 @@ def _kriged_area_panel(region: str, model_choices: list[str], base: pd.DataFrame
 
 
 def _cold_pool_models(region: str, model_choices: list[str]) -> None:
-    """Cold-pool-region view: apples-to-apples kriged area (B0) + full-shelf model vs observed (B1)
-    + model-vs-model (B2)."""
+    """Cold-pool-region view: three panels — apples-to-apples kriged mean bottom *temperature* and
+    kriged cold-pool *area* vs the survey (both absolute, from one kriging, with bias/RMSE), then
+    model-vs-model on identical footing (absolute) with the survey overlaid for reference."""
     df = load_observed(region)
     if df is None:
         st.error(f"Cold-pool parquet not found for {region}. Run: `mhw-fetch-coldpool --region {region}`")
@@ -126,65 +195,17 @@ def _cold_pool_models(region: str, model_choices: list[str]) -> None:
         st.sidebar.caption("⚠️ At very cold thresholds (≤ 0 / −1 °C) many years have near-"
                            "zero area, so the standardized pattern and correlations get noisy.")
 
-    loaded = {name: load_model(MODEL_SOURCES[name], region) for name in model_choices}
-    for name, m in loaded.items():
-        if m is None:
-            st.warning(f"{name} modelled cold pool not built yet. Run: `mhw-build-coldpool-model`")
-    loaded = {name: m for name, m in loaded.items() if m is not None}
     base = df[(df["year"] >= yr_lo) & (df["year"] <= yr_hi)]
 
-    # ---- Panel B0: apples-to-apples kriged area (absolute km², the headline comparison) ----
+    # ---- Panel 1: apples-to-apples kriged mean bottom TEMPERATURE ----
+    _kriged_temp_panel(region, model_choices, base)
+    # ---- Panel 2: apples-to-apples kriged cold-pool AREA (same kriging) ----
+    # (The model's full-shelf view is deliberately NOT shown: the model domain is larger than the
+    # survey footprint, so its absolute area/temperature would be a footprint artifact. These two
+    # kriged panels are the honest absolute comparisons.)
     _kriged_area_panel(region, model_choices, base, thr_col, thr_short)
 
-    # ---- Panel B1: full-shelf model view vs observed ----
-    if loaded:
-        with st.container(border=True):
-            section_title(f"Full-shelf model view — {' & '.join(loaded)}")
-            when_note("Model = each year's <b>early-July (~4 Jul)</b> survey-season snapshot over the "
-                      "≤200 m shelf; observed = AFSC <b>summer survey</b>. One value per year.")
-            st.caption(
-                f"Each model's cold pool over its full ≤200 m shelf domain (its *own* view), shown "
-                f"against the observed survey at the **{thr_short}** threshold. The model domain is "
-                "larger than the survey footprint, so absolute area runs larger than the observed "
-                "index — area is therefore **standardized** (pattern), bottom temperature in absolute "
-                "°C. *For the absolute, apples-to-apples area, see the kriged panel above; for the "
-                "model's true bias against the survey, see Cold Pool & Bottom Temperature.*"
-            )
-            cfig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12)
-            cfig.add_trace(go.Scatter(x=base["year"], y=_z(base[thr_col]), mode="lines+markers",
-                           name="Observed", line={"color": "black", "width": 2}), row=1, col=1)
-            cfig.add_trace(go.Scatter(x=base["year"], y=base["mean_bottom_temp"], mode="lines+markers",
-                           name="Observed", showlegend=False, line={"color": "black", "width": 2}), row=2, col=1)
-            rows = []
-            for name, mdf in loaded.items():
-                color = MODEL_COLORS.get(name, "gray")
-                m = mdf[(mdf["year"] >= yr_lo) & (mdf["year"] <= yr_hi)]
-                cfig.add_trace(go.Scatter(x=m["year"], y=_z(m[thr_col]), mode="lines+markers",
-                               name=name, line={"color": color, "width": 2, "dash": "dash"}), row=1, col=1)
-                cfig.add_trace(go.Scatter(x=m["year"], y=m["mean_bottom_temp"], mode="lines+markers",
-                               name=name, showlegend=False, line={"color": color, "width": 2, "dash": "dash"}), row=2, col=1)
-                cc = base.merge(m, on="year", suffixes=("_obs", "_mod")).dropna(
-                    subset=[f"{thr_col}_obs", f"{thr_col}_mod", "mean_bottom_temp_obs", "mean_bottom_temp_mod"])
-                if len(cc) >= 3:
-                    rows.append({
-                        "Model": name,
-                        f"r (area {thr_short})": round(float(np.corrcoef(cc[f"{thr_col}_obs"], cc[f"{thr_col}_mod"])[0, 1]), 2),
-                        "r (bottom temp)": round(float(np.corrcoef(cc["mean_bottom_temp_obs"], cc["mean_bottom_temp_mod"])[0, 1]), 2),
-                        "Years": len(cc),
-                    })
-            cfig.update_yaxes(title_text=f"Cold-pool area {thr_short} (z-score)", row=1, col=1)
-            cfig.add_hline(y=2.0, line_dash="dot", line_color="gray", line_width=1, row=2, col=1)
-            cfig.update_yaxes(title_text="Mean bottom temp (°C)", row=2, col=1)
-            cfig.update_layout(height=600, template="plotly_white",
-                               margin={"l": 70, "r": 20, "t": 64, "b": 40},
-                               legend={"orientation": "h", "y": 1.06, "yanchor": "bottom", "x": 0, "xanchor": "left"})
-            st.plotly_chart(cfig, use_container_width=True)
-            if rows:
-                st.markdown("**Pattern agreement with the survey** (*r* = correlation):")
-                st.markdown(styled_table(pd.DataFrame(rows).set_index("Model")),
-                            unsafe_allow_html=True)
-
-    # ---- Panel B2: model vs model, identical footing (≤200 m shelf, monthly) ----
+    # ---- Panel 3: model vs model, identical footing (≤200 m shelf, monthly) ----
     if len(model_choices) >= 2:
         monthly = {name: load_model(MODEL_SOURCES[name], region, monthly=True) for name in model_choices}
         monthly = {name: m for name, m in monthly.items() if m is not None}
@@ -192,24 +213,33 @@ def _cold_pool_models(region: str, model_choices: list[str]) -> None:
             with st.container(border=True):
                 section_title("Model vs model — identical footing (≤200 m shelf, monthly)")
                 when_note("Both models on each year's <b>July monthly field</b>, ≤200 m shelf — "
-                          "identical time basis, no observations.")
+                          "identical time basis. The survey is overlaid only as a light reference.")
                 st.caption(
                     f"The two models on **exactly** the same basis — same ≤200 m shelf domain, same "
-                    f"July monthly-mean cadence, no observations — at the **{thr_short}** threshold. "
-                    "This isolates genuine model-to-model differences: where they agree we can be "
-                    "confident; where they diverge is the inter-model uncertainty."
+                    f"July monthly-mean cadence — at the **{thr_short}** threshold. This isolates "
+                    "genuine model-to-model differences: where they agree we can be confident; where "
+                    "they diverge is the inter-model uncertainty. The **observed survey** is drawn as "
+                    "a light dashed line for context only — it sits on the smaller survey footprint, "
+                    "not the model shelf, so don't read the model–observed gap here (that's the kriged "
+                    "panels above)."
                 )
                 bfig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12)
+                bfig.add_trace(go.Scatter(x=base["year"], y=base[thr_col], mode="lines",
+                               name="Observed (survey footprint)", opacity=0.5,
+                               line={"color": "gray", "width": 1.5, "dash": "dot"}), row=1, col=1)
+                bfig.add_trace(go.Scatter(x=base["year"], y=base["mean_bottom_temp"], mode="lines",
+                               name="Observed", showlegend=False, opacity=0.5,
+                               line={"color": "gray", "width": 1.5, "dash": "dot"}), row=2, col=1)
                 series = {}
                 for name, mdf in monthly.items():
                     color = MODEL_COLORS.get(name, "gray")
                     m = mdf[(mdf["year"] >= yr_lo) & (mdf["year"] <= yr_hi)]
                     series[name] = m.set_index("year")
-                    bfig.add_trace(go.Scatter(x=m["year"], y=_z(m[thr_col]), mode="lines+markers",
+                    bfig.add_trace(go.Scatter(x=m["year"], y=m[thr_col], mode="lines+markers",
                                    name=name, line={"color": color, "width": 2}), row=1, col=1)
                     bfig.add_trace(go.Scatter(x=m["year"], y=m["mean_bottom_temp"], mode="lines+markers",
                                    name=name, showlegend=False, line={"color": color, "width": 2}), row=2, col=1)
-                bfig.update_yaxes(title_text=f"Cold-pool area {thr_short} (z-score)", row=1, col=1)
+                bfig.update_yaxes(title_text=f"Cold-pool area {thr_short} (km²)", rangemode="tozero", row=1, col=1)
                 bfig.update_yaxes(title_text="Mean bottom temp (°C)", row=2, col=1)
                 bfig.update_layout(height=600, template="plotly_white",
                                    margin={"l": 70, "r": 20, "t": 64, "b": 40},
@@ -271,6 +301,16 @@ def _bottom_temp_models(region: str, model_choices: list[str]) -> None:
                          legend={"orientation": "h", "y": 1.06, "yanchor": "bottom", "x": 0, "xanchor": "left"})
         st.plotly_chart(f2, use_container_width=True)
 
+    # Survey-replicated validation (model co-located at the survey hauls) — the model's true skill,
+    # moved here from the observed page so all model comparison lives on this page.
+    if _survey_replicate_panel(region, model_choices):
+        _obs_vs_model_scatter(region, model_choices)
+        if load_observed(region) is not None:
+            _bias_interpretation(region, model_choices)
+    else:
+        st.warning(f"Survey replicate not built for {region}. Run: "
+                   f"`mhw-build-survey-replicate --source mom6_nep --region {region}`.")
+
 
 def render(group: str = "bering") -> None:
     """Render the Model Comparison page (page config/fonts owned by the navigation shell)."""
@@ -291,12 +331,13 @@ def render(group: str = "bering") -> None:
                          "this region, and how they compare to each other. For each model's true "
                          "skill against the survey, see Cold Pool & Bottom Temperature."))
 
+    valid_labels = [lbl for lbl, sid in MODEL_SOURCES.items() if sid in reg.valid_sources]
     model_choices = st.sidebar.multiselect(
-        "Models to show", list(MODEL_SOURCES), default=list(MODEL_SOURCES),
-        help="Pick one or both regional models.",
+        "Models to show", valid_labels, default=valid_labels,
+        help="Pick the regional model(s) valid for this region.",
     )
     if not model_choices:
-        st.info("Pick one or both models in the sidebar.")
+        st.info("Pick at least one model in the sidebar.")
         return
 
     if is_cold_pool:

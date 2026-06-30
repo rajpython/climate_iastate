@@ -77,11 +77,13 @@ _COVERAGE = [
      "Bottom-temperature conditions and catch–environment relationships for the Gulf shelf "
      "(survey index + MOM6 validation; no cold pool).", False,
      [("Bottom Temperature", "goa_bottom_observed"),
+      ("Model Comparison", "goa_bottom_models"),
       ("Catch × Bottom State", "goa_catch")]),
     ("Aleutian Islands", "Bottom Conditions &amp; Climate–Fisheries Relationships",
      "Bottom-temperature conditions and catch–environment relationships for the Aleutian "
      "shelf (survey index + MOM6 validation; no cold pool).", False,
      [("Bottom Temperature", "ai_bottom_observed"),
+      ("Model Comparison", "ai_bottom_models"),
       ("Catch × Bottom State", "ai_catch")]),
     ("Arctic", "Chukchi and Beaufort Shelf Ecosystems",
      "Modelled bottom-temperature conditions for the Arctic shelf (MOM6; model-only — no "
@@ -215,14 +217,18 @@ nav = {
     "Gulf of Alaska": [
         st.Page(lambda: bottom_observed_render(group="goa"),
                 title="Bottom Temperature", url_path="goa_bottom_observed"),
+        st.Page(lambda: bottom_models_render(group="goa"),
+                title="Model Comparison", url_path="goa_bottom_models"),
         st.Page(lambda: catch_render(group="goa"),
                 title="Catch × Bottom State", url_path="goa_catch"),
     ],
-    # Like the Gulf, the Aleutians have no cold pool and are MOM6-only — bottom-temperature
-    # + catch pages (no model-comparison / cold-pool-position page).
+    # Like the Gulf, the Aleutians have no cold pool and are MOM6-only — observed bottom-temperature,
+    # a model-comparison page (continuous record + survey-replicated skill), and catch.
     "Aleutian Islands": [
         st.Page(lambda: bottom_observed_render(group="ai"),
                 title="Bottom Temperature", url_path="ai_bottom_observed"),
+        st.Page(lambda: bottom_models_render(group="ai"),
+                title="Model Comparison", url_path="ai_bottom_models"),
         st.Page(lambda: catch_render(group="ai"),
                 title="Catch × Bottom State", url_path="ai_catch"),
     ],
