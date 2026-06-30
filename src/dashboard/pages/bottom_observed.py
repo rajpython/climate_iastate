@@ -425,12 +425,11 @@ def _obs_surface_bottom_card(region: str) -> None:
                   "and place (so the pairing is exact).")
         st.caption(
             "Each point is one survey haul: **surface** vs **bottom (gear)** temperature measured at "
-            "the **same cast** — the directly *observed* stratification, perfectly co-located. Points "
-            "on the dashed **1:1 line** are well-mixed; points far **below** it (bottom colder than "
-            "surface) are strongly stratified (e.g. the cold pool). The dotted **45° line through the "
-            "means** is the 1:1 line shifted down by the average surface−bottom gap (the typical "
-            "stratification); the green **line of best fit** shows how strongly bottom tracks surface "
-            "(slope ≈ 1 ⇒ moves together; flatter ⇒ bottom decoupled from surface). Not a validation."
+            "the **same cast** — the directly *observed* stratification, perfectly co-located. The "
+            "dotted red **45° line through the means** is a slope-1 reference centred on the cloud; "
+            "the green **line of best fit** shows how strongly bottom tracks surface (slope ≈ 1 ⇒ they "
+            "move together; flatter ⇒ bottom decoupled from surface, e.g. under the cold pool). Not a "
+            "validation."
         )
         c1, c2 = st.columns([1, 1.4])
         mode = c1.radio("Years", ["Cumulative (start → year)", "Single year"], key=f"sb_mode_{region}")
@@ -453,23 +452,25 @@ def _obs_surface_bottom_card(region: str) -> None:
             kpi_card("Surface–bottom corr", f"{r:+.2f}" if pd.notna(r) else "—", BLUE,
                      sub=f"{len(sel):,} hauls"),
         ], cols=2, template="1fr 1fr 0.9fr")
-        lo = float(min(sel["surface_temperature"].min(), sel["gear_temperature"].min())) - 0.3
-        hi = float(max(sel["surface_temperature"].max(), sel["gear_temperature"].max())) + 0.3
         sx, sy = sel["surface_temperature"], sel["gear_temperature"]
         mx, my = float(sx.mean()), float(sy.mean())
+        # Centre each cloud in an equal-aspect square (common span on both axes, but each axis
+        # centred on its own data) so the points fill the frame and the slope-1 line still reads 45°.
+        pad = 0.4
+        span = max(float(sx.max() - sx.min()), float(sy.max() - sy.min())) + 2 * pad
+        x_lo, x_hi = mx - span / 2, mx + span / 2
+        y_lo, y_hi = my - span / 2, my + span / 2
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=[lo, hi], y=[lo, hi], mode="lines", name="1:1 (well-mixed)",
-                                 line={"color": "#444", "width": 1, "dash": "dash"}, hoverinfo="skip"))
-        # 45° line (slope 1) through the means — the 1:1 line shifted by the mean surface−bottom gap;
-        # how far it sits below 1:1 is the typical stratification.
+        # 45° line (slope 1) through the means — its height vs the points shows the typical
+        # stratification; compare the green best-fit slope against it.
         off = my - mx
-        fig.add_trace(go.Scatter(x=[lo, hi], y=[lo + off, hi + off], mode="lines",
+        fig.add_trace(go.Scatter(x=[x_lo, x_hi], y=[x_lo + off, x_hi + off], mode="lines",
                                  name="45° through means", hoverinfo="skip",
                                  line={"color": "#d62728", "width": 1.5, "dash": "dot"}))
         # Line of best fit (OLS bottom ~ surface): its slope shows how strongly bottom tracks surface.
         if len(sel) >= 2:
             b1, b0 = np.polyfit(sx.to_numpy(), sy.to_numpy(), 1)
-            fig.add_trace(go.Scatter(x=[lo, hi], y=[b0 + b1 * lo, b0 + b1 * hi], mode="lines",
+            fig.add_trace(go.Scatter(x=[x_lo, x_hi], y=[b0 + b1 * x_lo, b0 + b1 * x_hi], mode="lines",
                                      name=f"best fit (slope {b1:.2f})", hoverinfo="skip",
                                      line={"color": "#2ca02c", "width": 2}))
         fig.add_trace(go.Scatter(
@@ -477,8 +478,8 @@ def _obs_surface_bottom_card(region: str) -> None:
             name=f"hauls (n={len(sel):,})",
             marker={"color": "#1f77b4", "size": 5, "opacity": 0.4, "line": {"width": 0}},
             hovertemplate="surface %{x:.1f} °C<br>bottom %{y:.1f} °C<extra></extra>"))
-        fig.update_xaxes(title_text="Surface temperature (°C)", range=[lo, hi])
-        fig.update_yaxes(title_text="Bottom temperature (°C)", range=[lo, hi], scaleanchor="x", scaleratio=1)
+        fig.update_xaxes(title_text="Surface temperature (°C)", range=[x_lo, x_hi])
+        fig.update_yaxes(title_text="Bottom temperature (°C)", range=[y_lo, y_hi], scaleanchor="x", scaleratio=1)
         fig.update_layout(height=460, template="plotly_white", margin={"l": 60, "r": 20, "t": 44, "b": 50},
                           legend={"orientation": "h", "y": 1.03, "yanchor": "bottom", "x": 0, "xanchor": "left"})
         st.markdown(f"**{label}** · {len(sel):,} hauls")
