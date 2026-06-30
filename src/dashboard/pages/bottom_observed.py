@@ -111,8 +111,10 @@ def _survey_replicate_panel(region: str, model_choices: list[str], yr_range=None
     return True
 
 
-def _cold_pool_observed(region: str, model_choices: list[str]) -> None:
-    """Cold-pool-region view: observed cold-pool index card + survey-replicated validation."""
+def _cold_pool_observed(region: str) -> None:
+    """Cold-pool-region view (observed only): observed cold-pool index card + observed surface-vs-
+    bottom stratification. Model comparison (kriged temp/area, model-vs-model) lives on Model
+    Comparison."""
     df = load_observed(region)
     if df is None:
         st.error(f"Cold-pool parquet not found for {region}. Run: `mhw-fetch-coldpool --region {region}`")
@@ -217,21 +219,18 @@ def _cold_pool_observed(region: str, model_choices: list[str]) -> None:
                 icon="🧭", tint=GREEN)
             st.page_link("pages/cold_pool_position.py", label="Open Cold-Pool Position →", icon="🧭")
 
-    if model_choices:
-        _survey_replicate_panel(region, model_choices, yr_range)
-        _obs_vs_model_scatter(region, model_choices)
-    else:
-        st.info("Pick one or both models in the sidebar to see the survey-replicated validation.")
-
     _obs_surface_bottom_card(region)   # observed surface-vs-bottom (the cold pool's stratification)
+
+    callout("Comparing the <b>models</b> to this survey — apples-to-apples kriged bottom temperature "
+            "and cold-pool area, plus model-vs-model — is on the <b>Model Comparison</b> page.",
+            icon="📊", tint=BLUE)
 
     last_update = str(df["last_update"].iloc[-1])[:10] if "last_update" in df else "—"
     footer(
-        "Sources — observed cold-pool <b>area index</b> (≤ 2/1/0/−1 °C): NOAA AFSC "
-        "<code>afsc-gap-products/coldpool</code> (Zenodo 10.5281/zenodo.16915337), spatially "
-        "interpolated from the survey. Per-haul <b>validation</b> temperatures: NOAA FOSS AFSC "
-        "bottom-trawl survey. Models: Bering10K ROMS (NOAA PMEL / UW ACLIM) · CEFI MOM6 NEP "
-        f"(NOAA GFDL / PSL). Survey years {yr_min}–{yr_max}; index last updated {last_update}. "
+        "Source — observed cold-pool <b>area index</b> (≤ 2/1/0/−1 °C) and <b>mean bottom "
+        "temperature</b>: NOAA AFSC <code>afsc-gap-products/coldpool</code> "
+        "(Zenodo 10.5281/zenodo.16915337), spatially interpolated (kriged) from the summer "
+        f"bottom-trawl survey. Survey years {yr_min}–{yr_max}; index last updated {last_update}. "
         "All lagged (recent-historical), not near-real-time."
     )
 
@@ -428,7 +427,10 @@ def _obs_surface_bottom_card(region: str) -> None:
             "Each point is one survey haul: **surface** vs **bottom (gear)** temperature measured at "
             "the **same cast** — the directly *observed* stratification, perfectly co-located. Points "
             "on the dashed **1:1 line** are well-mixed; points far **below** it (bottom colder than "
-            "surface) are strongly stratified (e.g. the cold pool). Not a validation."
+            "surface) are strongly stratified (e.g. the cold pool). The dotted **45° line through the "
+            "means** is the 1:1 line shifted down by the average surface−bottom gap (the typical "
+            "stratification); the green **line of best fit** shows how strongly bottom tracks surface "
+            "(slope ≈ 1 ⇒ moves together; flatter ⇒ bottom decoupled from surface). Not a validation."
         )
         c1, c2 = st.columns([1, 1.4])
         mode = c1.radio("Years", ["Cumulative (start → year)", "Single year"], key=f"sb_mode_{region}")
@@ -453,11 +455,25 @@ def _obs_surface_bottom_card(region: str) -> None:
         ], cols=2, template="1fr 1fr 0.9fr")
         lo = float(min(sel["surface_temperature"].min(), sel["gear_temperature"].min())) - 0.3
         hi = float(max(sel["surface_temperature"].max(), sel["gear_temperature"].max())) + 0.3
+        sx, sy = sel["surface_temperature"], sel["gear_temperature"]
+        mx, my = float(sx.mean()), float(sy.mean())
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=[lo, hi], y=[lo, hi], mode="lines", name="1:1 (well-mixed)",
                                  line={"color": "#444", "width": 1, "dash": "dash"}, hoverinfo="skip"))
+        # 45° line (slope 1) through the means — the 1:1 line shifted by the mean surface−bottom gap;
+        # how far it sits below 1:1 is the typical stratification.
+        off = my - mx
+        fig.add_trace(go.Scatter(x=[lo, hi], y=[lo + off, hi + off], mode="lines",
+                                 name="45° through means", hoverinfo="skip",
+                                 line={"color": "#d62728", "width": 1.5, "dash": "dot"}))
+        # Line of best fit (OLS bottom ~ surface): its slope shows how strongly bottom tracks surface.
+        if len(sel) >= 2:
+            b1, b0 = np.polyfit(sx.to_numpy(), sy.to_numpy(), 1)
+            fig.add_trace(go.Scatter(x=[lo, hi], y=[b0 + b1 * lo, b0 + b1 * hi], mode="lines",
+                                     name=f"best fit (slope {b1:.2f})", hoverinfo="skip",
+                                     line={"color": "#2ca02c", "width": 2}))
         fig.add_trace(go.Scatter(
-            x=sel["surface_temperature"], y=sel["gear_temperature"], mode="markers",
+            x=sx, y=sy, mode="markers",
             name=f"hauls (n={len(sel):,})",
             marker={"color": "#1f77b4", "size": 5, "opacity": 0.4, "line": {"width": 0}},
             hovertemplate="surface %{x:.1f} °C<br>bottom %{y:.1f} °C<extra></extra>"))
@@ -557,37 +573,26 @@ def _survey_derived_card(region: str) -> None:
                        "survey). Descriptive of past observed state — not a forecast.")
 
 
-def _bottom_temp_observed(region: str, model_choices: list[str]) -> None:
-    """Bottom-temperature-region view (slope, GOA, AI; no cold pool): observed survey bottom
-    temperature (packaged AFSC index where available, else survey-derived) + model validation."""
+def _bottom_temp_observed(region: str) -> None:
+    """Bottom-temperature-region view (observed only; slope, GOA, AI): observed survey bottom
+    temperature (packaged AFSC index where available, else survey-derived) + surface-vs-bottom.
+    Model comparison (continuous model record + survey-replicated skill) lives on Model Comparison."""
     packaged = load_observed(region)
     if packaged is not None and "mean_bottom_temp" in packaged.columns:
         _packaged_index_card(region, packaged)
-        _modelled_shelf_card(region)
         _obs_surface_bottom_card(region)   # observed surface-vs-bottom from the survey hauls
-        src_line = (f"Sources — observed bottom-temperature index ({region.upper()}, by subarea, "
+        src_line = (f"Source — observed bottom-temperature index ({region.upper()}, by subarea, "
                     "biennial): NOAA AFSC <code>afsc-gap-products/coldpool</code> "
-                    "(Zenodo 10.5281/zenodo.16915337). Per-haul validation temperatures: NOAA FOSS "
-                    "AFSC bottom-trawl survey. Model: CEFI MOM6 NEP (NOAA GFDL / PSL; less-validated "
-                    "outside the Bering). All lagged, not near-real-time.")
+                    "(Zenodo 10.5281/zenodo.16915337). All lagged, not near-real-time.")
     else:
         _survey_derived_card(region)
         _obs_surface_bottom_card(region)   # slope hauls carry surface + bottom too
-        src_line = ("Sources — per-haul survey bottom temperatures: NOAA FOSS AFSC bottom-trawl survey "
-                    "(BSS slope survey, 2002–2016, discontinued). Models: Bering10K ROMS "
-                    "(NOAA PMEL / UW ACLIM) · CEFI MOM6 NEP (NOAA GFDL / PSL). All lagged, not "
-                    "near-real-time.")
+        src_line = ("Source — per-haul survey bottom temperatures: NOAA FOSS AFSC bottom-trawl survey "
+                    "(BSS slope survey, 2002–2016, discontinued). All lagged, not near-real-time.")
 
-    if model_choices:
-        if _survey_replicate_panel(region, model_choices):
-            _obs_vs_model_scatter(region, model_choices)
-            if packaged is not None:
-                _bias_interpretation(region, model_choices)
-        else:
-            st.warning(f"Survey replicate not built for {region}. Run: "
-                       f"`mhw-build-survey-replicate --source mom6_nep --region {region}`.")
-    else:
-        st.info("Pick at least one model in the sidebar to compare against the survey.")
+    callout("Comparing the <b>models</b> to this survey — the continuous modelled record and the "
+            "survey-replicated skill (bias/RMSE) — is on the <b>Model Comparison</b> page.",
+            icon="📊", tint=BLUE)
     footer(src_line)
 
 
@@ -839,24 +844,14 @@ def render(group: str = "bering") -> None:
         _modelled_only(region)
         return
 
-    # Only offer the models valid for this region (e.g. GOA is MOM6-only — Bering10K is out of
-    # the Gulf domain). Bottom-temp regions default the survey-replication validation on.
-    valid_labels = [lbl for lbl, sid in MODEL_SOURCES.items() if sid in reg.valid_sources]
-    model_choices = st.sidebar.multiselect(
-        "Validate model(s) against the survey", valid_labels,
-        default=([] if is_cold_pool else valid_labels),
-        help="Each model is sampled at the survey hauls and compared to observed bottom temp.",
-    )
-
     if is_cold_pool:
         page_header("🧊", "Cold Pool & Bottom Temperature", region_label(region),
                     f"{region_label(region)} ({region.upper()})",
-                    caption=("The observed cold-pool index from the NOAA AFSC summer bottom-trawl "
-                             "survey, and how well the regional models reproduce it when compared "
-                             "the fair way."))
-        _cold_pool_observed(region, model_choices)
+                    caption=("The observed cold-pool index and mean bottom temperature from the NOAA "
+                             "AFSC summer bottom-trawl survey. Model comparison is on Model Comparison."))
+        _cold_pool_observed(region)
     else:
         page_header("🌡️", "Bottom Temperature", region_label(region),
                     f"{region_label(region)} ({region.upper()})",
                     caption="Observed bottom-temperature conditions from the AFSC survey (no cold pool).")
-        _bottom_temp_observed(region, model_choices)
+        _bottom_temp_observed(region)

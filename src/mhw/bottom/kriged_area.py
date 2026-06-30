@@ -245,8 +245,12 @@ def build_kriged_area_series(source: BottomSource = BERING10K_K20_CORECFS,
         row = {"year": int(year), "source": source.id, "n_points": int(inh.sum())}
         for thr in THRESHOLDS_C:
             row[_THRESH_COL[thr]] = round(area_le(field, inside, thr), 1)
+        # Mean bottom temperature of the SAME kriged field (in-mask) — the apples-to-apples
+        # temperature companion to the area, from one kriging (survey-grid mean over the mask).
+        row["mean_bottom_temp"] = round(float(np.nanmean(field)), 4)
         rows.append(row)
-        print(f"  {year}: ≤2 °C = {row['area_lte2_km2']:,.0f} km²  (n={row['n_points']})")
+        print(f"  {year}: ≤2 °C = {row['area_lte2_km2']:,.0f} km²  "
+              f"mean BT = {row['mean_bottom_temp']:.2f} °C  (n={row['n_points']})")
     return pd.DataFrame(rows)
 
 

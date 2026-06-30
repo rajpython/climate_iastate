@@ -36,6 +36,7 @@ from dashboard.components.ts_event_metrics import (
     _active_spans,
     list_regions,
     load_aggregates,
+    mhw_plot,
     region_menu_label,
 )
 from dashboard.components.predictability_panel import (
@@ -271,7 +272,7 @@ def render() -> None:
                 height=210 * 5, showlegend=False, template="plotly_white",
                 margin={"l": 60, "r": 20, "t": 60, "b": 40},
             )
-            st.plotly_chart(fig, use_container_width=True, key="ts_chart")
+            mhw_plot(fig, use_container_width=True, key="ts_chart")
 
             # Summary
             ev_days = int((df_win["area_frac"] > AREA_THRESH).sum())
@@ -360,7 +361,7 @@ def render() -> None:
             # Force shared x-axis to the requested window (Plotly auto-expands
             # when subplots mix daily and monthly data with different end dates)
             fig.update_xaxes(range=[str(t_start), str(t_end)])
-            st.plotly_chart(fig, use_container_width=True, key="pred_chart")
+            mhw_plot(fig, use_container_width=True, key="pred_chart")
 
             _cards = [
                 kpi_card("Latest AO", f"{float(ao_df['ao'].iloc[-1]):.3f}", SLATE),

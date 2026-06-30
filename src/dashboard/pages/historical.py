@@ -41,6 +41,7 @@ RAW_DIR = ROOT / "data" / "raw"
 # regions: ebs=combined, sebs/nbs; goa=combined, wgoa/egoa; + Arctic).
 from dashboard.components.ts_event_metrics import REGION_NAMES as _REGION_NAMES  # noqa: E402
 from dashboard.components.ts_event_metrics import region_menu_label  # noqa: E402
+from dashboard.components.ts_event_metrics import mhw_plot, mhw_table  # noqa: E402
 
 _cfg = yaml.safe_load((ROOT / "config" / "climatology.yml").read_text())
 AREA_THRESH  = float(_cfg["regional_events"]["area_frac_threshold"])
@@ -310,7 +311,7 @@ def render() -> None:
             },
             margin={"t": 90},
         )
-        st.plotly_chart(fig_b, use_container_width=True)
+        mhw_plot(fig_b, use_container_width=True)
         st.caption(
             "Colors are quantile-based against this region's full 1982–present "
             "history of the displayed metric. Cutoffs update automatically when you "
@@ -327,7 +328,7 @@ def render() -> None:
             "max_Cbar": "Peak Cumul. Int. (°C·days)",
         })
         section_title("Top 10 Years by Peak Area Fraction")
-        st.dataframe(top10, use_container_width=True, hide_index=True)
+        mhw_table(top10, use_container_width=True, hide_index=True)
 
     # ============================================================
     # TAB 2 — Event Explorer
@@ -395,7 +396,7 @@ def render() -> None:
             height=540, showlegend=False, template="plotly_white",
             margin={"l": 55, "r": 20, "t": 60, "b": 40},
         )
-        st.plotly_chart(fig_yr, use_container_width=True)
+        mhw_plot(fig_yr, use_container_width=True)
 
         # Monthly stats table
         df_yr2 = df_yr.copy()
@@ -416,7 +417,7 @@ def render() -> None:
             "max_Ibar": "Peak Intensity (°C)", "max_Dbar": "Peak Duration (days)",
         })
         section_title(f"Monthly summary — {sel_year}")
-        st.dataframe(monthly, use_container_width=True)
+        mhw_table(monthly, use_container_width=True)
 
     # ============================================================
     # TAB 3 — Metric Distributions
@@ -473,7 +474,7 @@ def render() -> None:
                 margin={"l": 50, "r": 20, "t": 40, "b": 40},
                 showlegend=False,
             )
-            st.plotly_chart(fig_h, use_container_width=True)
+            mhw_plot(fig_h, use_container_width=True)
 
         # Composite risk distribution
         risk_path = ROOT / "data" / "derived" / "risk" / f"risk_{region}.parquet"
@@ -506,7 +507,7 @@ def render() -> None:
                     margin={"l": 50, "r": 20, "t": 20, "b": 40},
                     showlegend=False,
                 )
-                st.plotly_chart(fig_risk, use_container_width=True)
+                mhw_plot(fig_risk, use_container_width=True)
 
     # ============================================================
     # TAB 4 — Regime Analysis
@@ -591,7 +592,7 @@ def render() -> None:
                 title=f"MHW Metrics by Climate Regime — {region.upper()}  ({y_start}–{y_end})",
                 boxmode="group",
             )
-            st.plotly_chart(fig_reg, use_container_width=True)
+            mhw_plot(fig_reg, use_container_width=True)
 
             # Regime median table — medians over event days only, so they reflect
             # event severity rather than being diluted to zero by quiet days.
@@ -621,7 +622,7 @@ def render() -> None:
                     ),
                 })
             if medians:
-                st.dataframe(pd.DataFrame(medians), use_container_width=True, hide_index=True)
+                mhw_table(pd.DataFrame(medians), use_container_width=True, hide_index=True)
                 st.caption(
                     "*Event days* = days when regional area fraction exceeded "
                     f"{AREA_THRESH:.0%}. Medians of area fraction, intensity, "
@@ -657,7 +658,7 @@ def render() -> None:
             fig_ph.update_layout(height=340, template="plotly_white", showlegend=False,
                                   margin={"l": 55, "r": 20, "t": 50, "b": 30})
             fig_ph.update_xaxes(tickmode="linear", dtick=2, row=2, col=1)
-            st.plotly_chart(fig_ph, use_container_width=True)
+            mhw_plot(fig_ph, use_container_width=True)
 
     footer("Data sources: NOAA OISST v2.1 (SST + sea ice) · CPC Arctic Oscillation · PSL Pacific "
            "Decadal Oscillation. Full backfill 1982–present.")

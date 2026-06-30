@@ -18,6 +18,26 @@ import yaml
 from plotly.subplots import make_subplots
 
 # ---------------------------------------------------------------------------
+# Shared MHW chart/table styling — bigger, bolder axis fonts + darker table numbers.
+# ---------------------------------------------------------------------------
+
+def mhw_plot(fig, **kwargs) -> None:
+    """Render an MHW Plotly chart with enlarged, bold x/y axis fonts (~+30% over the default 12 px)
+    for readability on the climate pages. Applies to every cartesian axis in the figure."""
+    fig.update_xaxes(tickfont={"size": 15, "weight": "bold"},
+                     title_font={"size": 14, "weight": "bold"})
+    fig.update_yaxes(tickfont={"size": 15, "weight": "bold"},
+                     title_font={"size": 14, "weight": "bold"})
+    st.plotly_chart(fig, **kwargs)
+
+
+def mhw_table(df, **kwargs) -> None:
+    """Render an MHW dataframe with darker, bolder cell text (more legible numbers)."""
+    sty = df.style.set_properties(**{"color": "#10243f", "font-weight": "600"})
+    st.dataframe(sty, **kwargs)
+
+
+# ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
 ROOT    = Path(__file__).parents[3]
@@ -213,7 +233,7 @@ def main() -> None:
         margin={"l": 60, "r": 20, "t": 60, "b": 40},
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    mhw_plot(fig, use_container_width=True)
 
     # ---- Summary table ----
     st.subheader("Event summary")
