@@ -30,7 +30,7 @@ from mhw.bottom.indicators import (
 )
 from mhw.bottom.regions import EBS
 
-REGION = "ebs"
+REGION = "sebs"
 GREEN, BLUE, AMBER = "#2e7d32", "#1565c0", "#b35900"
 # Time-series display names (hindcast wording per the page design).
 _TS_NAMES = {"Bering10K ROMS": "Bering10K (hindcast)", "CEFI MOM6 NEP": "MOM6-NEP (hindcast)"}
@@ -96,8 +96,8 @@ models = {n: m.dropna(subset=["southern_extent_lat"]).sort_values("year")
           and m["southern_extent_lat"].notna().any()}
 
 if obs is None and not models:
-    st.info("The southern-extent indicator isn't built yet. Run `mhw-fetch-coldpool --region ebs` "
-            "(observed) and `mhw-build-coldpool-model --region ebs` (models).")
+    st.info("The southern-extent indicator isn't built yet. Run `mhw-fetch-coldpool --region sebs` "
+            "(observed) and `mhw-build-coldpool-model --region sebs` (models).")
     st.stop()
 
 head_is_obs = obs is not None

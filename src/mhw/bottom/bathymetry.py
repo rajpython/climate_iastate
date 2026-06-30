@@ -135,7 +135,7 @@ def shelf_mask_from_bathymetry(region: BottomRegion = EBS, force: bool = False) 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Build a region's shelf-depth grid from ETOPO 2022.")
-    p.add_argument("--region", default="ebs", choices=sorted(BOTTOM_REGIONS), help="Bottom region id")
+    p.add_argument("--region", default="sebs", choices=sorted(BOTTOM_REGIONS), help="Bottom region id")
     p.add_argument("--force", action="store_true", help="Rebuild even if cached")
     return p.parse_args(argv)
 

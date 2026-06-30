@@ -72,7 +72,7 @@ class KrigeSpec:
 # box from the survey-area bounds (snapped to the 5 km grid) — validate before trusting (NBS
 # published areas were not all multiples of 25; see the kickoff brief).
 KRIGE_SPECS: dict[str, KrigeSpec] = {
-    "ebs": KrigeSpec(98, (-1625000.0, -35000.0, 379500.0, 1969500.0)),
+    "sebs": KrigeSpec(98, (-1625000.0, -35000.0, 379500.0, 1969500.0)),
     "nbs": KrigeSpec(143, None),
 }
 
@@ -269,8 +269,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Krige survey-replicated temps to a cold-pool AREA the AFSC way "
                     "(apples-to-apples model vs. observed).")
     p.add_argument("--source", default="bering10k", choices=sorted(SOURCES))
-    p.add_argument("--region", default="ebs", choices=sorted(KRIGE_SPECS),
-                   help="Cold-pool region (ebs/nbs)")
+    p.add_argument("--region", default="sebs", choices=sorted(KRIGE_SPECS),
+                   help="Cold-pool region (sebs/nbs)")
     p.add_argument("--observed", action="store_true",
                    help="Krige observed gear temps (validation gate vs AFSC) instead of the model.")
     return p.parse_args(argv)

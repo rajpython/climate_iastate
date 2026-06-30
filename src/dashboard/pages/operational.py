@@ -32,9 +32,11 @@ from dashboard.components.map_mhw import (
 from dashboard.components.ts_event_metrics import (
     AREA_THRESH,
     METRIC_DEFS,
+    REGION_NAMES as _REGION_NAMES,
     _active_spans,
     list_regions,
     load_aggregates,
+    region_menu_label,
 )
 from dashboard.components.predictability_panel import (
     _add_event_shading,
@@ -65,10 +67,8 @@ from dashboard.components.bottom_ui import (
 )
 
 RISK_DIR = Path(__file__).parents[3] / "data" / "derived" / "risk"
-
-# Full region names for the header chip (the five SST regions).
-_REGION_NAMES = {"goa": "Gulf of Alaska", "ebs": "Eastern Bering Sea",
-                 "nbs": "Northern Bering Sea", "chukchi": "Chukchi Sea", "beaufort": "Beaufort Sea"}
+# Region names (_REGION_NAMES) + grouped dropdown labels (region_menu_label) come from
+# ts_event_metrics — ESR ecosystem regions (ebs=combined, sebs/nbs; goa=combined, wgoa/egoa; Arctic).
 
 # Human-friendly date formatting
 _DATE_FMT = "%b %d, %Y"          # e.g. "Feb 24, 2024"
@@ -97,7 +97,7 @@ def render() -> None:
         st.error("No aggregates parquet found. Run the backfill first.")
         st.stop()
 
-    region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="op_region")
+    region = st.sidebar.selectbox("Region", regions, format_func=region_menu_label, key="op_region")
     page_header("🌊", "Operational MHW", "Live & recent marine-heatwave state",
                 f"{_REGION_NAMES.get(region, region.upper())} ({region.upper()})",
                 caption=("Today's and recent marine-heatwave state for the selected region — "
@@ -196,12 +196,16 @@ def render() -> None:
                     f"{label}: %{{z:{fmt}}}<extra></extra>"
                 ),
             ))
+            # Dateline-aware centre: a region straddling 180° (the Aleutians' two-strip grid)
+            # has lons in both far-east and far-west, so a plain mean lands mid-ocean — centre
+            # on the dateline instead. The choropleth cells themselves draw at their true lon.
+            _lons = data["lons"]
+            _center_lon = 180.0 if (_lons.max() - _lons.min() > 180) else float(_lons.mean())
             fig.update_layout(
                 title=f"{label} — {info['region'].upper()} — {_fmt(dates[date_idx])}",
                 map=dict(
                     style="open-street-map",
-                    center={"lat": float(data["lats"].mean()),
-                            "lon": float(data["lons"].mean())},
+                    center={"lat": float(data["lats"].mean()), "lon": _center_lon},
                     zoom=3.5,
                 ),
                 height=500,

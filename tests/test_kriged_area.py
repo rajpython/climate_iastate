@@ -116,7 +116,7 @@ def test_observed_kriged_area_reproduces_afsc_ebs():
     from mhw.bottom.sources import BERING10K_K20_CORECFS
 
     repl = _replicate_path(BERING10K_K20_CORECFS, EBS)
-    pub_path = Path("data/raw/coldpool_index_observed_ebs.parquet")
+    pub_path = Path("data/raw/coldpool_index_observed_sebs.parquet")
     if not (repl.exists() and _SURVEY_AREA_GEOJSON.exists() and pub_path.exists()):
         pytest.skip("survey-replicate / survey-area / observed index not generated")
 

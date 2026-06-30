@@ -134,7 +134,7 @@ class ColdPoolRecord(BaseModel):
 
 class ColdPoolPayload(BaseModel):
     source:    str = "AFSC EBS bottom-trawl survey (observed)"
-    region:    str = "ebs"
+    region:    str = "sebs"
     units:     str = "km2 (areas); degC (temperatures)"
     note:      str = (
         "Observed survey-derived cold-pool index; annual, summer survey. "

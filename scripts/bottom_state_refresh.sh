@@ -32,7 +32,7 @@ cd "$PROJECT_DIR"
 # mean-bottom-temperature index (GOA/AI). The slope survey is discontinued (static) and the
 # Arctic has no survey, so neither is re-fetched. Catch is the 8-species union across groups,
 # fetched over every survey at once (single fetch per species avoids clobbering shared species).
-OBSERVED_REGIONS=(ebs nbs goa ai)
+OBSERVED_REGIONS=(sebs nbs goa wgoa egoa ai ai_west ai_central ai_east)
 CATCH_SPECIES=(68580 69322 21720 21740 10110 20510 30060 21921)
 # 68580 snow crab · 69322 red king · 21720 cod · 21740 pollock · 10110 arrowtooth
 # · 20510 sablefish · 30060 Pacific ocean perch · 21921 Atka mackerel

@@ -16,7 +16,7 @@ def test_ebs_grid_matches_legacy_constants():
 
 
 def test_ebs_descriptor_fields():
-    assert EBS.id == "ebs"
+    assert EBS.id == "sebs"
     assert EBS.product_kind == "cold_pool"
     assert EBS.has_survey_hauls is True
     assert set(EBS.valid_sources) == {"bering10k", "mom6_nep"}
@@ -30,15 +30,15 @@ def test_ebs_descriptor_fields():
 
 
 def test_get_region_case_insensitive_and_unknown():
-    assert get_region("EBS") is EBS
-    assert get_region("ebs") is EBS
+    assert get_region("SEBS") is EBS
+    assert get_region("sebs") is EBS
     with pytest.raises(KeyError):
         get_region("atlantis")
 
 
 def test_registry_keys_are_lowercase():
     assert all(k == k.lower() for k in BOTTOM_REGIONS)
-    assert "ebs" in BOTTOM_REGIONS
+    assert "sebs" in BOTTOM_REGIONS
 
 
 def test_nbs_descriptor():

@@ -24,7 +24,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
-REGIONS=(goa ebs nbs chukchi beaufort)
+# ESR ecosystem regions (combined areas + subareas) + Arctic; AI chain crosses the dateline.
+REGIONS=(ebs sebs nbs goa wgoa egoa ai ai_west ai_central ai_east chukchi beaufort)
 TODAY="$(date -u +%Y-%m-%d)"
 YEAR="$(date -u +%Y)"
 YEAR_START="${YEAR}-01-01"

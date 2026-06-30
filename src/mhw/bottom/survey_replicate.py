@@ -167,7 +167,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Build survey-replicated model-vs-survey comparison (co-located in space/time)."
     )
     p.add_argument("--source", default="bering10k", choices=sorted(SOURCES))
-    p.add_argument("--region", default="ebs", choices=sorted(BOTTOM_REGIONS), help="Bottom region id")
+    p.add_argument("--region", default="sebs", choices=sorted(BOTTOM_REGIONS), help="Bottom region id")
     return p.parse_args(argv)
 
 

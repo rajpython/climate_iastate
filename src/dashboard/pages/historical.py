@@ -37,9 +37,10 @@ ROOT    = Path(__file__).parents[3]
 AGG_DIR = ROOT / "data" / "derived" / "aggregates_region"
 RAW_DIR = ROOT / "data" / "raw"
 
-# Full region names for the header chip (the five SST regions).
-_REGION_NAMES = {"goa": "Gulf of Alaska", "ebs": "Eastern Bering Sea",
-                 "nbs": "Northern Bering Sea", "chukchi": "Chukchi Sea", "beaufort": "Beaufort Sea"}
+# Region names + grouped dropdown labels are centralized in ts_event_metrics (ESR ecosystem
+# regions: ebs=combined, sebs/nbs; goa=combined, wgoa/egoa; + Arctic).
+from dashboard.components.ts_event_metrics import REGION_NAMES as _REGION_NAMES  # noqa: E402
+from dashboard.components.ts_event_metrics import region_menu_label  # noqa: E402
 
 _cfg = yaml.safe_load((ROOT / "config" / "climatology.yml").read_text())
 AREA_THRESH  = float(_cfg["regional_events"]["area_frac_threshold"])
@@ -174,7 +175,7 @@ def render() -> None:
         st.error("No aggregates parquet found. Run the backfill first.")
         st.stop()
 
-    region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="hist_region")
+    region = st.sidebar.selectbox("Region", regions, format_func=region_menu_label, key="hist_region")
 
     page_header("📊", "Historical MHW", "1982–present analysis",
                 f"{_REGION_NAMES.get(region, region.upper())} ({region.upper()})",

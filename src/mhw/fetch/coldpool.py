@@ -90,22 +90,45 @@ def fetch_coldpool_index(region: BottomRegion = EBS) -> pd.DataFrame:
 # Packaged bottom-temperature index (GOA/AI — by subarea, no cold-pool area)
 # ---------------------------------------------------------------------------
 
+# ESR Ecosystem-Subarea areas (10⁹ m², from AFSC "Alaska Marine Management Areas") — used to
+# **area-weight** the region-wide GOA/AI mean bottom temperature across subareas (the packaged
+# product ships per-subarea means with no weights, so a plain average over-weights the smaller
+# subareas). Only subareas surveyed in a given year contribute.
+_SUBAREA_AREA = {
+    "Western Gulf of Alaska": 606.578, "Eastern Gulf of Alaska": 366.884,
+    "Western Aleutians": 371.797, "Central Aleutians": 691.256, "Eastern Aleutians": 214.066,
+}
+
+
+def _area_weighted_mean(g: pd.DataFrame, col: str) -> float:
+    """Area-weighted mean of *col* across a year's surveyed subareas (falls back to a plain
+    mean if any subarea area is unknown)."""
+    vals = g[col]
+    # subarea may be a pandas Categorical (pyreadr reads R factors as such) — cast to str so the
+    # dict-map yields a plain float Series that supports sum().
+    wts = g["subarea"].astype(str).map(_SUBAREA_AREA)
+    if wts.notna().all() and float(wts.sum()) > 0:
+        return float((vals * wts.to_numpy()).sum() / float(wts.sum()))
+    return float(vals.mean())
+
+
 def aggregate_mean_temperature(long_df: pd.DataFrame) -> pd.DataFrame:
     """Aggregate a by-subarea ``*_mean_temperature`` frame to one region-wide row per year.
 
     The packaged GOA/AI products report mean bottom (gear) temperature *per subarea* with no
-    area weights, so the region-wide annual value is the cross-subarea mean. Per-subarea
-    bottom temps are kept as ``mean_bottom_temp_<slug>`` columns for an optional breakdown
-    (e.g. Western vs Eastern GOA). Network-free + pure, so it is unit-tested directly.
+    area weights, so the region-wide annual value is the **area-weighted** cross-subarea mean
+    (weighted by ESR subarea area; only subareas surveyed that year contribute). Per-subarea
+    bottom temps are kept as ``mean_bottom_temp_<slug>`` columns for the breakdown (e.g. Western
+    vs Eastern GOA). Network-free + pure, so it is unit-tested directly.
     """
     df = long_df.copy()
     df["year"] = df["year"].astype(int)
     rows = []
     for yr, g in df.groupby("year"):
         row = {"year": int(yr),
-               "mean_bottom_temp": round(float(g["mean_bottom_temp"].mean()), 4)}
+               "mean_bottom_temp": round(_area_weighted_mean(g, "mean_bottom_temp"), 4)}
         if "mean_surface_temp" in g:
-            row["mean_surface_temp"] = round(float(g["mean_surface_temp"].mean()), 4)
+            row["mean_surface_temp"] = round(_area_weighted_mean(g, "mean_surface_temp"), 4)
         for _, r in g.iterrows():
             slug = str(r["subarea"]).split()[0].lower()   # "Western Gulf of Alaska" -> "western"
             row[f"mean_bottom_temp_{slug}"] = round(float(r["mean_bottom_temp"]), 4)
@@ -143,6 +166,10 @@ def fetch_mean_temperature(region: BottomRegion) -> pd.DataFrame:
 
     long_df = result[obs.r_object].rename(columns=dict(obs.column_map))
     long_df = long_df.dropna(subset=["year"]).copy()
+    if obs.subarea:   # ESR subarea region: keep only its rows (single-subarea series)
+        long_df = long_df[long_df["subarea"].astype(str) == obs.subarea].copy()
+        if long_df.empty:
+            raise ValueError(f"Subarea {obs.subarea!r} not found in {obs.r_object}.")
     out = aggregate_mean_temperature(long_df)
     print(
         f"  Bottom-temperature index: {len(out)} years, "
@@ -211,9 +238,28 @@ def _fetch_foss_hauls(region: BottomRegion) -> pd.DataFrame:
         "bottom_depth": h["depth_m"],
     })
     df = df.dropna(subset=["gear_temperature", "latitude", "longitude"])
+    if obs.subarea:   # ESR subarea region: clip parent-survey hauls to the subarea polygon
+        df = _clip_hauls_to_subarea(df, region.id)
     df = df.sort_values(["year", "stationid"]).reset_index(drop=True)
     print(f"  Hauls: {len(df):,}, {df['year'].min()}–{df['year'].max()}")
     return df
+
+
+def _clip_hauls_to_subarea(df: pd.DataFrame, region_id: str) -> pd.DataFrame:
+    """Keep only hauls whose (lon, lat) fall inside the subarea's regions.geojson polygon."""
+    import json
+
+    import shapely
+    from shapely.geometry import shape
+
+    geojson = PROJECT_ROOT / "config" / "regions.geojson"
+    fc = json.loads(geojson.read_text())
+    poly = next((shape(f["geometry"]) for f in fc["features"]
+                 if f["properties"]["id"] == region_id), None)
+    if poly is None:
+        return df
+    inside = shapely.contains_xy(poly, df["longitude"].to_numpy(), df["latitude"].to_numpy())
+    return df[inside]
 
 
 # ---------------------------------------------------------------------------
@@ -265,7 +311,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Fetch the AFSC observed cold-pool index (survey-derived, by region)."
     )
-    p.add_argument("--region", default="ebs", choices=sorted(BOTTOM_REGIONS), help="Bottom region id")
+    p.add_argument("--region", default="sebs", choices=sorted(BOTTOM_REGIONS), help="Bottom region id")
     p.add_argument("--plot", action="store_true", help="Render a Plotly bar chart of the ≤2 °C index")
     return p.parse_args(argv)
 

@@ -121,12 +121,20 @@ regions:
   # Provide polygon files (GeoJSON) in config/regions.geojson.
   # These region IDs must match those polygons.
   # Add/remove regions as needed; MVP should include GOA and Bering Sea at minimum.
-  - id: "goa"
-    name: "Gulf of Alaska"
+  # ESR ecosystem regions (combined areas + subareas). Bering: ebs = Eastern Bering Sea
+  # (combined) = sebs (Southeastern) + nbs (Northern). GOA: goa (combined) = wgoa + egoa.
   - id: "ebs"
     name: "Eastern Bering Sea"
+  - id: "sebs"
+    name: "Southeastern Bering Sea"
   - id: "nbs"
     name: "Northern Bering Sea"
+  - id: "goa"
+    name: "Gulf of Alaska"
+  - id: "wgoa"
+    name: "Western Gulf of Alaska"
+  - id: "egoa"
+    name: "Eastern Gulf of Alaska"
   - id: "chukchi"
     name: "Chukchi Sea"
   - id: "beaufort"
