@@ -1,5 +1,5 @@
 # Alaska Shelf Bottom-State Guide
-*Alaska Marine Ecosystem Dashboard — Climate • Ocean • Ecosystems • Fisheries*
+*Alaska Marine Ecosystems Dashboard — Climate • Ocean • Ecosystems • Fisheries*
 
 *A plain-language guide to the **Bottom State** indicators across **all** Alaska shelf regions —
 no oceanography or statistics background needed. After reading this you should be able to explain
@@ -385,7 +385,7 @@ definition is intentionally easy to revise if AFSC scientists prefer an alternat
 
 ## 6. Reading the dashboard — two pages, four panels
 
-In the **Alaska Marine Ecosystem Dashboard**, the cold pool lives under the **Bering Sea**
+In the **Alaska Marine Ecosystems Dashboard**, the cold pool lives under the **Bering Sea**
 section across **"Cold Pool & Bottom Temperature"** (observed index + survey validation) and
 **"Model Comparison"** — each with its own threshold control (so you can, say, view the observed
 index at ≤ 1 °C while comparing models at ≤ 2 °C). One region dropdown spans the Bering areas
@@ -886,4 +886,4 @@ the AFSC scientist who first pointed us toward this work.*
 10.5281/zenodo.16915337, via GitHub afsc-gap-products/coldpool); per-haul survey temperatures via
 NOAA FOSS; NOAA PMEL/UW Bering10K ROMS hindcast (ACLIM, PMEL THREDDS); NOAA GFDL/PSL CEFI MOM6 NEP
 hindcast (PSL THREDDS / CEFI portal). This guide documents the **Bottom State** indicators across
-all Alaska shelf regions of the Alaska Marine Ecosystem Dashboard.*
+all Alaska shelf regions of the Alaska Marine Ecosystems Dashboard.*

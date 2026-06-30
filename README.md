@@ -1,4 +1,4 @@
-# Alaska Marine Ecosystem Dashboard
+# Alaska Marine Ecosystems Dashboard
 
 **Climate • Ocean • Ecosystems • Fisheries** — a regionally-organised board surfacing public Alaska-shelf ocean and fisheries data (observed surveys + ocean models). Its current modules are Alaska-wide marine-heatwave monitoring, Bering Sea bottom conditions (the cold pool), cold-pool validation / model comparison, and catch × thermal habitat. Covers the sub-arctic to Arctic waters around Alaska — Gulf of Alaska, Bering Sea (Eastern and Northern), Chukchi, and Beaufort.
 

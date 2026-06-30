@@ -1,7 +1,7 @@
 # Marine-Heatwave Data Access Guide — for the Forecast Research Cell
 
 This guide is for the sister research cell investigating **marine-heatwave (MHW) forecast
-methods**. It documents how to access everything the Alaska Marine Ecosystem Dashboard project
+methods**. It documents how to access everything the Alaska Marine Ecosystems Dashboard project
 has accumulated: the **raw inputs**, the **derived MHW metrics**, and what is reachable directly
 through the public **REST API**.
 
@@ -244,5 +244,5 @@ To set you up fastest, let us know:
    (tarball/rsync), or **repo + regenerate**.
 4. Whether you need a **pinned dated snapshot** for reproducibility.
 
-Maintained by the Alaska Marine Ecosystem Dashboard project (`marine.iastate.ai`). Questions →
+Maintained by the Alaska Marine Ecosystems Dashboard project (`marine.iastate.ai`). Questions →
 Col. Raj.
