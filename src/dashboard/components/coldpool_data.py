@@ -25,15 +25,23 @@ THRESHOLDS = {
     "≤ 0 °C": "area_lte0_km2",
     "≤ −1 °C": "area_lteminus1_km2",
 }
-# Model label -> source id. Filenames are built per region (coldpool_model_<id>_<region>…).
+# Short display labels (legends, table columns, repeat mentions). The full official names — used
+# for the FIRST mention in each model page's intro/footers — are in MODEL_FULL_NAMES below.
+# "MOM6 NEP10k" is the CEFI MOM6-COBALT-NEP10k v1.0 model (NOAA GFDL); "Bering10K ROMS" is the
+# ACLIM hindcast (B10K-K20_Level2_CORECFS).
 MODEL_SOURCES = {
     "Bering10K ROMS": "bering10k",
-    "CEFI MOM6 NEP": "mom6_nep",
+    "MOM6 NEP10k": "mom6_nep",
 }
 # Distinct line colour per model (observed is always black).
 MODEL_COLORS = {
     "Bering10K ROMS": "steelblue",
-    "CEFI MOM6 NEP": "darkorange",
+    "MOM6 NEP10k": "darkorange",
+}
+# Full official names + attribution — use ONCE, on first mention in a page's initial description.
+MODEL_FULL_NAMES = {
+    "Bering10K ROMS": "Bering10K ROMS (NOAA PMEL / UW — ACLIM hindcast B10K-K20_Level2_CORECFS)",
+    "MOM6 NEP10k": "CEFI MOM6-COBALT-NEP10k v1.0 (NOAA GFDL)",
 }
 
 

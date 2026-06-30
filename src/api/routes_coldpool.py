@@ -2,7 +2,7 @@
 
 Region-aware: the **cold-pool area** index for the cold-pool regions (EBS/NBS) and the
 **mean bottom temperature** index for the bottom-temperature regions (GOA/AI). Both are the
-validation target for modelled bottom temperature (Bering10K ROMS, CEFI MOM6 NEP). Annual,
+validation target for modelled bottom temperature (Bering10K ROMS, MOM6 NEP10k). Annual,
 summer-survey, lagged — clearly *not* near-real-time, and labelled as such. The modelled and
 apples-to-apples **kriged** cold-pool area are served alongside.
 
@@ -35,7 +35,7 @@ MODEL_DIR = ROOT / "data" / "derived" / "cold_pool"
 # Modelled-source id -> user-facing source label (parquet filename is built per region).
 _MODEL_LABELS = {
     "bering10k": "Bering10K ROMS (modelled, shelf domain)",
-    "mom6_nep":  "CEFI MOM6 NEP (modelled, shelf domain)",
+    "mom6_nep":  "MOM6 NEP10k (modelled, shelf domain)",
 }
 
 _MODEL_NOTE = (
@@ -243,7 +243,7 @@ def get_cold_pool_kriged_area(
 # Survey-replicate source labels.
 _SR_SOURCES = {
     "bering10k": "Bering10K ROMS",
-    "mom6_nep":  "CEFI MOM6 NEP",
+    "mom6_nep":  "MOM6 NEP10k",
 }
 
 

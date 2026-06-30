@@ -103,7 +103,7 @@ def build_shelf_surface_series(region: BottomRegion = EBS, months=_SUMMER_MONTHS
 
     msrc = mds = None
     if model_bottom:
-        msrc = SOURCES[region.valid_sources[0]]            # MOM6 NEP for the Arctic
+        msrc = SOURCES[region.valid_sources[0]]            # MOM6 NEP10k for the Arctic
         mds = open_bottom_dataset(msrc)
 
     rows = []

@@ -34,6 +34,7 @@ from dashboard.components.bottom_ui import (
 )
 from dashboard.components.coldpool_data import (
     MODEL_COLORS,
+    MODEL_FULL_NAMES,
     MODEL_SOURCES,
     THRESHOLDS,
     list_bottom_state_regions,
@@ -383,7 +384,7 @@ def _bottom_temp_models(region: str, model_choices: list[str]) -> None:
 
 
 def _model_coverage(region: str, labels: list[str], is_cold_pool: bool) -> str:
-    """A 'Bering10K ROMS (1982–2024) · CEFI MOM6 NEP (1993–2025)' string, read from the *same* data
+    """A 'Bering10K ROMS (1982–2024) · MOM6 NEP10k (1993–2025)' string, read from the *same* data
     the snapshot/panels use — so the stated periods match the table's blank ('—') years and nobody
     is surprised that, e.g., 1982 has no MOM6."""
     parts = []
@@ -415,9 +416,13 @@ def render(group: str = "bering") -> None:
     valid_labels = [lbl for lbl, sid in MODEL_SOURCES.items() if sid in reg.valid_sources]
 
     coverage = _model_coverage(region, valid_labels, is_cold_pool)
-    cap = "How the regional ocean models behave over this region, and how they compare to each other"
+    full_names = " and ".join(MODEL_FULL_NAMES.get(lbl, lbl) for lbl in valid_labels)
+    cap = (f"How the regional ocean model{'s' if len(valid_labels) > 1 else ''} — {full_names} — "
+           "behave over this region")
+    if len(valid_labels) > 1:
+        cap += " and how they compare to each other"
     if coverage:
-        cap += f" — coverage: {coverage}"
+        cap += f". Coverage: {coverage}"
     cap += (". Models extend only over their own hindcast period, so a year outside it shows “—” in "
             "the snapshot. For each model's true skill against the survey, see Cold Pool & Bottom "
             "Temperature.")
@@ -437,6 +442,8 @@ def render(group: str = "bering") -> None:
     else:
         _bottom_temp_models(region, model_choices)
 
-    footer("Models: Bering10K ROMS (NOAA PMEL / UW ACLIM) · CEFI MOM6 NEP (NOAA GFDL / PSL), "
-           "compared to the observed cold-pool index (NOAA AFSC <code>afsc-gap-products/coldpool</code>, "
-           "Zenodo 10.5281/zenodo.16915337). All lagged (recent-historical), not near-real-time.")
+    footer("Models: <b>Bering10K ROMS</b> (NOAA PMEL / UW — ACLIM hindcast "
+           "<code>B10K-K20_Level2_CORECFS</code>) · <b>CEFI MOM6-COBALT-NEP10k v1.0</b> (NOAA GFDL; "
+           "Drenkard et&nbsp;al., GMD 18:5245, 2025) — compared to the observed cold-pool index (NOAA AFSC "
+           "<code>afsc-gap-products/coldpool</code>, Zenodo 10.5281/zenodo.16915337). All lagged "
+           "(recent-historical), not near-real-time.")

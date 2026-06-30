@@ -66,7 +66,7 @@ def load_bottom_temp(
 
     # Normalise to (time, y, x) with 2-D lat/lon, regardless of native grid:
     #   * curvilinear sources (Bering10K ROMS) carry 2-D lat/lon over (eta, xi);
-    #   * rectilinear sources (CEFI MOM6 NEP `regrid`) carry 1-D lat/lon along
+    #   * rectilinear sources (MOM6 NEP10k `regrid`) carry 1-D lat/lon along
     #     their own dims — broadcast to 2-D so the downstream regrid sees one
     #     uniform contract.
     if lat.ndim == 2:
