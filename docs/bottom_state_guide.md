@@ -38,8 +38,8 @@ region**, and it is essential to read it correctly:
 
 | Region | Page type | **Headline source** | Observed or modelled? |
 |---|---|---|---|
-| **Eastern Bering Sea (EBS)** | Cold pool & bottom temp | AFSC cold-pool **area index** (≤ 2 °C, kriged) + observed mean bottom temp | **Observed** (survey) |
-| **Northern Bering Sea (NBS)** | Cold pool & bottom temp | Same as EBS (AFSC index; survey years sparser) | **Observed** (survey) |
+| **Southeastern Bering Sea (SEBS)** | Cold pool & bottom temp | AFSC cold-pool **area index** (≤ 2 °C, kriged) + observed mean bottom temp | **Observed** (survey) |
+| **Northern Bering Sea (NBS)** | Cold pool & bottom temp | Same as SEBS (AFSC index; survey years sparser) | **Observed** (survey) |
 | **Bering Slope (BSS)** | Bottom temperature | Survey-derived mean bottom temp (per-haul, FOSS; 2002–2016, discontinued) | **Observed** (survey) |
 | **Gulf of Alaska (GOA)** | Bottom temperature | AFSC packaged **`goa_mean_temperature`** index (by INPFC subarea → annual) | **Observed** (survey) |
 | **Aleutian Islands (AI)** | Bottom temperature | AFSC packaged **`ai_mean_temperature`** index | **Observed** (survey) |
@@ -48,12 +48,13 @@ region**, and it is essential to read it correctly:
 
 **Read this as two groups:**
 
-- **Survey regions (EBS, NBS, Slope, GOA, AI) — the headline is *observed*.** The number you see
+- **Survey regions (SEBS, NBS, Slope, GOA, AI) — the headline is *observed*.** The number you see
   is measured by the NOAA AFSC summer bottom-trawl survey (a temperature sensor on the trawl gear
   at each station), delivered either as AFSC's official kriged product (the cold-pool *area* index
-  for EBS/NBS; the packaged mean-temperature index for GOA/AI) or, for the discontinued slope
-  survey, as the per-haul mean. On these pages the models appear **only** as a *validation* overlay,
-  sampled at the survey's own hauls (§7). So the headline is ground truth, not a model.
+  for SEBS/NBS; the packaged mean-temperature index for GOA/AI) or, for the discontinued slope
+  survey, as the per-haul mean. These **"Cold Pool & Bottom Temperature" pages are observed-only**;
+  the model comparison (kriged temperature & area, model-vs-model, survey-replicated skill) lives on
+  the separate **"Model Comparison"** page (§7). So the headline here is ground truth, not a model.
 - **Arctic shelves (Chukchi, Beaufort) — the headline is *modelled*.** There is **no routine
   bottom-trawl survey** in the Chukchi or Beaufort, so there is nothing to observe and nothing to
   validate against in-region. The headline is the CEFI **MOM6 NEP** model's shelf-mean bottom
@@ -99,7 +100,7 @@ than 200 m (the shelf) and ignore spots where it plunges deeper (the basin). The
 lives **only** on this shallow shelf.
 
 ### Where is this?
-The **eastern Bering Sea (EBS)** is the part of the Bering Sea that sits on that wide,
+The **eastern Bering Sea** is the part of the Bering Sea that sits on that wide,
 shallow continental shelf west of Alaska — between the Alaska mainland and the deeper
 ocean. It is one of the most productive fishing grounds on Earth: most of America's
 pollock (the fish in fish sticks and fast-food fish sandwiches), much of its snow crab
@@ -218,7 +219,7 @@ because of the method, grid, or footprint.
 
 ![Apples-to-apples cold-pool area by kriging — observed vs. model sampled at the same haul points](app/static/kriging_explainer.png)
 
-*EBS 2012. Left: the same survey hauls, coloured by observed bottom temperature (top) and by
+*Southeastern Bering Sea (SEBS), 2012. Left: the same survey hauls, coloured by observed bottom temperature (top) and by
 the Bering10K model sampled at those exact hauls (bottom). Right: each is kriged onto the
 identical 5 km grid and the ≤ 2 °C cells are summed. The two areas (370,100 vs. 361,175 km²)
 are directly comparable because only the input temperatures changed.*
@@ -388,7 +389,7 @@ In the **Alaska Marine Ecosystem Dashboard**, the cold pool lives under the **Be
 section across **"Cold Pool & Bottom Temperature"** (observed index + survey validation) and
 **"Model Comparison"** — each with its own threshold control (so you can, say, view the observed
 index at ≤ 1 °C while comparing models at ≤ 2 °C). One region dropdown spans the Bering areas
-(EBS · NBS · Slope). Cold-pool **position** has its own page (§5a, **"Cold-Pool Position"**), and
+(SEBS · NBS · Slope). Cold-pool **position** has its own page (§5a, **"Cold-Pool Position"**), and
 catch is on **"Catch × Bottom State"** (§9a).
 
 ### Bering Sea → "Cold Pool & Bottom Temperature"
@@ -420,7 +421,7 @@ threshold control does not apply here.
 kriged onto AFSC's 5 km grid and counted ≤ the threshold — see §3a). Because only the
 temperatures differ, the model and observed lines are directly comparable and the gap is a
 **genuine bias**, not a footprint artifact. A table reports each model's **bias / RMSE / r**
-against the observed index (EBS ≤ 2 °C: Bering10K +19,600 km², MOM6 +11,500 km² — far smaller
+against the observed index (SEBS ≤ 2 °C: Bering10K +19,600 km², MOM6 +11,500 km² — far smaller
 than the full-shelf gap in B1, because B1's gap was mostly bookkeeping). This panel reproduces
 AFSC's published index to within ~0.6 % when fed the *observed* haul temps, so it is trustworthy.
 
@@ -589,7 +590,7 @@ guesswork about location. "How much was caught" is reported as **CPUE** (catch-p
 the catch standardised to **kilograms per km² swept**, so tows of different lengths compare fairly.
 
 **Snow crab is the headline** because it is a cold-water specialist — in the eastern Bering it
-piles up inside the cold pool. Pick a species, a region (EBS, NBS, or the slope), and a year.
+piles up inside the cold pool. Pick a species, a region (SEBS, NBS, or the slope), and a year.
 
 ### The breakdown table
 
@@ -630,7 +631,7 @@ temperature-indifferent species these numbers collapse toward a ~1× ratio and a
 - **Catch vs bottom temperature** (scatter) — one dot per haul: bottom temperature across the
   bottom, catch density up the side. The **shaded blue band is the ≤ 2 °C cold pool.** For snow
   crab the tall dots cluster inside the band and collapse toward zero in warm water. *(The band
-  only appears for cold-pool regions — EBS/NBS. On the slope, which has no cold pool, there is no
+  only appears for cold-pool regions — SEBS/NBS. On the slope, which has no cold pool, there is no
   band.)*
 - **Where it was caught** (map) — each tow placed at its real location, sized and coloured by
   catch density; faint blue dots mark the cold-pool hauls. You can literally see the catch tracing
@@ -716,9 +717,9 @@ Chukchi shelf: Pacini et al. 2019, see References.)*
 - **The full-shelf bottom-temperature panel shows MOM6 ~1 °C warm — that is an artifact**,
   not the model's true bias. Compared fairly (survey replication), MOM6 is essentially
   unbiased (+0.0 °C) and Bering10K slightly cold (−0.16 °C). See §7.
-- **This page is the eastern Bering Sea only.** Bering10K only covers the Bering Sea;
-  MOM6 covers the whole Northeast Pacific, so extending to the Gulf of Alaska is feasible
-  with MOM6 but is future work.
+- **Bering10K is Bering-only; MOM6 spans the whole Northeast Pacific.** The Gulf of Alaska and
+  Aleutians now have their own bottom-temperature and Model-Comparison pages (MOM6 there; Bering10K
+  is out of domain), and the Bering's SEBS/NBS are separable from the slope.
 - **Two models, not the last word.** Their close agreement with the survey and with each
   other is strong, but they share some common limitations (e.g. both depend on getting sea
   ice right), so agreement is reassuring, not proof.
@@ -838,7 +839,7 @@ authoritative source for current coverage and planned work.
 | Region | Survey (observed) | Bering10K ROMS | MOM6 NEP (CEFI) |
 |---|---|---|---|
 | Gulf of Alaska (GOA) | ✓ 1990–2025 (biennial) | — | ✓ 1993–2025 |
-| Eastern Bering Sea (EBS) | ✓ 1982–2025 (annual) | ✓ 1970–2024 | ✓ 1993–2025 |
+| Southeastern Bering Sea (SEBS) | ✓ 1982–2025 (annual) | ✓ 1970–2024 | ✓ 1993–2025 |
 | Northern Bering Sea (NBS) | ~ 2010–2023 (sporadic) | ✓ 1970–2024 | ✓ 1993–2025 |
 | Chukchi Sea | — | ~ 1970–2024 (southern edge only) | ✓ 1993–2025 |
 | Beaufort Sea | — | — | ✓ 1993–2025 |
