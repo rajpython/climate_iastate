@@ -55,6 +55,72 @@ from dashboard.pages.bottom_observed import (  # noqa: E402
 )
 
 
+def _snapshot_table(region: str, model_choices: list[str], base: pd.DataFrame | None = None,
+                    thr_col: str | None = None, thr_short: str | None = None) -> None:
+    """Compact per-year snapshot — columns = Observed + each selected model, rows = mean bottom
+    temperature (and cold-pool area for cold-pool regions). The year is chosen above the table; the
+    models in the sidebar. Cold-pool values come from the identical kriging (observed = AFSC index);
+    bottom-temp values from the survey-replicated co-location. Bering10K applies in the Bering only;
+    the Gulf/Aleutians are MOM6 only (the sidebar already filters to the region's valid models)."""
+    is_cp = thr_col is not None
+    models: dict[str, pd.DataFrame] = {}
+    obs_bt = obs_area = None
+    if is_cp:
+        obs_bt = base.set_index("year")["mean_bottom_temp"] if "mean_bottom_temp" in base.columns else None
+        obs_area = base.set_index("year")[thr_col]
+        for name in model_choices:
+            k = load_kriged_area(MODEL_SOURCES[name], region)
+            if k is not None and "mean_bottom_temp" in k.columns:
+                models[name] = k.set_index("year")
+        years = sorted(int(y) for y in obs_area.dropna().index)
+    else:
+        years_set: set[int] = set()
+        for name in model_choices:
+            ann, _ = load_survey_replicate(MODEL_SOURCES[name], region)
+            if ann is not None and "model_mean_bottom_temp" in ann.columns:
+                models[name] = ann.set_index("year")
+                if obs_bt is None:
+                    obs_bt = ann.set_index("year")["obs_mean_bottom_temp"]
+                years_set |= {int(y) for y in ann["year"]}
+        years = sorted(years_set)
+    if not models or not years:
+        return
+
+    with st.container(border=True):
+        section_title("Snapshot — observed vs models, by year")
+        when_note("A single survey year, side by side — pick the year below; pick the model(s) in the "
+                  "sidebar. Bering10K applies in the Bering only; the Gulf/Aleutians are MOM6 only.")
+        year = st.selectbox("Year", years, index=len(years) - 1, key=f"snap_year_{region}")
+
+        def at(s, col=None):
+            try:
+                v = s.loc[year] if col is None else s.loc[year, col]
+                return float(v) if pd.notna(v) else None
+            except (KeyError, TypeError, ValueError):
+                return None
+
+        def ft(v):
+            return f"{v:.2f}" if v is not None else "—"
+
+        def fa(v):
+            return f"{v:,.0f}" if v is not None else "—"
+
+        cols = ["Observed"] + list(models)
+        bt_row = {"Observed": ft(at(obs_bt) if obs_bt is not None else None)}
+        mcol = "mean_bottom_temp" if is_cp else "model_mean_bottom_temp"
+        for name, m in models.items():
+            bt_row[name] = ft(at(m, mcol))
+        data = {"Mean bottom temperature (°C)": bt_row}
+        if is_cp:
+            area_row = {"Observed": fa(at(obs_area))}
+            for name, m in models.items():
+                area_row[name] = fa(at(m, thr_col))
+            data[f"Cold-pool area {thr_short} (km²)"] = area_row
+        st.markdown(styled_table(pd.DataFrame(data).T[cols]), unsafe_allow_html=True)
+        st.caption("Same apples-to-apples basis as the panels below (kriged for cold-pool regions; "
+                   "survey-co-located for bottom-temperature regions). “—” = not surveyed/built that year.")
+
+
 def _kriged_temp_panel(region: str, model_choices: list[str], base: pd.DataFrame) -> None:
     """Apples-to-apples mean bottom TEMPERATURE — companion to the kriged area, from the same kriging.
 
@@ -197,6 +263,8 @@ def _cold_pool_models(region: str, model_choices: list[str]) -> None:
 
     base = df[(df["year"] >= yr_lo) & (df["year"] <= yr_hi)]
 
+    # ---- Snapshot table (observed vs models, one chosen year) ----
+    _snapshot_table(region, model_choices, base, thr_col, thr_short)
     # ---- Panel 1: apples-to-apples kriged mean bottom TEMPERATURE ----
     _kriged_temp_panel(region, model_choices, base)
     # ---- Panel 2: apples-to-apples kriged cold-pool AREA (same kriging) ----
@@ -265,7 +333,9 @@ def _cold_pool_models(region: str, model_choices: list[str]) -> None:
 
 
 def _bottom_temp_models(region: str, model_choices: list[str]) -> None:
-    """Bottom-temperature-region view: full model-domain mean-BT record + survey points."""
+    """Bottom-temperature-region view: per-year snapshot + full model-domain mean-BT record +
+    survey-replicated validation."""
+    _snapshot_table(region, model_choices)   # observed vs model mean bottom temp, one chosen year
     full = {name: load_model(MODEL_SOURCES[name], region) for name in model_choices}
     full = {n: m for n, m in full.items() if m is not None}
     with st.container(border=True):
