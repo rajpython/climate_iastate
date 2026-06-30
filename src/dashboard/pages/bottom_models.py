@@ -279,7 +279,7 @@ def render(group: str = "bering") -> None:
     regions = list_bottom_state_regions(group)
     if not regions:
         st.title("Model Comparison")
-        st.error("No bottom-state region built. Run: `mhw-fetch-coldpool --region ebs`")
+        st.error("No bottom-state region built. Run: `mhw-fetch-coldpool --region sebs`")
         return
     region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="bs_mod_region")
     reg = get_region(region)

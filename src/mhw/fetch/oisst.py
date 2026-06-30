@@ -37,17 +37,10 @@ def load_region_bbox(region_id: str) -> dict:
     geojson_path = CONFIG_DIR / "regions.geojson"
     with open(geojson_path) as f:
         fc = json.load(f)
+    from mhw.regions.masks import region_bbox
     for feat in fc["features"]:
         if feat["properties"]["id"] == region_id:
-            coords = feat["geometry"]["coordinates"][0]
-            lons = [c[0] for c in coords]
-            lats = [c[1] for c in coords]
-            return {
-                "lon_min": min(lons),
-                "lon_max": max(lons),
-                "lat_min": min(lats),
-                "lat_max": max(lats),
-            }
+            return region_bbox(feat["geometry"])   # dateline-aware; handles MultiPolygon
     available = [f["properties"]["id"] for f in fc["features"]]
     raise ValueError(f"Region '{region_id}' not found. Available: {available}")
 

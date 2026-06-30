@@ -20,7 +20,7 @@ def test_cold_pool_observed_ok(api_client):
         pytest.skip("cold-pool parquet not fetched (run mhw-fetch-coldpool)")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["region"] == "ebs"
+    assert body["region"] == "sebs"
     assert body["records"], "expected at least one survey-year record"
     assert COLDPOOL_FIELDS <= set(body["records"][0])
     # Years are sorted ascending and 2020 (cancelled survey) is absent.
@@ -52,11 +52,11 @@ def test_cold_pool_unknown_region_404(api_client):
 
 
 def test_cold_pool_observed_explicit_region(api_client):
-    resp = api_client.get("/v1/cold-pool/observed", params={"region": "ebs"})
+    resp = api_client.get("/v1/cold-pool/observed", params={"region": "sebs"})
     if resp.status_code == 503:
         pytest.skip("cold-pool parquet not fetched")
     assert resp.status_code == 200
-    assert resp.json()["region"] == "ebs"
+    assert resp.json()["region"] == "sebs"
 
 
 def test_cold_pool_modelled_ok(api_client):

@@ -50,12 +50,37 @@ def load_aggregates(region: str) -> pd.DataFrame | None:
 #: Canonical region ordering — south to north (sub-arctic Pacific → Arctic).
 #: GOA leads as the largest U.S. fisheries footprint among the five.
 #: Matches the order in config/regions.geojson; any unknown region falls to the end.
-REGION_ORDER = ["goa", "ebs", "nbs", "chukchi", "beaufort"]
+# ESR ecosystem regions, grouped: each combined area immediately followed by its subareas,
+# then the Arctic shelves. Bering: ebs (= sebs+nbs); GOA: goa (= wgoa+egoa); AI: ai (= W+C+E).
+REGION_ORDER = ["ebs", "sebs", "nbs", "goa", "wgoa", "egoa",
+                "ai", "ai_west", "ai_central", "ai_east", "chukchi", "beaufort"]
+
+REGION_NAMES = {
+    "ebs": "Eastern Bering Sea", "sebs": "Southeastern Bering Sea", "nbs": "Northern Bering Sea",
+    "goa": "Gulf of Alaska", "wgoa": "Western Gulf of Alaska", "egoa": "Eastern Gulf of Alaska",
+    "ai": "Aleutian Islands", "ai_west": "Western Aleutians",
+    "ai_central": "Central Aleutians", "ai_east": "Eastern Aleutians",
+    "chukchi": "Chukchi Sea", "beaufort": "Beaufort Sea",
+}
+_COMBINED_REGIONS = {"ebs", "goa", "ai"}            # ESR ecosystem-area rollups (= sum of subareas)
+_SUBAREA_REGIONS = {"sebs", "nbs", "wgoa", "egoa",  # ESR subareas (indented under their area)
+                    "ai_west", "ai_central", "ai_east"}
 
 
 def _region_key(r: str) -> tuple:
-    """Sort regions by canonical south-to-north order; unknowns fall to the end alphabetically."""
+    """Sort regions by canonical grouped order; unknowns fall to the end alphabetically."""
     return (REGION_ORDER.index(r), r) if r in REGION_ORDER else (len(REGION_ORDER), r)
+
+
+def region_menu_label(rid: str) -> str:
+    """Dropdown label grouping an ecosystem area with its subareas (combined = '— all';
+    subareas indented). Used by the MHW region selectors."""
+    name = REGION_NAMES.get(rid, rid.upper())
+    if rid in _COMBINED_REGIONS:
+        return f"{name} — all"
+    if rid in _SUBAREA_REGIONS:
+        return f"   · {name}"
+    return name
 
 
 @st.cache_data(show_spinner=False, ttl=3600)

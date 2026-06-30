@@ -110,7 +110,7 @@ def _clean(v) -> float | None:
 
 @router.get("/cold-pool/observed", response_model=ColdPoolPayload, tags=["Cold Pool"])
 def get_cold_pool_observed(
-    region:     str = Query("ebs", description="Bottom region id (e.g. ebs)"),
+    region:     str = Query("sebs", description="Bottom region id (e.g. sebs)"),
     start_year: int | None = Query(None, description="First survey year (inclusive)"),
     end_year:   int | None = Query(None, description="Last survey year (inclusive)"),
 ):
@@ -153,7 +153,7 @@ def get_cold_pool_observed(
 @router.get("/cold-pool/modelled", response_model=ColdPoolPayload, tags=["Cold Pool"])
 def get_cold_pool_modelled(
     source:     str = Query("bering10k", description="Model source id (bering10k, mom6_nep)"),
-    region:     str = Query("ebs", description="Bottom region id (e.g. ebs)"),
+    region:     str = Query("sebs", description="Bottom region id (e.g. sebs)"),
     start_year: int | None = Query(None, description="First year (inclusive)"),
     end_year:   int | None = Query(None, description="Last year (inclusive)"),
 ):
@@ -193,7 +193,7 @@ def get_cold_pool_modelled(
 @router.get("/cold-pool/kriged-area", response_model=ColdPoolPayload, tags=["Cold Pool"])
 def get_cold_pool_kriged_area(
     source:     str = Query("bering10k", description="Model source id (bering10k, mom6_nep)"),
-    region:     str = Query("ebs", description="Cold-pool region id (ebs, nbs)"),
+    region:     str = Query("sebs", description="Cold-pool region id (sebs, nbs)"),
     start_year: int | None = Query(None, description="First year (inclusive)"),
     end_year:   int | None = Query(None, description="Last year (inclusive)"),
 ):
@@ -250,7 +250,7 @@ _SR_SOURCES = {
 @router.get("/cold-pool/survey-replicate", response_model=SurveyReplicatePayload, tags=["Cold Pool"])
 def get_cold_pool_survey_replicate(
     source: str = Query("bering10k", description="Model source id (bering10k, mom6_nep)"),
-    region: str = Query("ebs", description="Bottom region id (e.g. ebs)"),
+    region: str = Query("sebs", description="Bottom region id (e.g. sebs)"),
 ):
     """Survey-replicated validation: model bottom temp sampled at the survey hauls.
 

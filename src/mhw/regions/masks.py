@@ -66,6 +66,33 @@ def rasterize_region(
     return inside.reshape(lon_2d.shape).astype(dtype)
 
 
+def _geometry_lonlat(geometry: dict) -> tuple[list[float], list[float]]:
+    """Flatten all (lon, lat) vertices from a GeoJSON Polygon or MultiPolygon."""
+    coords = geometry["coordinates"]
+    rings = coords if geometry["type"] == "Polygon" else [r for poly in coords for r in poly]
+    pts = [pt for ring in rings for pt in ring]
+    return [p[0] for p in pts], [p[1] for p in pts]
+
+
+def region_bbox(geometry: dict) -> dict:
+    """Return {lon_min, lon_max, lat_min, lat_max} for a region geometry, **dateline-aware**.
+
+    For a region that straddles the antimeridian (its 0–360 longitude span is tighter than its
+    [-180, 180) span — e.g. the Aleutians, ~168°E → −164°W), the lon bounds are returned in the
+    **0–360** convention (e.g. 168 → 196) so a fetch slices the contiguous range *eastward across*
+    the dateline. Normal regions are unchanged ([-180, 180) min/max). Handles MultiPolygon.
+    """
+    lons, lats = _geometry_lonlat(geometry)
+    span_180 = max(lons) - min(lons)
+    lons360 = [lon % 360 for lon in lons]
+    span_360 = max(lons360) - min(lons360)
+    if span_360 < span_180:                       # straddles the dateline → use 0–360 bounds
+        lo, hi = min(lons360), max(lons360)
+    else:
+        lo, hi = min(lons), max(lons)
+    return {"lon_min": lo, "lon_max": hi, "lat_min": min(lats), "lat_max": max(lats)}
+
+
 def build_masks(
     geojson_path: Path,
     lats: np.ndarray,

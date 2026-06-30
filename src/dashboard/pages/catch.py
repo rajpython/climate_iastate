@@ -41,7 +41,64 @@ COLD_POOL_C = 2.0
 TEMP_COLORSCALE = [[0.0, "#08306b"], [0.45, "#3b7bbf"], [1.0, "#dceaf7"]]
 
 # Dashboard region id -> FOSS survey code (the catch frame's `region` column).
-REGION_TO_SRVY = {"ebs": "EBS", "nbs": "NBS", "slope": "BSS", "goa": "GOA", "ai": "AI"}
+REGION_TO_SRVY = {"sebs": "EBS", "nbs": "NBS", "slope": "BSS", "goa": "GOA", "ai": "AI"}
+
+# ESR subareas selectable on the catch page (to match the SST subareas). Each is the parent
+# survey's hauls clipped to the subarea's ESR polygon (point-in-polygon; the polygons live in
+# config/regions.geojson, antimeridian-split for the Aleutians). No re-fetch — the hauls already
+# carry lat/lon. Listed after their parent in the region dropdown.
+CATCH_SUBAREAS = {"goa": ["wgoa", "egoa"], "ai": ["ai_west", "ai_central", "ai_east"]}
+SUBAREA_PARENT = {s: p for p, subs in CATCH_SUBAREAS.items() for s in subs}
+SUBAREA_LABELS = {
+    "wgoa": "Western Gulf of Alaska", "egoa": "Eastern Gulf of Alaska",
+    "ai_west": "Western Aleutians", "ai_central": "Central Aleutians", "ai_east": "Eastern Aleutians",
+}
+_REGIONS_GEOJSON = ROOT / "config" / "regions.geojson"
+
+
+@st.cache_resource(show_spinner=False)
+def _subarea_polygon(region: str):
+    """Shapely polygon for a catch subarea, from config/regions.geojson (cached)."""
+    import json
+    from shapely.geometry import shape
+    fc = json.loads(_REGIONS_GEOJSON.read_text())
+    for f in fc["features"]:
+        if f["properties"]["id"] == region:
+            return shape(f["geometry"])
+    return None
+
+
+def _srvy_for(region: str) -> str:
+    """FOSS survey code for a region or subarea (subareas inherit their parent survey)."""
+    return REGION_TO_SRVY.get(region) or REGION_TO_SRVY[SUBAREA_PARENT[region]]
+
+
+def _catch_region_label(region: str) -> str:
+    """Grouped dropdown label: subareas indented under their parent ecosystem area."""
+    if region in SUBAREA_LABELS:
+        return f"   · {SUBAREA_LABELS[region]}"
+    return region_label(region)
+
+
+def _with_subareas(regions: list[str], group: str) -> list[str]:
+    """Insert each ecosystem area's ESR subareas right after it in the region list."""
+    out: list[str] = []
+    for r in regions:
+        out.append(r)
+        out.extend(CATCH_SUBAREAS.get(r, []))
+    return out
+
+
+def _clip_to_subarea(d: pd.DataFrame, region: str) -> pd.DataFrame:
+    """Keep only hauls whose (lon, lat) fall inside the subarea polygon (no-op for whole areas)."""
+    if region not in SUBAREA_PARENT:
+        return d
+    poly = _subarea_polygon(region)
+    if poly is None:
+        return d
+    import shapely
+    inside = shapely.contains_xy(poly, d["longitude"].to_numpy(), d["latitude"].to_numpy())
+    return d[inside]
 
 # Per-group key species (pretty label -> FOSS species_code, headline first). The Bering leads
 # with the cold-water crabs (the cold-pool story); the Gulf of Alaska — no cold pool — leads
@@ -161,14 +218,18 @@ def render(group: str = "bering") -> None:
     if not regions:
         st.error("No survey-catch regions built for this group.")
         return
-    region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="catch_region")
-    srvy = REGION_TO_SRVY[region]
-    is_cold_pool = get_region(region).product_kind == "cold_pool"
+    regions = _with_subareas(regions, group)   # GOA→W/E, AI→W/C/E (ESR subareas)
+    region = st.sidebar.selectbox("Region", regions, format_func=_catch_region_label,
+                                  key="catch_region")
+    srvy = _srvy_for(region)
+    # Subareas of GOA/AI are bottom-temperature (no cold pool); only true cold-pool regions split warm/cold.
+    is_cold_pool = region in REGION_TO_SRVY and get_region(region).product_kind == "cold_pool"
 
     species = SPECIES_BY_GROUP.get(group, SPECIES_BY_GROUP["bering"])
     sp_label = st.sidebar.selectbox("Species", list(species), index=0)
     code = species[sp_label]
-    chip = f"{region_label(region)} ({region.upper()})"
+    _name = SUBAREA_LABELS.get(region, region_label(region))
+    chip = f"{_name} ({region.upper()})"
     cap = ("Explore how key species' catch relates to bottom-temperature conditions — AFSC "
            "bottom-trawl survey (observed; exploratory, not causal).")
 
@@ -180,16 +241,17 @@ def render(group: str = "bering") -> None:
         return
 
     d = df[(df["region"] == srvy) & df["bottom_temperature_c"].notna()].copy()
+    d = _clip_to_subarea(d, region)   # ESR subarea: keep only hauls inside the subarea polygon
     if d.empty:
         page_header(_title_icon_html(sp_label), "Catch × Bottom State", sp_label, chip, caption=cap)
-        st.warning(f"No {sp_label} catch records for {region.upper()}.")
+        st.warning(f"No {sp_label} catch records for {_name}.")
         return
     years = sorted(int(y) for y in d["year"].unique())
     year = st.sidebar.select_slider("Year", years, value=years[-1])
     dy = d[d["year"] == year]
 
     page_header(_title_icon_html(sp_label), "Catch × Bottom State",
-                f"{sp_label} · {region_label(region)} · {year}", chip, caption=cap)
+                f"{sp_label} · {_name} · {year}", chip, caption=cap)
 
     corr = dy["bottom_temperature_c"].corr(dy["cpue_kgkm2"])
     corr_txt = f"corr(CPUE, °C) = {corr:+.2f}" if pd.notna(corr) else None

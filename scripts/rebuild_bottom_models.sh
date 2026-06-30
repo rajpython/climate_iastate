@@ -34,17 +34,17 @@ VM="${VM:-ubuntu@3.137.98.10}"
 VM_DIR="${VM_DIR:-/opt/iastate-ai/projects/mhw}"
 
 # Region coverage by model + product (mirrors mhw.bottom.regions descriptors):
-#   * Bering (ebs/nbs/slope): BOTH models; build the monthly field too (the model-vs-model
+#   * Bering (sebs/nbs/slope): BOTH models; build the monthly field too (the model-vs-model
 #     panel needs identical monthly cadence) + survey-replicated validation.
 #   * GOA/AI: MOM6 only (Bering10K is out of domain); annual + survey-replicate (FOSS hauls).
 #   * Arctic (chukchi/beaufort): MOM6 only, MODEL-ONLY (no survey → no replicate).
-#   * Cold-pool regions (ebs/nbs): also build the apples-to-apples KRIGED area.
-#   * OISST regions (ebs/nbs/goa/chukchi/beaufort): summer shelf-surface diagnostic.
-BERING_REGIONS=(ebs nbs slope)          # both models + monthly + replicate
-MOM6_SURVEY_REGIONS=(goa ai)            # mom6 only, annual + replicate
+#   * Cold-pool regions (sebs/nbs): also build the apples-to-apples KRIGED area.
+#   * OISST regions (sebs/nbs/goa/chukchi/beaufort): summer shelf-surface diagnostic.
+BERING_REGIONS=(sebs nbs slope)          # both models + monthly + replicate
+MOM6_SURVEY_REGIONS=(goa wgoa egoa ai ai_west ai_central ai_east)            # mom6 only, annual + replicate
 MOM6_MODELONLY_REGIONS=(chukchi beaufort)   # mom6 only, annual only
-COLDPOOL_REGIONS=(ebs nbs)              # kriged apples-to-apples area
-OISST_REGIONS=(ebs nbs goa chukchi beaufort)  # shelf-surface diagnostic
+COLDPOOL_REGIONS=(sebs nbs)              # kriged apples-to-apples area
+OISST_REGIONS=(sebs nbs goa chukchi beaufort)  # shelf-surface diagnostic
 
 log() { printf '[%s] %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*"; }
 
@@ -81,7 +81,7 @@ for region in "${MOM6_MODELONLY_REGIONS[@]}"; do
         || log "WARN: model build failed for mom6_nep/${region} (continuing)"
 done
 
-# --- Apples-to-apples KRIGED cold-pool area (ebs/nbs, both models) ---
+# --- Apples-to-apples KRIGED cold-pool area (sebs/nbs, both models) ---
 for region in "${COLDPOOL_REGIONS[@]}"; do
     for src in bering10k mom6_nep; do
         log "[${src}/${region}] kriged cold-pool area …"

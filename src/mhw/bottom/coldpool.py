@@ -208,7 +208,7 @@ def save_parquet(df: pd.DataFrame, source: BottomSource, monthly: bool = False,
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Build the modelled EBS cold-pool series from a regional ocean model.")
     p.add_argument("--source", default="bering10k", choices=sorted(SOURCES), help="Bottom source id")
-    p.add_argument("--region", default="ebs", choices=sorted(BOTTOM_REGIONS), help="Bottom region id")
+    p.add_argument("--region", default="sebs", choices=sorted(BOTTOM_REGIONS), help="Bottom region id")
     p.add_argument("--start", type=int, default=1982, help="First year")
     p.add_argument("--end", type=int, default=2024, help="Last year")
     p.add_argument("--monthly", action="store_true",

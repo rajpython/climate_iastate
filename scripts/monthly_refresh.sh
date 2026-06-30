@@ -26,7 +26,9 @@ if [ -f .venv/bin/activate ]; then
     source .venv/bin/activate
 fi
 
-REGIONS=(goa ebs nbs chukchi beaufort)
+# ESR regions: Bering ebs(combined)+sebs+nbs, GOA goa(combined)+wgoa+egoa,
+# Aleutians ai(combined)+W/C/E, + Arctic boxes.
+REGIONS=(ebs sebs nbs goa wgoa egoa ai ai_west ai_central ai_east chukchi beaufort)
 TARGET_END="${1:-$(date -u +%Y-%m-%d)}"
 
 # Latest date already in the canonical GOA parquet

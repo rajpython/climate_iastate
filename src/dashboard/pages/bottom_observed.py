@@ -210,7 +210,7 @@ def _cold_pool_observed(region: str, model_choices: list[str]) -> None:
                           bargap=0.15, margin={"l": 60, "r": 20, "t": 50, "b": 40})
         st.plotly_chart(fig, use_container_width=True)
 
-        if region == "ebs":
+        if region == "sebs":
             callout(
                 "<b>Where is the cold pool?</b> Its <b>southern extent</b> — how far south the ≤ 2 °C "
                 "cold pool reaches, and whether it has retreated north — has its own page.",
@@ -323,7 +323,7 @@ def _packaged_index_card(region: str, df: pd.DataFrame) -> None:
                           legend={"orientation": "h", "y": 1.06, "yanchor": "bottom",
                                   "x": 0, "xanchor": "left"})
         st.plotly_chart(fig, use_container_width=True)
-        st.caption("Region-wide is the **unweighted mean of the subareas surveyed that year** (the "
+        st.caption("Region-wide is the **ESR-area-weighted mean of the subareas surveyed that year** (the"
                    "packaged product carries no stratum areas, so subareas are weighted equally); "
                    "in a year a subarea was not surveyed the region-wide value reflects only the "
                    "surveyed subarea(s). Ranked against the available survey years. Descriptive of "
@@ -825,9 +825,9 @@ def render(group: str = "bering") -> None:
     regions = list_bottom_state_regions(group)
     if not regions:
         st.title("Cold Pool & Bottom Temperature")
-        st.error("No bottom-state region built. Run: `mhw-fetch-coldpool --region ebs`")
+        st.error("No bottom-state region built. Run: `mhw-fetch-coldpool --region sebs`")
         return
-    region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="bs_obs_region")
+    region = st.sidebar.selectbox("Region", regions, format_func=region_label, key="bs_obs_region")
     reg = get_region(region)
     is_cold_pool = reg.product_kind == "cold_pool"
 

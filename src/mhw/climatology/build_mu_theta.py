@@ -44,15 +44,10 @@ def _load_config() -> dict:
 def _load_region_bbox(region_id: str) -> dict:
     with open(CONFIG_DIR / "regions.geojson") as f:
         fc = json.load(f)
+    from mhw.regions.masks import region_bbox
     for feat in fc["features"]:
         if feat["properties"]["id"] == region_id:
-            coords = feat["geometry"]["coordinates"][0]
-            lons = [c[0] for c in coords]
-            lats = [c[1] for c in coords]
-            return {
-                "lat_min": min(lats), "lat_max": max(lats),
-                "lon_min": min(lons), "lon_max": max(lons),
-            }
+            return region_bbox(feat["geometry"])   # dateline-aware; handles MultiPolygon
     raise ValueError(f"Region '{region_id}' not found in regions.geojson")
 
 
@@ -82,7 +77,12 @@ def fetch_year(
     cache = _year_cache_path(region_id, year)
     if use_cache and cache.exists():
         ds = xr.open_dataset(cache)
-        if "sst" in ds.data_vars and "ice" in ds.data_vars:
+        # A valid cache must have both vars AND a sane number of days — past years should be
+        # ~complete (≥360 of 365/366); a partial current year is fine (staleness checked below).
+        # This guards against empty/truncated .nc files left by an interrupted/flaky fetch, which
+        # otherwise silently produce all-zero state for that year.
+        min_days = 1 if year == date.today().year else 360
+        if "sst" in ds.data_vars and "ice" in ds.data_vars and ds["time"].size >= min_days:
             # Current-year files are still growing: invalidate when the last
             # cached day is ≥2 days behind today (OISST publishes ~1 day late;
             # 2-day buffer gives one extra day of margin).
@@ -99,7 +99,7 @@ def fetch_year(
                 return ds
         else:
             ds.close()
-            cache.unlink()  # corrupt/incomplete — re-fetch
+            cache.unlink()  # corrupt/incomplete/empty — re-fetch
 
     lon_min_360 = bbox["lon_min"] % 360
     lon_max_360 = bbox["lon_max"] % 360

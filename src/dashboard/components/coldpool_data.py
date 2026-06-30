@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from dashboard.components.ts_event_metrics import _region_key
 from mhw.bottom.regions import BOTTOM_REGIONS
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -84,7 +83,18 @@ def list_coldpool_regions() -> list[str]:
             for p in RAW_DIR.glob("coldpool_index_observed_*.parquet")}
     regs = {rid for rid in regs
             if rid in BOTTOM_REGIONS and BOTTOM_REGIONS[rid].product_kind == "cold_pool"}
-    return sorted(regs, key=_region_key)
+    return sorted(regs, key=_bt_key)
+
+
+# Bottom-state region display order (south→north / west→east within an ecosystem). Distinct
+# from the SST REGION_ORDER because the bottom-state ids differ (sebs, slope, GOA subareas).
+_BT_REGION_ORDER = ["sebs", "nbs", "slope", "goa", "wgoa", "egoa",
+                    "ai", "ai_west", "ai_central", "ai_east", "chukchi", "beaufort"]
+
+
+def _bt_key(rid: str) -> tuple:
+    return (_BT_REGION_ORDER.index(rid) if rid in _BT_REGION_ORDER
+            else len(_BT_REGION_ORDER), rid)
 
 
 def _has_model(rid: str) -> bool:
@@ -111,7 +121,7 @@ def list_bottom_state_regions(group: str | None = None) -> list[str]:
     if group is not None:
         regs = {rid for rid in regs
                 if rid in BOTTOM_REGIONS and BOTTOM_REGIONS[rid].group == group}
-    return sorted(regs, key=_region_key)
+    return sorted(regs, key=_bt_key)
 
 
 @st.cache_data(show_spinner="Loading cold-pool index …", ttl=3600)

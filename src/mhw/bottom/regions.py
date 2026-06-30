@@ -45,6 +45,10 @@ class ObservedProduct:
     foss_srvy: str = ""         # FOSS survey code for kind="foss_hauls" (e.g. "BSS" slope)
     column_map: Mapping[str, str] = field(default_factory=dict)
     years: str = ""             # human label, e.g. "1982–present (no 2020)"
+    # For an ESR subarea region (kind="mean_temperature"): the packaged subarea name to keep
+    # (e.g. "Western Gulf of Alaska"); the observed series is then that one subarea (no
+    # cross-subarea averaging) and FOSS hauls are clipped to the subarea's regions.geojson polygon.
+    subarea: str = ""
 
 
 @dataclass(frozen=True)
@@ -122,13 +126,15 @@ MEAN_TEMP_COLUMN_MAP: dict[str, str] = {
 }
 
 
-# --- Eastern Bering Sea — the original, fully-wired region --------------------------------
-# Grid/depth values are exactly the old module globals in bottom/coldpool.py:
+# --- Southeastern Bering Sea (SEBS) — the original, fully-wired region --------------------
+# ESR naming: this is the *Southeastern* Bering Sea shelf (id "sebs"), = AFSC bottom-trawl
+# survey_definition_id 98 (akgfmaps `sebs`). "Eastern Bering Sea" (EBS) properly = SEBS + NBS
+# (combined), an MHW-only region. The ``EBS`` python variable is kept (it IS the sebs region);
+# the external FOSS survey code stays the literal "EBS". Grid/depth match the old globals:
 #   EBS_LATS = np.arange(54.0, 63.0, 0.25); EBS_LONS = np.arange(-179.0, -157.0, 0.25)
-#   SHELF_MAX_DEPTH_M = 200.0
 EBS = BottomRegion(
-    id="ebs",
-    label="Eastern Bering Sea",
+    id="sebs",
+    label="Southeastern Bering Sea",
     product_kind="cold_pool",
     group="bering",
     lat_min=54.0, lat_max=63.0,
@@ -273,6 +279,62 @@ AI = BottomRegion(
 )
 
 
+# --- GOA & AI ESR subareas — first-class bottom-temperature regions (Batch D / ESR re-base) ---
+# Same machinery as their parent ecosystem area, but the observed series is the single packaged
+# subarea (no cross-subarea averaging) and FOSS hauls + the MOM6 shelf series are clipped to the
+# subarea. GOA subareas are in [-180,180); AI subareas are on the 0–360 frame (dateline chain).
+WGOA = BottomRegion(
+    id="wgoa", label="Western Gulf of Alaska", product_kind="bottom_temp", group="goa",
+    lat_min=50.0, lat_max=62.0, lon_min=-165.0, lon_max=-146.0,
+    shelf_max_depth_m=200.0, mask_source="etopo2022", valid_sources=("mom6_nep",),
+    has_survey_hauls=True,
+    observed=ObservedProduct(kind="mean_temperature", rda_url=GOA_RDA_URL,
+                             r_object="goa_mean_temperature", subarea="Western Gulf of Alaska",
+                             foss_srvy="GOA", column_map=MEAN_TEMP_COLUMN_MAP,
+                             years="1993–2025 (biennial)"),
+)
+EGOA = BottomRegion(
+    id="egoa", label="Eastern Gulf of Alaska", product_kind="bottom_temp", group="goa",
+    lat_min=53.0, lat_max=62.0, lon_min=-147.0, lon_max=-129.0,
+    shelf_max_depth_m=200.0, mask_source="etopo2022", valid_sources=("mom6_nep",),
+    has_survey_hauls=True,
+    observed=ObservedProduct(kind="mean_temperature", rda_url=GOA_RDA_URL,
+                             r_object="goa_mean_temperature", subarea="Eastern Gulf of Alaska",
+                             foss_srvy="GOA", column_map=MEAN_TEMP_COLUMN_MAP,
+                             years="1993–2025 (biennial)"),
+)
+AI_WEST = BottomRegion(
+    id="ai_west", label="Western Aleutians", product_kind="bottom_temp", group="ai",
+    lat_min=51.0, lat_max=57.0, lon_min=167.0, lon_max=178.0,   # 0–360 frame
+    shelf_max_depth_m=200.0, mask_source="etopo2022", valid_sources=("mom6_nep",),
+    has_survey_hauls=True,
+    observed=ObservedProduct(kind="mean_temperature", rda_url=AI_RDA_URL,
+                             r_object="ai_mean_temperature", subarea="Western Aleutians",
+                             foss_srvy="AI", column_map=MEAN_TEMP_COLUMN_MAP,
+                             years="1991–2024 (triennial/biennial)"),
+)
+AI_CENTRAL = BottomRegion(
+    id="ai_central", label="Central Aleutians", product_kind="bottom_temp", group="ai",
+    lat_min=50.0, lat_max=56.0, lon_min=177.0, lon_max=191.0,   # 0–360 frame (straddles 180°)
+    shelf_max_depth_m=200.0, mask_source="etopo2022", valid_sources=("mom6_nep",),
+    has_survey_hauls=True,
+    observed=ObservedProduct(kind="mean_temperature", rda_url=AI_RDA_URL,
+                             r_object="ai_mean_temperature", subarea="Central Aleutians",
+                             foss_srvy="AI", column_map=MEAN_TEMP_COLUMN_MAP,
+                             years="1991–2024 (triennial/biennial)"),
+)
+AI_EAST = BottomRegion(
+    id="ai_east", label="Eastern Aleutians", product_kind="bottom_temp", group="ai",
+    lat_min=51.0, lat_max=56.0, lon_min=189.0, lon_max=197.0,   # 0–360 frame
+    shelf_max_depth_m=200.0, mask_source="etopo2022", valid_sources=("mom6_nep",),
+    has_survey_hauls=True,
+    observed=ObservedProduct(kind="mean_temperature", rda_url=AI_RDA_URL,
+                             r_object="ai_mean_temperature", subarea="Eastern Aleutians",
+                             foss_srvy="AI", column_map=MEAN_TEMP_COLUMN_MAP,
+                             years="1991–2024 (triennial/biennial)"),
+)
+
+
 # --- Arctic — Chukchi & Beaufort: MODEL-ONLY (no survey) bottom temperature (Phase 3) ----
 # There is no routine AFSC bottom-trawl survey in the Chukchi/Beaufort, so these regions have
 # NO observed index, NO catch, and NO survey replication — the only product is the MOM6 modelled
@@ -309,10 +371,11 @@ BEAUFORT = BottomRegion(
 
 
 BOTTOM_REGIONS: dict[str, BottomRegion] = {
-    r.id: r for r in (EBS, NBS, SLOPE, GOA, AI, CHUKCHI, BEAUFORT)
+    r.id: r for r in (EBS, NBS, SLOPE, GOA, WGOA, EGOA, AI, AI_WEST, AI_CENTRAL, AI_EAST,
+                      CHUKCHI, BEAUFORT)
 }
 
-DEFAULT_REGION_ID = "ebs"
+DEFAULT_REGION_ID = "sebs"
 
 
 def get_region(region_id: str) -> BottomRegion:

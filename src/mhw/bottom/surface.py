@@ -161,7 +161,7 @@ def save_parquet(df: pd.DataFrame, region: BottomRegion) -> Path:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Build observed summer open-water shelf-surface SST (OISST).")
-    p.add_argument("--region", default="ebs", choices=sorted(BOTTOM_REGIONS), help="Bottom region id")
+    p.add_argument("--region", default="sebs", choices=sorted(BOTTOM_REGIONS), help="Bottom region id")
     return p.parse_args(argv)
 
 
