@@ -454,16 +454,19 @@ def _obs_surface_bottom_card(region: str) -> None:
         ], cols=2, template="1fr 1fr 0.9fr")
         sx, sy = sel["surface_temperature"], sel["gear_temperature"]
         mx, my = float(sx.mean()), float(sy.mean())
-        # Centre each cloud in an equal-aspect square (common span on both axes, but each axis
-        # centred on its own data) so the points fill the frame and the slope-1 line still reads 45°.
-        pad = 0.4
-        span = max(float(sx.max() - sx.min()), float(sy.max() - sy.min())) + 2 * pad
-        x_lo, x_hi = mx - span / 2, mx + span / 2
-        y_lo, y_hi = my - span / 2, my + span / 2
+        # Equal-aspect square so the slope-1 line reads true 45°. Use a common span centred on each
+        # axis's data *mid-point* (not the mean), and `constrain="domain"` so Plotly squares the PLOT
+        # AREA rather than ballooning the x-range (the earlier bug that squished the cloud).
+        pad = 0.5
+        half = (max(float(sx.max() - sx.min()), float(sy.max() - sy.min())) + 2 * pad) / 2
+        cx = (float(sx.min()) + float(sx.max())) / 2
+        cy = (float(sy.min()) + float(sy.max())) / 2
+        x_lo, x_hi = cx - half, cx + half
+        y_lo, y_hi = cy - half, cy + half
+        off = my - mx
         fig = go.Figure()
         # 45° line (slope 1) through the means — its height vs the points shows the typical
         # stratification; compare the green best-fit slope against it.
-        off = my - mx
         fig.add_trace(go.Scatter(x=[x_lo, x_hi], y=[x_lo + off, x_hi + off], mode="lines",
                                  name="45° through means", hoverinfo="skip",
                                  line={"color": "#d62728", "width": 1.5, "dash": "dot"}))
@@ -478,8 +481,9 @@ def _obs_surface_bottom_card(region: str) -> None:
             name=f"hauls (n={len(sel):,})",
             marker={"color": "#1f77b4", "size": 5, "opacity": 0.4, "line": {"width": 0}},
             hovertemplate="surface %{x:.1f} °C<br>bottom %{y:.1f} °C<extra></extra>"))
-        fig.update_xaxes(title_text="Surface temperature (°C)", range=[x_lo, x_hi])
-        fig.update_yaxes(title_text="Bottom temperature (°C)", range=[y_lo, y_hi], scaleanchor="x", scaleratio=1)
+        fig.update_xaxes(title_text="Surface temperature (°C)", range=[x_lo, x_hi], constrain="domain")
+        fig.update_yaxes(title_text="Bottom temperature (°C)", range=[y_lo, y_hi],
+                         scaleanchor="x", scaleratio=1, constrain="domain")
         fig.update_layout(height=460, template="plotly_white", margin={"l": 60, "r": 20, "t": 44, "b": 50},
                           legend={"orientation": "h", "y": 1.03, "yanchor": "bottom", "x": 0, "xanchor": "left"})
         st.markdown(f"**{label}** · {len(sel):,} hauls")
@@ -668,8 +672,9 @@ def _model_scatter_panel(name: str, sel: pd.DataFrame, has_split: bool, height: 
                      "Bias (°C)": round(float(d.mean()), 2),
                      "RMSE (°C)": round(float(np.sqrt((d ** 2).mean())), 2),
                      "r": round(float(s["model_bottom_temp"].corr(s["obs_bottom_temp"])), 2)})
-    fig.update_xaxes(title_text="Observed (°C)", range=[lo, hi])
-    fig.update_yaxes(title_text="Model (°C)", range=[lo, hi], scaleanchor="x", scaleratio=1)
+    fig.update_xaxes(title_text="Observed (°C)", range=[lo, hi], constrain="domain")
+    fig.update_yaxes(title_text="Model (°C)", range=[lo, hi], scaleanchor="x", scaleratio=1,
+                     constrain="domain")
     fig.update_layout(height=height, template="plotly_white",
                       margin={"l": 55, "r": 15, "t": 34, "b": 44},
                       legend={"orientation": "h", "y": 1.02, "yanchor": "bottom",
