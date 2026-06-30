@@ -382,6 +382,24 @@ def _bottom_temp_models(region: str, model_choices: list[str]) -> None:
                    f"`mhw-build-survey-replicate --source mom6_nep --region {region}`.")
 
 
+def _model_coverage(region: str, labels: list[str], is_cold_pool: bool) -> str:
+    """A 'Bering10K ROMS (1982–2024) · CEFI MOM6 NEP (1993–2025)' string, read from the *same* data
+    the snapshot/panels use — so the stated periods match the table's blank ('—') years and nobody
+    is surprised that, e.g., 1982 has no MOM6."""
+    parts = []
+    for lbl in labels:
+        src = MODEL_SOURCES[lbl]
+        if is_cold_pool:
+            d = load_kriged_area(src, region)
+            yr = d["year"] if d is not None and "year" in d.columns else None
+        else:
+            ann, _ = load_survey_replicate(src, region)
+            yr = ann["year"] if ann is not None and "year" in ann.columns else None
+        if yr is not None and len(yr):
+            parts.append(f"{lbl} ({int(yr.min())}–{int(yr.max())})")
+    return " · ".join(parts)
+
+
 def render(group: str = "bering") -> None:
     """Render the Model Comparison page (page config/fonts owned by the navigation shell)."""
     inject_css()
@@ -394,14 +412,18 @@ def render(group: str = "bering") -> None:
     region = st.sidebar.selectbox("Region", regions, format_func=str.upper, key="bs_mod_region")
     reg = get_region(region)
     is_cold_pool = reg.product_kind == "cold_pool"
-
-    page_header("🌡️", "Model Comparison", region_label(region),
-                f"{region_label(region)} ({region.upper()})",
-                caption=("How the regional ocean models (Bering10K ROMS, CEFI MOM6 NEP) behave over "
-                         "this region, and how they compare to each other. For each model's true "
-                         "skill against the survey, see Cold Pool & Bottom Temperature."))
-
     valid_labels = [lbl for lbl, sid in MODEL_SOURCES.items() if sid in reg.valid_sources]
+
+    coverage = _model_coverage(region, valid_labels, is_cold_pool)
+    cap = "How the regional ocean models behave over this region, and how they compare to each other"
+    if coverage:
+        cap += f" — coverage: {coverage}"
+    cap += (". Models extend only over their own hindcast period, so a year outside it shows “—” in "
+            "the snapshot. For each model's true skill against the survey, see Cold Pool & Bottom "
+            "Temperature.")
+    page_header("🌡️", "Model Comparison", region_label(region),
+                f"{region_label(region)} ({region.upper()})", caption=cap)
+
     model_choices = st.sidebar.multiselect(
         "Models to show", valid_labels, default=valid_labels,
         help="Pick the regional model(s) valid for this region.",
