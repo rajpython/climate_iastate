@@ -1,4 +1,4 @@
-"""Alaska Marine Ecosystem Dashboard — entry point / navigation shell.
+"""Alaska Marine Ecosystems Dashboard — entry point / navigation shell.
 
 Run:
     streamlit run src/dashboard/Alaska_Dashboard.py
@@ -15,7 +15,7 @@ modules just render their bodies.
 import streamlit as st
 
 st.set_page_config(
-    page_title="Alaska Marine Ecosystem Dashboard",
+    page_title="Alaska Marine Ecosystems Dashboard",
     page_icon="🌊",
     layout="wide",
 )
@@ -161,7 +161,7 @@ def _card_html(title: str, concept: str, desc: str, under_dev: bool,
 
 def home() -> None:
     st.markdown(_HOME_CSS, unsafe_allow_html=True)
-    st.title("🌊 Alaska Marine Ecosystem Dashboard")
+    st.title("🌊 Alaska Marine Ecosystems Dashboard")
     st.markdown('<div class="amed-subtitle">Climate • Ocean • Ecosystems • Fisheries</div>',
                 unsafe_allow_html=True)
     st.markdown(

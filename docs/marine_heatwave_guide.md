@@ -1,5 +1,5 @@
 # Marine Heatwave Guide
-*Alaska Marine Ecosystem Dashboard — Climate • Ocean • Ecosystems • Fisheries*
+*Alaska Marine Ecosystems Dashboard — Climate • Ocean • Ecosystems • Fisheries*
 
 A detailed guide to the **Alaska-wide marine-heatwave (MHW) indicators** — the **Marine
 Heatwaves** entry under the **Alaska-wide Climate** section, with its **Operational** and
@@ -173,7 +173,7 @@ The Arctic Oscillation and Pacific Decadal Oscillation are large-scale climate m
 
 ## Credits
 
-**Alaska Marine Ecosystem Dashboard**
+**Alaska Marine Ecosystems Dashboard**
 Developed by Rajesh Singh, Professor, Department of Economics, Iowa State University (rsingh@iastate.edu).
 
 Built with Streamlit, FastAPI, and Plotly.

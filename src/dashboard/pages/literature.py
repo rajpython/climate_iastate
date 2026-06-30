@@ -1,5 +1,5 @@
 """Literature Summaries — curated, plain-language summaries of literature relevant to the
-Alaska Marine Ecosystem platform.
+Alaska Marine Ecosystems platform.
 
 A path-registered page (runs top-to-bottom, like ``cold_pool_position.py``). The first entry is
 the marine-heatwave forecasting synthesis; the full text renders inline and the typeset PDF is

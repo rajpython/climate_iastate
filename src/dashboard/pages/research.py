@@ -16,7 +16,7 @@ def render() -> None:
     st.title("🔬 Research Resources")
     st.markdown(
         "Literature, summaries, technical notes, methodology, and ongoing work supporting the "
-        "Alaska Marine Ecosystem platform. Forecast **development and methodology** are "
+        "Alaska Marine Ecosystems platform. Forecast **development and methodology** are "
         "documented here; the forecast **indicators** themselves will appear alongside the "
         "relevant ecosystem indicators in the Alaska-wide and regional sections as they become "
         "available."

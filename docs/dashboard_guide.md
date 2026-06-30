@@ -1,7 +1,7 @@
 # Dashboard Guide
-*Alaska Marine Ecosystem Dashboard — Climate • Ocean • Ecosystems • Fisheries*
+*Alaska Marine Ecosystems Dashboard — Climate • Ocean • Ecosystems • Fisheries*
 
-This guide explains what the Alaska Marine Ecosystem Dashboard is, how it is organised, what
+This guide explains what the Alaska Marine Ecosystems Dashboard is, how it is organised, what
 it currently covers, and where to find each indicator. It is the platform-level orientation;
 the **Marine Heatwave Guide** and the **Bering Sea Bottom-State Guide** document specific
 indicators in depth.
