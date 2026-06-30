@@ -37,3 +37,6 @@ docs/tmp/
 docs/forecast_extension/outreach/
 .claude/
 plan/
+
+# scratch / working files for the forecast research cell
+docs/forecast_extension/tmp/
