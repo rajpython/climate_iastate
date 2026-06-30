@@ -4,7 +4,7 @@ Backs the dashboard's Simpson's-paradox explanation on the Chukchi/Beaufort bott
 pages: the whole-shelf *mean* differs between the two shelves mostly because of their different
 **depth distributions**, not because the water is warmer — so the page shows bottom temperature by
 depth bin (area-weighted
-bottom temperature *by depth bin*) and each bin's share of shelf area. Climatology: CEFI MOM6 NEP,
+bottom temperature *by depth bin*) and each bin's share of shelf area. Climatology: MOM6 NEP10k,
 Jul–Sep, 2014–2024, area-weighted (cos-lat) on each region's analysis grid, ETOPO ≤ 200 m shelf.
 
 CLI: mhw-build-arctic-profile

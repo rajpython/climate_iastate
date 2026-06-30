@@ -223,7 +223,7 @@ SLOPE = BottomRegion(
 # (Western / Eastern GOA), 16 biennial survey years 1993–2025 — bottom temps 4.7–6.2 °C, no
 # sub-2 °C water, so there is NO cold pool (product_kind="bottom_temp"). There is no area
 # column, so the GOA-wide annual mean is the cross-subarea mean (see fetch/coldpool.py).
-# MOM6-only: Bering10K is out of domain for the GOA, so the model side is CEFI MOM6 NEP,
+# MOM6-only: Bering10K is out of domain for the GOA, so the model side is MOM6 NEP10k,
 # survey-replicated at the FOSS GOA haul locations/dates. Grid/depth bounds are set for
 # completeness but are NOT load-bearing here (no full-domain model area series is built).
 GOA = BottomRegion(
@@ -253,7 +253,7 @@ GOA = BottomRegion(
 # (Western / Central / Eastern Aleutians — three subareas), 14 survey years 1991–2024
 # (triennial early, then ~biennial; no area column) — bottom temps ~3–5 °C, no cold pool
 # (product_kind="bottom_temp"). MOM6-only: Bering10K only partially covers the AI Bering-side
-# and it is not the AI validated domain, so the model side is CEFI MOM6 NEP, survey-replicated
+# and it is not the AI validated domain, so the model side is MOM6 NEP10k, survey-replicated
 # at the FOSS AI haul locations/dates. The AI chain CROSSES THE DATELINE, so its grid is on the
 # 0–360 frame (lon 170..195); the regrid + ETOPO mask are dateline-aware. The validation scatter
 # stays single-series (a clean longitude subarea split is still deferred).

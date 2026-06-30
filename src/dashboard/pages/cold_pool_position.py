@@ -33,7 +33,7 @@ from mhw.bottom.regions import EBS
 REGION = "sebs"
 GREEN, BLUE, AMBER = "#2e7d32", "#1565c0", "#b35900"
 # Time-series display names (hindcast wording per the page design).
-_TS_NAMES = {"Bering10K ROMS": "Bering10K (hindcast)", "CEFI MOM6 NEP": "MOM6-NEP (hindcast)"}
+_TS_NAMES = {"Bering10K ROMS": "Bering10K (hindcast)", "MOM6 NEP10k": "MOM6 NEP10k (hindcast)"}
 
 _CSS = """<style>
 .cpp-sec { font-size:0.82rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;

@@ -350,7 +350,7 @@ def _modelled_shelf_card(region: str) -> None:
     with st.container(border=True):
         section_title("Modelled shelf bottom temperature — continuous (full hindcast)")
         when_note("Each year's modelled bottom for <b>early July (~4 Jul)</b>, the survey season — "
-                  "the CEFI MOM6 NEP July monthly field over the ≤ 200 m shelf (the only model "
+                  "the MOM6 NEP10k July monthly field over the ≤ 200 m shelf (the only model "
                   "covering this region). A summer snapshot, not an annual mean.")
         if has_obs:
             st.caption(
@@ -398,9 +398,9 @@ def _modelled_shelf_card(region: str) -> None:
         if has_obs:
             st.caption("Continuous modelled line (≤ 200 m shelf, standalone-bathymetry mask) with the "
                        "survey observations (open circles) overlaid — close in level here but different "
-                       "domains. MOM6 NEP is less-validated outside the Bering. Descriptive — not a forecast.")
+                       "domains. MOM6 NEP10k is less-validated outside the Bering. Descriptive — not a forecast.")
         else:
-            st.caption("Modelled over the ≤ 200 m shelf (standalone-bathymetry/ETOPO mask). MOM6 NEP "
+            st.caption("Modelled over the ≤ 200 m shelf (standalone-bathymetry/ETOPO mask). MOM6 NEP10k "
                        "is model-only / unvalidated in this region. Descriptive — not a forecast.")
 
 
@@ -726,7 +726,7 @@ def _obs_vs_model_scatter(region: str, model_choices: list[str]) -> None:
             spans = " · ".join(f"{n} {lo}–{hi}" for n, (lo, hi) in coverage.items())
             st.caption(f"⚠️ Model coverage differs: {spans}. A model has no points in years its "
                        "hindcast does not reach (the Bering10K hindcast currently ends in 2024; "
-                       "MOM6 NEP runs to 2025), so a single recent year may show only one model.")
+                       "MOM6 NEP10k runs to 2025), so a single recent year may show only one model.")
         if has_split:
             c0, c1, c2 = st.columns([1, 1, 1.4])
             sub_choice = c0.radio("Subarea", ["Combined", "Western", "Eastern"],
@@ -803,7 +803,7 @@ def _depth_profile_card(region: str) -> None:
         st.markdown(styled_table(tbl), unsafe_allow_html=True)
         st.caption(
             "Area-weighted modelled bottom temperature and each bin's share of shelf area — "
-            "CEFI MOM6 NEP, Jul–Sep climatology 2014–2024, ≤ 200 m (ETOPO mask). The Chukchi's broad "
+            "MOM6 NEP10k, Jul–Sep climatology 2014–2024, ≤ 200 m (ETOPO mask). The Chukchi's broad "
             "cold mid-shelf (≈ 83 % of its area at 30–100 m) pulls its whole-shelf mean down; the "
             "narrow Beaufort carries far more warm shallow area. The upper-shelf Chukchi-warm pattern "
             "is consistent with Pacific Summer Water (Pacini et al. 2019); the deep bins are "
@@ -815,16 +815,17 @@ def _modelled_only(region: str) -> None:
     shelf series is the only product, shown with a prominent unvalidated-here banner."""
     st.warning(
         "**Model-only region.** The Chukchi and Beaufort have no AFSC bottom-trawl survey, so there "
-        "is no observed index, catch, or in-region validation here. The series below is the CEFI "
-        "MOM6 NEP hindcast over the ≤ 200 m shelf — modelled conditions, not measurements, and "
-        "unvalidated in this region."
+        "is no observed index, catch, or in-region validation here. The series below is the "
+        "**CEFI MOM6-COBALT-NEP10k v1.0** (NOAA GFDL) hindcast over the ≤ 200 m shelf — modelled "
+        "conditions, not measurements, and unvalidated in this region."
     )
     _modelled_shelf_card(region)
     _depth_profile_card(region)           # bottom-temp-by-depth + Simpson's-paradox explanation (cross-shelf)
     _arctic_surface_bottom_card(region)   # OISST surface + model bottom, co-located (context, not validation)
-    footer("Sources: CEFI MOM6 NEP (NOAA GFDL / PSL) — modelled bottom temperature over the ≤ 200 m "
-           "shelf (ETOPO mask); NOAA OISST — observed summer surface temperature. Depth profile: "
-           "MOM6 Jul–Sep climatology 2014–2024. No in-region survey → bottom is model-only, "
+    footer("Sources: <b>CEFI MOM6-COBALT-NEP10k v1.0</b> (NOAA GFDL; Drenkard et&nbsp;al., GMD 18:5245, "
+           "2025) — modelled bottom temperature over the ≤ 200 m shelf (ETOPO mask); NOAA OISST — "
+           "observed summer surface temperature. Depth profile: MOM6 NEP10k Jul–Sep climatology "
+           "2014–2024. No in-region survey → bottom is model-only, "
            "unvalidated here. Pacific Summer Water context: Pacini et al. 2019 (doi:10.1029/2019JC015261). "
            "Lagged, not near-real-time.")
 

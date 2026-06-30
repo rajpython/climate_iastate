@@ -158,7 +158,7 @@ def build_model_coldpool_series(
     """Compute the annual modelled cold-pool series for *source* over *region*.
 
     Works for any source via the loader's grid-agnostic contract: Bering10K is weekly
-    + curvilinear; MOM6 NEP is monthly + rectilinear. With ``monthly=False`` the
+    + curvilinear; MOM6 NEP10k is monthly + rectilinear. With ``monthly=False`` the
     summer-week selector picks the time step nearest *target_md*; with ``monthly=True``
     it uses the July monthly mean (so weekly + monthly sources land on identical
     cadence). All sources share one region shelf mask (see :func:`build_shelf_mask`).
