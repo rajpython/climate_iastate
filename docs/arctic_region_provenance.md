@@ -31,5 +31,8 @@ maritime boundary (141°W).
 1. **Reconstructed, not an official single shapefile.** The NPFMC Arctic FMP boundary is not published
    as one clean downloadable polygon, so it is reconstructed from the authoritative US EEZ per the
    FMP's textual definition. Faithful to the definition; documented here for external review.
-2. **~0.17° sub-grid gap to NBS.** NBS's northern extent is 65.83°N and Chukchi's southern clip is
-   66.0°N (the Bering Strait divide) — a gap smaller than one 0.25° cell; immaterial at the OISST grid.
+2. **~0.5° realized mask gap to NBS (2 grid rows).** The Chukchi polygon's southern clip is 66.0°N and
+   NBS's northern extent 65.83°N — a 0.17° *polygon* gap at the Bering Strait divide. At 0.25°
+   rasterization the nearest NBS and Chukchi mask cell-rows land ~0.5° apart (2 rows). Functional impact
+   is nil: that row is land at OISST resolution, so **0 ocean cells are left unassigned** (confirmed by
+   LOFRA's tiling QA).

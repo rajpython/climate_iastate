@@ -35,12 +35,31 @@ mkdir -p "$LOGDIR"
 
 log() { printf '[%s] %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*"; }
 
+# --- OISST re-fetch guard (fixes the forward-only-cron gap) ---------------
+# mhw-run-states caches OISST per year and treats a current-year cache as fresh
+# once its LAST day is within 2 days of today. That check never re-examines
+# EARLIER days, so days that OISST published late (classically Jan 1–4 over the
+# New-Year latency window) stay frozen as "no data → area_frac 0" for the rest
+# of the year, even after OISST fills them in. OISST also revises preliminary
+# values to final within ~2 weeks. To self-heal both, force a fresh full-year
+# OISST re-fetch (--no-cache) during the revision-sensitive early-year window
+# and once a week; on other days keep the cache for resilience to transient
+# OPeNDAP outages (a cached rebuild still succeeds if the remote is down).
+DOY="$(date -u +%j)"   # day-of-year, 001–366
+DOW="$(date -u +%u)"   # day-of-week, 1=Mon
+if [ "$((10#$DOY))" -le 21 ] || [ "$DOW" -eq 1 ]; then
+    REFETCH_FLAG="--no-cache"
+    log "OISST guard: forcing fresh re-fetch (DOY=${DOY}, DOW=${DOW})"
+else
+    REFETCH_FLAG=""
+fi
+
 log "=== MHW daily refresh — ${TODAY} ==="
 
 for region in "${REGIONS[@]}"; do
     log "[$region] Running state engine  ${YEAR_START} → ${TODAY} …"
     docker compose exec -T api \
-        mhw-run-states --region "$region" --start "$YEAR_START" --end "$TODAY"
+        mhw-run-states --region "$region" --start "$YEAR_START" --end "$TODAY" $REFETCH_FLAG
 
     log "[$region] Aggregating …"
     docker compose exec -T api \

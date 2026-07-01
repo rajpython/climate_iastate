@@ -124,6 +124,32 @@ def build_masks(
             attrs={"region_name": name, "region_id": rid, "dtype": mask_dtype},
         )
 
+    # Enforce the ESR invariant: each combined ecosystem area == the union of its
+    # subareas. At 0.25° the combined ESR-area polygon rasterizes to a few boundary
+    # cells beyond the union of its subarea polygons (ebs 1, goa 3, ai 14), so a
+    # leaf-weighted roll-up would not exactly equal the combined aggregate. Redefine
+    # each combined mask as that union so combined ≡ Σ subareas exactly.
+    COMBINED_SUBAREAS = {
+        "ebs": ["sebs", "nbs"],
+        "goa": ["wgoa", "egoa"],
+        "ai":  ["ai_west", "ai_central", "ai_east"],
+    }
+    for comb, subs in COMBINED_SUBAREAS.items():
+        if comb in data_vars and all(s in data_vars for s in subs):
+            union = np.zeros_like(data_vars[comb].values, dtype=bool)
+            for s in subs:
+                union |= data_vars[s].values.astype(bool)
+            n_before = int(data_vars[comb].values.sum())
+            n_after = int(union.sum())
+            data_vars[comb] = xr.DataArray(
+                union.astype(mask_dtype),
+                dims=["lat", "lon"],
+                coords={"lat": lats, "lon": lons},
+                attrs=data_vars[comb].attrs,
+            )
+            print(f"  Reconciled {comb}: {n_before:,} → {n_after:,} cells "
+                  f"(= union of {'+'.join(subs)})")
+
     return xr.Dataset(data_vars, coords={"lat": lats, "lon": lons})
 
 
