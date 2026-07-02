@@ -66,42 +66,49 @@ WARMUP_DAYS=150
 
 log "=== MHW daily refresh — ${TODAY} ==="
 
-# --- New-Year December re-finalization (once per year, after ~Jan 15) -------
+# --- Prior-year re-finalization (once per year, after ~Jan 15) --------------
 # OISST publishes each day as *preliminary* and finalizes it ~2 weeks later, so
-# when the year turns, the stored late-December aggregates were computed from
+# when the year turns, the stored record for late December was computed from
 # preliminary values (and the Dec 30-31 tail wasn't published at all yet).
 # year_cache_stale (mhw.climatology.build_mu_theta) re-pulls the prior-year
-# cache once after Jan 15; this block then recomputes December states +
-# aggregates from the finalized data so the permanent board record for late
-# December is exact. The marker file makes it run once per year; failures are
-# non-fatal (retried the next day) so the live current-year refresh below
-# always proceeds. The temporary December zarr is removed after aggregation so
-# the Live MHW Map dropdown keeps exactly one current-year zarr per region.
+# cache once after Jan 15; this block then recomputes the FULL prior year so
+# every sealed artifact is finalized consistently:
+#   - the archive grid zarr states_<r>_<Y>-01-01_<Y>-12-31.zarr (what the Live
+#     MHW Map's year dropdown renders) is overwritten by the finalized run —
+#     recomputing only December would finalize the parquet but leave the
+#     archived December *maps* preliminary;
+#   - the full-year aggregate upsert guarantees parquet == archive zarr
+#     (Jan-Nov rows rewrite identically; December rows pick up the finals).
+# After this block the prior year is permanently sealed: daily runs only touch
+# the current year, monthly refresh only extends forward, and the prior-year
+# cache staleness window closes mid-March. The marker file makes it run once
+# per year (dynamic PRIOR_YEAR -> repeats automatically every January);
+# failures are non-fatal and retried the next day so the live current-year
+# refresh below always proceeds. cleanup_old_states.sh only prunes
+# current-year snapshots, so the refreshed archive zarr is never touched.
 PRIOR_YEAR=$((YEAR - 1))
-DEC_MARKER="${LOGDIR}/.dec_refinalized_${PRIOR_YEAR}"
+SEAL_MARKER="${LOGDIR}/.refinalized_${PRIOR_YEAR}"
 MMDD="$(date -u +%m%d)"
-if [[ "$MMDD" > "0114" && "$MMDD" < "0316" && ! -f "$DEC_MARKER" ]]; then
-    log "=== Re-finalizing December ${PRIOR_YEAR} from final OISST ==="
+if [[ "$MMDD" > "0114" && "$MMDD" < "0316" && ! -f "$SEAL_MARKER" ]]; then
+    log "=== Re-finalizing year ${PRIOR_YEAR} from final OISST ==="
     if (
         set -euo pipefail
         for region in "${REGIONS[@]}"; do
-            log "[$region] December ${PRIOR_YEAR} states (warm-start ${WARMUP_DAYS}d) …"
+            log "[$region] ${PRIOR_YEAR} full-year states (warm-start ${WARMUP_DAYS}d) …"
             docker compose exec -T api \
                 mhw-run-states --region "$region" \
-                    --start "${PRIOR_YEAR}-12-01" --end "${PRIOR_YEAR}-12-31" \
+                    --start "${PRIOR_YEAR}-01-01" --end "${PRIOR_YEAR}-12-31" \
                     --warmup-days "$WARMUP_DAYS"
-            log "[$region] December ${PRIOR_YEAR} aggregates …"
+            log "[$region] ${PRIOR_YEAR} full-year aggregates …"
             docker compose exec -T api \
                 mhw-aggregate --region "$region" \
-                    --start "${PRIOR_YEAR}-12-01" --end "${PRIOR_YEAR}-12-31"
-            docker compose exec -T api rm -rf \
-                "/app/data/derived/states_grid/states_${region}_${PRIOR_YEAR}-12-01_${PRIOR_YEAR}-12-31.zarr"
+                    --start "${PRIOR_YEAR}-01-01" --end "${PRIOR_YEAR}-12-31"
         done
     ); then
-        touch "$DEC_MARKER"
-        log "=== December ${PRIOR_YEAR} re-finalized (marker: ${DEC_MARKER}) ==="
+        touch "$SEAL_MARKER"
+        log "=== Year ${PRIOR_YEAR} sealed (marker: ${SEAL_MARKER}) ==="
     else
-        log "WARNING: December re-finalization failed — will retry tomorrow"
+        log "WARNING: prior-year re-finalization failed — will retry tomorrow"
     fi
 fi
 
