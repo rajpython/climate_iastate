@@ -16,7 +16,7 @@ import argparse
 import json
 import time
 import warnings
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -59,6 +59,64 @@ def _year_cache_path(region_id: str, year: int) -> Path:
     return DATA_RAW / f"oisst_{region_id}_{year}.nc"
 
 
+# OISST publishes each day as *preliminary* and revises it to *final* roughly
+# two weeks later. A prior-year cache written around New Year therefore (a) ends
+# ~Dec 29-30 (the tail wasn't published yet when the year turned) and (b) holds
+# preliminary values for mid-to-late December. Both are healed by re-fetching
+# the prior year once during the settling window below.
+FINAL_LAG_DAYS = 14           # prelim -> final revision lag
+SETTLE_WINDOW_END = (3, 15)   # (month, day): stop re-checking prior year after this
+
+
+def year_cache_stale(cache: Path, year: int, *, today: date | None = None) -> bool:
+    """Return True if the yearly OISST cache at *cache* must be re-fetched.
+
+    Rules (single source of truth — used by fetch_year and the state engine's
+    up-front remote-connection check, which must always agree):
+      - missing, unreadable, missing vars, or too few days (past years must be
+        ~complete, >=360 of 365/366)                         -> stale
+      - current year: file still growing; stale when its last day lags today
+        by more than 2 days (OISST publishes ~1 day late)    -> stale
+      - previous year, until mid-March:
+          * ends before Dec 31 (the Dec 30-31 tail was unpublished when the
+            year turned)                                     -> stale
+          * fetched before that December finalized (file mtime earlier than
+            Jan 1 + FINAL_LAG_DAYS) once today has passed that point — fires
+            exactly once, pulling NOAA's final late-December revisions
+    """
+    today = today or date.today()
+    if not cache.exists():
+        return True
+    try:
+        with xr.open_dataset(cache) as ds:
+            if "sst" not in ds.data_vars or "ice" not in ds.data_vars:
+                return True
+            n_days = int(ds["time"].size)
+            last_day = (
+                ds["time"].values[-1].astype("datetime64[D]") if n_days else None
+            )
+    except Exception:
+        return True
+
+    min_days = 1 if year == today.year else 360
+    if n_days < min_days:
+        return True
+
+    if year == today.year:
+        stale_threshold = np.datetime64(today, "D") - np.timedelta64(2, "D")
+        return last_day < stale_threshold
+
+    if year == today.year - 1 and today <= date(today.year, *SETTLE_WINDOW_END):
+        if last_day < np.datetime64(date(year, 12, 31), "D"):
+            return True
+        finalized_by = date(today.year, 1, 1) + timedelta(days=FINAL_LAG_DAYS)
+        fetched_on = date.fromtimestamp(cache.stat().st_mtime)
+        if today >= finalized_by and fetched_on < finalized_by:
+            return True
+
+    return False
+
+
 def fetch_year(
     region_id: str,
     year: int,
@@ -76,30 +134,14 @@ def fetch_year(
     """
     cache = _year_cache_path(region_id, year)
     if use_cache and cache.exists():
-        ds = xr.open_dataset(cache)
-        # A valid cache must have both vars AND a sane number of days — past years should be
-        # ~complete (≥360 of 365/366); a partial current year is fine (staleness checked below).
-        # This guards against empty/truncated .nc files left by an interrupted/flaky fetch, which
-        # otherwise silently produce all-zero state for that year.
-        min_days = 1 if year == date.today().year else 360
-        if "sst" in ds.data_vars and "ice" in ds.data_vars and ds["time"].size >= min_days:
-            # Current-year files are still growing: invalidate when the last
-            # cached day is ≥2 days behind today (OISST publishes ~1 day late;
-            # 2-day buffer gives one extra day of margin).
-            if year == date.today().year:
-                stale_threshold = (
-                    np.datetime64(date.today(), "D") - np.timedelta64(2, "D")
-                )
-                if ds["time"].values[-1].astype("datetime64[D]") < stale_threshold:
-                    ds.close()
-                    cache.unlink()  # stale current-year cache — re-fetch below
-                else:
-                    return ds
-            else:
-                return ds
+        # All staleness rules (corrupt/short file, growing current year,
+        # prior-year New-Year tail + prelim->final re-pull) live in
+        # year_cache_stale so this check and the state engine's up-front
+        # remote-connection check can never disagree.
+        if year_cache_stale(cache, year):
+            cache.unlink()  # stale/corrupt — re-fetch below
         else:
-            ds.close()
-            cache.unlink()  # corrupt/incomplete/empty — re-fetch
+            return xr.open_dataset(cache)
 
     lon_min_360 = bbox["lon_min"] % 360
     lon_max_360 = bbox["lon_max"] % 360

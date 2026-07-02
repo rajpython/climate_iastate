@@ -66,6 +66,45 @@ WARMUP_DAYS=150
 
 log "=== MHW daily refresh — ${TODAY} ==="
 
+# --- New-Year December re-finalization (once per year, after ~Jan 15) -------
+# OISST publishes each day as *preliminary* and finalizes it ~2 weeks later, so
+# when the year turns, the stored late-December aggregates were computed from
+# preliminary values (and the Dec 30-31 tail wasn't published at all yet).
+# year_cache_stale (mhw.climatology.build_mu_theta) re-pulls the prior-year
+# cache once after Jan 15; this block then recomputes December states +
+# aggregates from the finalized data so the permanent board record for late
+# December is exact. The marker file makes it run once per year; failures are
+# non-fatal (retried the next day) so the live current-year refresh below
+# always proceeds. The temporary December zarr is removed after aggregation so
+# the Live MHW Map dropdown keeps exactly one current-year zarr per region.
+PRIOR_YEAR=$((YEAR - 1))
+DEC_MARKER="${LOGDIR}/.dec_refinalized_${PRIOR_YEAR}"
+MMDD="$(date -u +%m%d)"
+if [[ "$MMDD" > "0114" && "$MMDD" < "0316" && ! -f "$DEC_MARKER" ]]; then
+    log "=== Re-finalizing December ${PRIOR_YEAR} from final OISST ==="
+    if (
+        set -euo pipefail
+        for region in "${REGIONS[@]}"; do
+            log "[$region] December ${PRIOR_YEAR} states (warm-start ${WARMUP_DAYS}d) …"
+            docker compose exec -T api \
+                mhw-run-states --region "$region" \
+                    --start "${PRIOR_YEAR}-12-01" --end "${PRIOR_YEAR}-12-31" \
+                    --warmup-days "$WARMUP_DAYS"
+            log "[$region] December ${PRIOR_YEAR} aggregates …"
+            docker compose exec -T api \
+                mhw-aggregate --region "$region" \
+                    --start "${PRIOR_YEAR}-12-01" --end "${PRIOR_YEAR}-12-31"
+            docker compose exec -T api rm -rf \
+                "/app/data/derived/states_grid/states_${region}_${PRIOR_YEAR}-12-01_${PRIOR_YEAR}-12-31.zarr"
+        done
+    ); then
+        touch "$DEC_MARKER"
+        log "=== December ${PRIOR_YEAR} re-finalized (marker: ${DEC_MARKER}) ==="
+    else
+        log "WARNING: December re-finalization failed — will retry tomorrow"
+    fi
+fi
+
 for region in "${REGIONS[@]}"; do
     log "[$region] Running state engine  ${YEAR_START} → ${TODAY} (warm-start ${WARMUP_DAYS}d) …"
     docker compose exec -T api \
