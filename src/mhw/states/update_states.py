@@ -697,21 +697,39 @@ def main(argv: list[str] | None = None) -> None:
                         help="Plot backend (default: plotly)")
     parser.add_argument("--no-cache", dest="no_cache", action="store_true",
                         help="Re-download even if yearly NetCDF cache exists")
+    parser.add_argument("--warmup-days", dest="warmup_days", type=int, default=0,
+                        help="Warm the StateBuffer by processing this many extra "
+                             "lead days before --start (only [start, end] is "
+                             "written). Set >0 so events that straddle the --start "
+                             "boundary (e.g. a MHW ongoing across New Year) are "
+                             "detected instead of cold-started to zero.")
     args = parser.parse_args(argv)
 
     cfg   = _load_config()
     start = date.fromisoformat(args.start)
     end   = date.fromisoformat(args.end)
 
+    # Warm-start lead: process from (start - warmup_days) so the Hobday
+    # persistence buffer is already "locked on" to any event ongoing at --start;
+    # the lead days are dropped from the output before saving/aggregating.
+    eff_start = start - timedelta(days=args.warmup_days) if args.warmup_days else start
+
     print(f"=== MHW State Engine: region={args.region}  {start} → {end} ===")
+    if args.warmup_days:
+        print(f"    warm-start lead: {args.warmup_days} days (engine from {eff_start})")
     print(f"    gap_days={cfg['mhw_definition']['gap_days']}  "
           f"confirm_days={cfg['mhw_definition']['confirm_days']}  "
           f"intensity_ref={cfg['mhw_definition']['intensity_reference']}\n")
 
     ds, _ = run_state_engine(
-        args.region, start, end, cfg,
+        args.region, eff_start, end, cfg,
         use_cache=not args.no_cache,
     )
+
+    # Drop the warm-up lead so only the requested [start, end] is written; the
+    # saved zarr keeps the requested-range name so aggregation/map are unchanged.
+    if args.warmup_days:
+        ds = ds.sel(time=slice(np.datetime64(start), None))
 
     A_arr    = ds["A"].values
     act_frac = _active_fraction_series(A_arr)
