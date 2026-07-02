@@ -391,6 +391,96 @@ def save_states(ds: xr.Dataset, path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# StateBuffer persistence
+# ---------------------------------------------------------------------------
+# The MHW state engine is a running recurrence: today's confirmed-event / gap /
+# cumulative-intensity state depends on yesterday's StateBuffer. That buffer is
+# the *only* thing needed to continue the series — but it lives in RAM and, until
+# now, was discarded when the process exited, forcing every daily run to re-derive
+# it by replaying from a Jan-1 anchor (which cold-starts events that straddle the
+# New Year). Persisting the buffer lets a later run resume exactly where the
+# previous one stopped, with no replay and no cold-start. The saved states zarr is
+# NOT sufficient to resume: it stores per-day outputs (x/A/D/I/C/O) but not the
+# gap counter G or the sub-confirmation streak Dtilde.
+BUFFER_DIR = DATA_DERIVED / "state_buffer"
+
+
+def _buffer_path(region_id: str) -> Path:
+    return BUFFER_DIR / f"buffer_{region_id}.nc"
+
+
+def save_buffer(
+    state: StateBuffer,
+    region_id: str,
+    last_date: date,
+    lats: np.ndarray,
+    lons: np.ndarray,
+    path: Path | None = None,
+) -> Path:
+    """Persist the running StateBuffer as of *last_date* so a later run can resume.
+
+    Stored as NetCDF (small: 6 grid-sized arrays). Grid coords + last_date + region
+    are recorded so a resume can validate compatibility before trusting the file.
+    Written atomically (temp file + rename).
+    """
+    path = path or _buffer_path(region_id)
+    BUFFER_DIR.mkdir(parents=True, exist_ok=True)
+    n_buf = state.I_buf.shape[0]
+    ds = xr.Dataset(
+        {
+            "G":      (["lat", "lon"], state.G),
+            "Dtilde": (["lat", "lon"], state.Dtilde),
+            "C":      (["lat", "lon"], state.C),
+            "A_prev": (["lat", "lon"], state.A_prev.astype(np.uint8)),
+            "I_prev": (["lat", "lon"], state.I_prev),
+            "I_buf":  (["buf", "lat", "lon"], state.I_buf),
+        },
+        coords={"lat": lats, "lon": lons, "buf": np.arange(n_buf)},
+        attrs={
+            "region_id":    region_id,
+            "last_date":    last_date.isoformat(),
+            "confirm_days": n_buf - 1,
+        },
+    )
+    tmp = path.with_suffix(".tmp.nc")
+    ds.to_netcdf(tmp)
+    tmp.rename(path)
+    return path
+
+
+def load_buffer(
+    region_id: str,
+    lats: np.ndarray,
+    lons: np.ndarray,
+    path: Path | None = None,
+) -> tuple[StateBuffer, date] | None:
+    """Load a persisted StateBuffer if present and grid-compatible; else None.
+
+    Returns (state, last_date) — the caller should resume by running the engine
+    from last_date + 1 with initial_state=state. Any mismatch (missing file, wrong
+    grid shape/coords) returns None so the caller can fall back to a replay.
+    """
+    path = path or _buffer_path(region_id)
+    if not path.exists():
+        return None
+    with xr.open_dataset(path) as ds:
+        if ds.sizes.get("lat") != len(lats) or ds.sizes.get("lon") != len(lons):
+            return None
+        if not (np.allclose(ds["lat"].values, lats) and np.allclose(ds["lon"].values, lons)):
+            return None
+        confirm_days = int(ds.attrs["confirm_days"])
+        state = StateBuffer(len(lats), len(lons), confirm_days)
+        state.G      = ds["G"].values.astype(np.float32)
+        state.Dtilde = ds["Dtilde"].values.astype(np.float32)
+        state.C      = ds["C"].values.astype(np.float32)
+        state.A_prev = ds["A_prev"].values.astype(bool)
+        state.I_prev = ds["I_prev"].values.astype(np.float32)
+        state.I_buf  = ds["I_buf"].values.astype(np.float32)
+        last_date    = date.fromisoformat(ds.attrs["last_date"])
+    return state, last_date
+
+
+# ---------------------------------------------------------------------------
 # Plot helpers
 # ---------------------------------------------------------------------------
 def _active_fraction_series(A_arr: np.ndarray) -> np.ndarray:

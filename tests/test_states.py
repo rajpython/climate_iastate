@@ -167,3 +167,101 @@ class TestUpdateOneDay:
         # Must not raise
         x, A, D, I, C, O = self._run(sst_nan, ice_clear, state, theta, mu)
         assert np.all(A == 0), "NaN SST cells must not produce confirmed events"
+
+
+# ---------------------------------------------------------------------------
+# StateBuffer persistence — round-trip + resume equivalence
+# ---------------------------------------------------------------------------
+class TestBufferPersistence:
+    """Persisting the StateBuffer must let a run resume exactly where it stopped."""
+
+    def _step(self, sst, ice, theta, mu, state):
+        return _update_one_day(sst, ice, theta, mu, state, **_UPDATE_KWARGS)
+
+    def test_save_load_roundtrip(self, tmp_path):
+        """save_buffer → load_buffer returns identical arrays + metadata."""
+        from datetime import date
+        from mhw.states.update_states import StateBuffer, save_buffer, load_buffer
+
+        n_lat, n_lon = 4, 5
+        confirm_days = _UPDATE_KWARGS["confirm_days"]
+        state = StateBuffer(n_lat, n_lon, confirm_days)
+        # populate with non-trivial values
+        state.G      = np.arange(n_lat * n_lon, dtype=np.float32).reshape(n_lat, n_lon)
+        state.Dtilde = (state.G + 1.0)
+        state.C      = (state.G * 0.5)
+        state.A_prev = (state.G % 2 == 0)
+        state.I_prev = (state.G * 0.1)
+        state.I_buf  = np.random.default_rng(0).random((confirm_days + 1, n_lat, n_lon)).astype(np.float32)
+
+        lats = np.linspace(50, 60, n_lat).astype(np.float32)
+        lons = np.linspace(-170, -160, n_lon).astype(np.float32)
+        p = tmp_path / "buf.nc"
+        save_buffer(state, "testreg", date(2026, 1, 4), lats, lons, path=p)
+
+        loaded = load_buffer("testreg", lats, lons, path=p)
+        assert loaded is not None
+        st2, last = loaded
+        assert last == date(2026, 1, 4)
+        assert np.array_equal(st2.G, state.G)
+        assert np.array_equal(st2.Dtilde, state.Dtilde)
+        assert np.array_equal(st2.C, state.C)
+        assert np.array_equal(st2.A_prev, state.A_prev)
+        assert np.array_equal(st2.I_prev, state.I_prev)
+        assert np.array_equal(st2.I_buf, state.I_buf)
+
+    def test_load_grid_mismatch_returns_none(self, tmp_path):
+        """A buffer saved on a different grid must not be trusted (returns None)."""
+        from datetime import date
+        from mhw.states.update_states import StateBuffer, save_buffer, load_buffer
+
+        state = StateBuffer(4, 5, _UPDATE_KWARGS["confirm_days"])
+        lats = np.linspace(50, 60, 4).astype(np.float32)
+        lons = np.linspace(-170, -160, 5).astype(np.float32)
+        p = tmp_path / "buf.nc"
+        save_buffer(state, "testreg", date(2026, 1, 4), lats, lons, path=p)
+
+        # wrong shape
+        assert load_buffer("testreg", lats[:3], lons, path=p) is None
+        # right shape, different coords
+        assert load_buffer("testreg", lats + 100, lons, path=p) is None
+        # missing file
+        assert load_buffer("testreg", lats, lons, path=tmp_path / "nope.nc") is None
+
+    def test_resume_matches_single_run(self, tmp_path):
+        """Split run (save+resume) == single continuous run, for an event that
+        straddles the split — the exact New-Year cold-start scenario."""
+        from datetime import date
+        from mhw.states.update_states import StateBuffer, save_buffer, load_buffer
+
+        n_lat, n_lon = 3, 4
+        confirm_days = _UPDATE_KWARGS["confirm_days"]
+        theta = np.full((n_lat, n_lon), 10.0, dtype=np.float32)
+        mu    = np.full((n_lat, n_lon), 8.0, dtype=np.float32)
+        ice   = np.zeros((n_lat, n_lon), dtype=np.float32)
+        # 12 consecutive hot days → event confirms (day 5) and keeps running
+        n_days = 12
+        sst_days = [np.full((n_lat, n_lon), 12.0, dtype=np.float32) for _ in range(n_days)]
+        split = 7  # resume boundary lands mid-event
+
+        # Reference: one continuous run
+        ref = StateBuffer(n_lat, n_lon, confirm_days)
+        ref_out = [self._step(sst_days[t], ice, theta, mu, ref) for t in range(n_days)]
+
+        # Split run: process [0, split), persist, reload, continue [split, n_days)
+        s1 = StateBuffer(n_lat, n_lon, confirm_days)
+        for t in range(split):
+            self._step(sst_days[t], ice, theta, mu, s1)
+        lats = np.linspace(50, 60, n_lat).astype(np.float32)
+        lons = np.linspace(-170, -160, n_lon).astype(np.float32)
+        save_buffer(s1, "r", date(2026, 1, 1) , lats, lons, path=tmp_path / "b.nc")
+        s2, _ = load_buffer("r", lats, lons, path=tmp_path / "b.nc")
+        resumed_out = [self._step(sst_days[t], ice, theta, mu, s2) for t in range(split, n_days)]
+
+        # Every output array on the resumed side must equal the continuous run
+        for i, t in enumerate(range(split, n_days)):
+            for name, a, b in zip("xADICO", ref_out[t], resumed_out[i]):
+                assert np.array_equal(a, b), f"mismatch in {name} at day {t}"
+        # And the event must actually be confirmed & still counting across the split
+        assert ref_out[split][1].all(), "event should be confirmed at the split"
+        assert float(ref_out[-1][2].max()) == n_days, "duration should count all 12 days"
