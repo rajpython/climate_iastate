@@ -50,7 +50,8 @@ log "=== Cleanup current-year state zarrs in $STATES_DIR (year=$CURRENT_YEAR, dr
 
 # Collect all obsolete zarr basenames across all regions, then batch the rm.
 to_delete=()
-for region in goa ebs nbs chukchi beaufort; do
+# Must match REGIONS in daily_refresh.sh — every region it snapshots daily.
+for region in ebs sebs nbs goa wgoa egoa ai ai_west ai_central ai_east chukchi beaufort; do
     pattern="${STATES_DIR}/states_${region}_${CURRENT_YEAR}-01-01_*.zarr"
     # shellcheck disable=SC2086
     matching=$(ls -1 -d $pattern 2>/dev/null | sort -r || true)
