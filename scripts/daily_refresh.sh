@@ -43,7 +43,26 @@ log() { printf '[%s] %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*"; }
 # --warmup-days processes a lead window before YEAR_START so the buffer is
 # already locked onto any straddling event; the lead days are dropped from the
 # output, so the saved zarr and aggregates still cover only the current year.
-WARMUP_DAYS=60
+#
+# Why 150 (not 60): the run-up must exceed the age of any heatwave still ongoing
+# at Jan 1, or that event's *duration* (Dbar) and *cumulative intensity* (Cbar)
+# are undercounted early in the year. Coverage (area_frac) and intensity (Ibar)
+# are exact at any warmup ≥ the ~5-day Hobday confirmation, but duration needs
+# the full history back to the event's start. 150 days reaches early August of
+# the prior year — longer than any realistic single continuous MHW across the
+# New Year in these waters — so all metrics are effectively exact. Cost is only
+# a few extra seconds of cached-SST replay per run. The pipeline stays stateless
+# and self-healing: it rebuilds Jan 1 -> today every run, so crashes, skipped
+# days, and NOAA's revisions to recent OISST all self-correct on the next run.
+#
+# Exact-but-stateful alternative (not used): freeze the StateBuffer snapshot at
+# Dec 31 once the prior December finalizes (~mid/late Jan) and seed the year from
+# it via save_buffer/load_buffer (src/mhw/states/update_states.py). That makes
+# duration exact even for events running continuously for many months across the
+# boundary, at the cost of one snapshot file per region and a "seed only after
+# December is final" rule. Prefer that only if such multi-month straddling events
+# need provably-exact duration; the warmup below covers every realistic case.
+WARMUP_DAYS=150
 
 log "=== MHW daily refresh — ${TODAY} ==="
 
