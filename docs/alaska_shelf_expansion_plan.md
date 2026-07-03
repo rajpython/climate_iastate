@@ -119,12 +119,33 @@ Per-species CPUE (kg/km², #/km²) at every haul, joinable to that haul's bottom
   validation and no catch**. Include for completeness with prominent "model-only, unvalidated
   here" labelling. Lowest priority.
 
-### Cross-cutting: other health indicators (any phase, MOM6-led)
-The full COBALT set (salinity, dissolved oxygen incl. seafloor, nutrients, plankton, currents,
-sea ice, acidification/aragonite) is public for the whole MOM6 domain (1993–2025) and Bering10K
-carries most of it (no acidification). These become **per-variable layers** once the regional
-scaffolding exists — oxygen and aragonite (crab-shell) are the highest-value for the fisheries
-audience.
+### Cross-cutting: ocean-health indicators — **observed-first** (per-variable layers)
+
+The full COBALT set is public for the whole MOM6 domain (1993–2025), but a model hindcast has
+no standing on the board unless an **observation** anchors it. So this layer is driven by what
+is actually observed on the Alaska shelf, not by what the models carry. Live data-availability
+check (2026-07-02) sorts the candidate variables into three tiers:
+
+| Variable | Observed availability | Tier / status |
+|---|---|---|
+| **Bottom salinity** | EBS + NBS: packaged AFSC survey gear salinity (`MEAN_GEAR_SALINITY`), ~2008– (EBS) / 2010– (NBS). GOA/AI: not packaged. | **1 — BUILT** (Increment 1) |
+| **Dissolved O₂ + chlorophyll** | EcoFOCI moorings M2 (SE Bering ~1995–), M8 (N Bering), GAK1 (GOA) via PMEL/AXDS ERDDAP. *Point* series, not regional fields. | **2 — planned** (new ERDDAP fetcher; point validation) |
+| **Aragonite Ω / pH / DIC** | No continuous observed shelf indicator; only sparse CCHDO/GLODAP cruises (~0–1/region/yr). Cannot validate the model. | **3 — DEFERRED** |
+
+**Increment 1 (built).** Bottom-salinity ocean-health page for the Bering (EBS/NBS): observed
+survey gear salinity + MOM6 NEP10k (`sob`) co-presented as a validation panel. Engine
+`src/mhw/bottom/oceanhealth.py` (CLI `mhw-build-ocean-health`) reuses the cold-pool shelf mask
++ regrid + area-weighted mean; loader generalised to `load_bottom_field(source, var)`; API
+`/v1/ocean-health/{observed,modelled}`; page `pages/ocean_health.py` (Bering group). Salinity
+is MOM6-only for the model (Bering10K's bottom5m bundle carries no salt — it *does* carry NO₃
+/NH₄, a possible later nutrients layer). MOM6 EBS skill: bias −0.15 psu, RMSE 0.17 (r 0.39;
+low because the shelf-salinity signal is ~0.3 psu — level agreement is the honest lens).
+
+**Aragonite/pH deferred (firm).** Model-only aragonite violates the observed-first principle;
+held out until there is an observational basis (moored pCO₂/pH sensors, or a survey-CTD
+O₂/carbon program — AFSC deploys SBE 19plus CTDs archived at NCEI but `gapctd` processes only
+T/S today, no O₂/pH). Sparse cruise points could later *contextualize* (not validate) a model
+panel if ever desired.
 
 ## 5. Remaining validation items before/within each phase
 - ⬜ Confirm `nbs_mean_temperature` area-index methodology matches the EBS index (so the NBS

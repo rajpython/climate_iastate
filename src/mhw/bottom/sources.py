@@ -8,12 +8,30 @@ Adding a source (e.g. MOM6 NEP10k) is a new descriptor here — not new code.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Mapping
+
+
+@dataclass(frozen=True)
+class BottomVariable:
+    """One extra bottom field a source carries beyond bottom temperature.
+
+    The ocean-health layer (salinity, oxygen, …) reuses the same grid-agnostic loader as
+    bottom temperature; it only needs the variable name and where it lives. MOM6 NEP serves
+    **one file per variable** (so each variable has its own ``opendap_url``); Bering10K bundles
+    several variables in one collection (so those share the source's ``opendap_url``, left
+    blank here to mean "same dataset as the source").
+    """
+
+    var: str                        # variable name inside the dataset
+    opendap_url: str = ""           # per-variable dataset URL ("" = reuse source.opendap_url)
+    units: str = ""
+    label: str = ""
 
 
 @dataclass(frozen=True)
 class BottomSource:
-    """Descriptor for one bottom-temperature data source."""
+    """Descriptor for one bottom-ocean-state data source (bottom temperature + extras)."""
 
     id: str
     label: str                      # user-facing label (dashboard)
@@ -27,6 +45,10 @@ class BottomSource:
     period: str = ""
     lagged: bool = True             # recent-historical, NOT near-real-time
     notes: str = ""
+    # Extra bottom fields (ocean-health layer), keyed by canonical name ("salinity",
+    # "oxygen", …). Bottom temperature stays on ``temp_var``/``opendap_url`` (the default),
+    # so nothing that only uses temperature changes.
+    variables: Mapping[str, BottomVariable] = field(default_factory=dict)
 
 
 # --- Bering10K ROMS / ACLIM — operational hindcast (validated, EBS/Bering) -------
@@ -73,14 +95,25 @@ BERING10K_K20_CORECFS = BottomSource(
 #   lat.dims -> (y, x)); this rectilinear product needs a 1-D-coord branch in the
 #   loader before it will open. A `latest/` alias folder also exists alongside the
 #   dated releases if a rolling pointer is preferred over the pinned r20250912.
+# MOM6 NEP serves ONE regridded file per variable under this release directory; the file/var
+# names were enumerated live from the THREDDS catalog (2026-07-02). Bottom fields confirmed
+# present: btm_temp, sob (Sea Water Salinity at Sea Floor, psu), btm_o2 (bottom oxygen),
+# btm_htotal (bottom H+ -> pH), btm_co3_sol_arag (aragonite saturation carbonate).
+_MOM6_BASE = (
+    "https://psl.noaa.gov/thredds/dodsC/Projects/CEFI/regional_mom6/cefi_portal/"
+    "northeast_pacific/full_domain/hindcast/monthly/regrid/r20250912/"
+)
+
+
+def _mom6_url(prefix: str) -> str:
+    """Full OPeNDAP URL for one MOM6 NEP hindcast variable file (regrid, r20250912)."""
+    return f"{_MOM6_BASE}{prefix}.nep.full.hcast.monthly.regrid.r20250912.199301-202506.nc"
+
+
 MOM6_NEP = BottomSource(
     id="mom6_nep",
     label="MOM6 NEP10k (CEFI)",
-    opendap_url=(
-        "https://psl.noaa.gov/thredds/dodsC/Projects/CEFI/regional_mom6/cefi_portal/"
-        "northeast_pacific/full_domain/hindcast/monthly/regrid/r20250912/"
-        "btm_temp.nep.full.hcast.monthly.regrid.r20250912.199301-202506.nc"
-    ),
+    opendap_url=_mom6_url("btm_temp"),
     temp_var="btm_temp",
     lat_coord="lat",
     lon_coord="lon",
@@ -96,6 +129,11 @@ MOM6_NEP = BottomSource(
         "Forecast/reforecast dirs exist but are EMPTY (no files, 2026-06-21); Bering "
         "validation underway."
     ),
+    variables={
+        "salinity": BottomVariable(
+            var="sob", opendap_url=_mom6_url("sob"), units="psu", label="Bottom salinity",
+        ),
+    },
 )
 
 
