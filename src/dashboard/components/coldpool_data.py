@@ -261,58 +261,57 @@ OCEAN_HEALTH_VARS = {
     "Bottom pH": "ph",
 }
 
-# Observed product → raw parquet filename pattern (salinity = cold-pool index; O₂/pH = survey-CTD).
-_OH_OBS_FILE = {
-    "coldpool": "coldpool_index_observed_{region}.parquet",
-    "survey_ctd": "survey_ctd_observed_{region}.parquet",
-}
-
-
 def _oh_meta(variable: str) -> dict:
     from mhw.bottom.oceanhealth import VARIABLES
     return VARIABLES[variable]
-
-
-def _oh_obs_path(variable: str, region: str) -> Path:
-    m = _oh_meta(variable)
-    return RAW_DIR / _OH_OBS_FILE[m["obs_product"]].format(region=region)
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def list_ocean_health_regions(variable: str, group: str | None = None) -> list[str]:
     """Regions with a non-null OBSERVED series for *variable* (optionally within *group*), S→N.
 
-    Salinity/O₂/pH are EBS/NBS-only, so this naturally returns just those in the Bering; a region
-    only appears once its observed product is fetched and carries a non-null value.
+    Scans every observed product the variable can come from (salinity: cold-pool index for
+    EBS/NBS + survey-CTD for GOA/AI; O₂/pH: survey-CTD only). A region appears once its observed
+    product is fetched and carries a non-null value — so O₂/pH stay EBS/NBS (GOA/AI survey-CTD
+    files carry salinity but no O₂/pH).
     """
-    m = _oh_meta(variable)
-    col = m["col"]
-    pattern = _OH_OBS_FILE[m["obs_product"]].replace("{region}", "*")
-    stem_prefix = pattern.split("*")[0]
-    regs = []
-    for p in RAW_DIR.glob(pattern):
-        rid = p.stem.replace(stem_prefix, "")
-        if rid not in BOTTOM_REGIONS:
-            continue
-        if group is not None and BOTTOM_REGIONS[rid].group != group:
-            continue
-        df = pd.read_parquet(p)
-        if col in df.columns and df[col].notna().any():
-            regs.append(rid)
-    return sorted(set(regs), key=_bt_key)
+    from mhw.bottom.oceanhealth import OBS_PRODUCT_FILE
+    col = _oh_meta(variable)["col"]
+    regs: set[str] = set()
+    for product in _oh_meta(variable)["obs_products"]:
+        pattern = OBS_PRODUCT_FILE[product].replace("{region}", "*")
+        prefix = pattern.split("*")[0]
+        for p in RAW_DIR.glob(pattern):
+            rid = p.stem.replace(prefix, "")
+            if rid not in BOTTOM_REGIONS:
+                continue
+            if group is not None and BOTTOM_REGIONS[rid].group != group:
+                continue
+            df = pd.read_parquet(p)
+            if col in df.columns and df[col].notna().any():
+                regs.add(rid)
+    return sorted(regs, key=_bt_key)
+
+
+def ocean_health_observed_product(variable: str, region: str) -> str | None:
+    """Which observed product supplies *variable* for *region* ("coldpool"|"survey_ctd"), or None.
+
+    Lets the page word its provenance note correctly (EBS/NBS salinity = cold-pool gear salinity;
+    GOA/AI salinity + all O₂/pH = survey-CTD)."""
+    from mhw.bottom.oceanhealth import resolve_observed
+    res = resolve_observed(variable, region, RAW_DIR)
+    return res[0] if res else None
 
 
 @st.cache_data(show_spinner="Loading observed ocean-health series …", ttl=3600)
 def load_ocean_health_observed(variable: str, region: str) -> pd.DataFrame | None:
     """Observed annual shelf-mean series → DataFrame[year, value], or None if unavailable."""
-    col = _oh_meta(variable)["col"]
-    p = _oh_obs_path(variable, region)
-    if not p.exists():
+    from mhw.bottom.oceanhealth import resolve_observed
+    res = resolve_observed(variable, region, RAW_DIR)
+    if res is None:
         return None
-    df = pd.read_parquet(p)
-    if col not in df.columns:
-        return None
-    out = df[["year", col]].dropna(subset=[col]).rename(columns={col: "value"})
+    _, p, col = res
+    out = pd.read_parquet(p)[["year", col]].dropna(subset=[col]).rename(columns={col: "value"})
     return out.sort_values("year").reset_index(drop=True) if not out.empty else None
 
 

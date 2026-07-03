@@ -129,7 +129,8 @@ check (2026-07-02) sorts the candidate variables into three tiers:
 | Variable | Observed availability | Tier / status |
 |---|---|---|
 | **Bottom salinity** | EBS + NBS: packaged AFSC survey gear salinity (`MEAN_GEAR_SALINITY`), ~2008– (EBS) / 2010– (NBS). GOA/AI: not packaged. | **1 — BUILT** (Increment 1) |
-| **Bottom dissolved O₂ + pH** | EBS + NBS: **AFSC survey-CTD** sea-floor O₂ (SBE 43) + pH, processed by `gapctd`, archived at **NCEI** (accession 0286094), per station at survey time. Regional + survey-time (like bottom temp). Short: O₂ 2023–2024, pH 2023 only (processing stabilised recently); grows each survey. pH provisional (ISFET drift). | **2 — BUILT** (Increment 2) |
+| **Bottom dissolved O₂ + pH** | **EBS + NBS only**: AFSC survey-CTD sea-floor O₂ (SBE 43) + pH, `gapctd`/**NCEI** (accession 0286094), per station at survey time. Short: O₂ 2023–2024, pH 2023 only; grows each survey. pH provisional (ISFET drift). **GOA/AI CTDs carry no O₂/pH** (T/S only). | **2 — BUILT** (Increment 2) |
+| **Bottom salinity (GOA/AI)** | GOA + AI: survey-CTD `sea_floor_practical_salinity` (`gapctd`/NCEI accessions 0291232 GOA, 0286095 AI) — GOA 2021+2023, AI 2022. No packaged salinity index for these, so it comes from the CTD product. | **2b — BUILT** (survey-CTD salinity) |
 | Chlorophyll / nutrients | EcoFOCI moorings (M2/M8/GAK1, ERDDAP) — *point* series, not regional; or MOM6 (no observed anchor). | deferred (point-only) |
 | **Aragonite Ω / DIC** | No continuous observed shelf indicator; only sparse CCHDO/GLODAP cruises (~0–1/region/yr). Cannot validate the model. | **DEFERRED** |
 

@@ -38,21 +38,28 @@ from dashboard.components.coldpool_data import (
     list_ocean_health_regions,
     load_ocean_health_model,
     load_ocean_health_observed,
+    ocean_health_observed_product,
     region_label,
 )
 
-# Per-observed-product "When" line (temporal context + method).
-_WHEN = {
-    "coldpool": ("Survey-mean of the trawl gear salinity sensor over each summer's stations — "
-                 "one value per survey year. Salinity sensors begin ~2008 (EBS) / 2010 (NBS), so "
-                 "early survey years are absent."),
-    "survey_ctd": ("Mean over each summer's survey-CTD casts (SBE 19plus V2 + SBE 43), sea-floor "
-                   "value per station. The O₂ and pH sensors were added to the surveys ~2021, so "
-                   "the record starts then and is still short."),
-}
+def _when_text(variable: str, product: str | None) -> str:
+    """Temporal-context line, aware of which observed product supplied the series."""
+    if product == "coldpool":
+        return ("Survey-mean of the trawl gear salinity sensor over each summer's stations — one "
+                "value per survey year. Salinity sensors begin ~2008 (EBS) / 2010 (NBS).")
+    if variable == "salinity":   # survey-CTD salinity (GOA/AI)
+        return ("Mean over each summer's survey-CTD casts (SBE 19plus V2), sea-floor salinity per "
+                "station. GOA/AI have no packaged salinity index, so this comes from the CTD "
+                "product (~2021–, biennial surveys) and is short.")
+    return ("Mean over each summer's survey-CTD casts (SBE 19plus V2 + SBE 43), sea-floor value "
+            "per station. The O₂ and pH sensors were added to the surveys ~2021, so the record "
+            "starts then and is still short.")
+
+
 _SOURCES_LINE = {
-    "salinity": ("NOAA AFSC bottom-trawl survey (observed gear salinity, PSS-78) · "
-                 "CEFI MOM6-COBALT-NEP10k v1.0 (modelled <code>sob</code>)."),
+    "salinity": ("NOAA AFSC bottom-trawl survey (observed bottom salinity, PSS-78 — cold-pool "
+                 "index for EBS/NBS, survey-CTD for GOA/AI) · CEFI MOM6-COBALT-NEP10k v1.0 "
+                 "(modelled <code>sob</code>)."),
     "oxygen": ("NOAA AFSC survey-CTD (SBE 43 dissolved oxygen, ml/l; gapctd / NCEI) · "
                "CEFI MOM6-COBALT-NEP10k v1.0 (modelled <code>btm_o2</code>, converted to ml/l)."),
     "ph": ("NOAA AFSC survey-CTD (sea-floor pH, total scale; gapctd / NCEI — provisional) · "
@@ -97,13 +104,13 @@ def _skill(obs: pd.DataFrame, mod: pd.DataFrame) -> dict | None:
     }
 
 
-def _observed_panel(variable: str, obs: pd.DataFrame) -> None:
+def _observed_panel(variable: str, region: str, obs: pd.DataFrame) -> None:
     m = _meta(variable)
     units = m["units"]
     with st.container(border=True):
         section_title("Observed shelf conditions",
                       note="AFSC summer bottom-trawl survey (survey-mean, lagged)")
-        when_note(_WHEN[m["obs_product"]])
+        when_note(_when_text(variable, ocean_health_observed_product(variable, region)))
         if m.get("provisional"):
             callout("Bottom <b>pH</b> from the trawl-mounted ISFET sensor carries a known "
                     "drift/quality caveat (AFSC flags it); values are plausibility-filtered and "
@@ -219,7 +226,7 @@ def render(group: str = "bering") -> None:
         st.warning(f"Observed {var_label.lower()} not available for {region_label(region)}.")
         return
 
-    _observed_panel(variable, obs)
+    _observed_panel(variable, region, obs)
     _model_panel(variable, region, obs)
 
     footer(f"Sources: {_SOURCES_LINE[variable]} Annual, summer-survey, lagged — not near-real-time.")

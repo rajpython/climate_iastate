@@ -21,7 +21,7 @@ import pandas as pd
 from fastapi import APIRouter, HTTPException, Query
 
 from api.schema import OceanHealthPayload, OceanHealthRecord
-from mhw.bottom.oceanhealth import VARIABLES
+from mhw.bottom.oceanhealth import OBS_PRODUCT_FETCH, VARIABLES, resolve_observed
 from mhw.bottom.regions import BOTTOM_REGIONS
 
 router = APIRouter()
@@ -34,16 +34,7 @@ MODEL_DIR = ROOT / "data" / "derived" / "ocean_health"
 # at build time via BottomSource.variables); salinity is currently MOM6-only.
 _MODEL_LABELS = {"mom6_nep": "MOM6 NEP10k (CEFI, modelled)"}
 
-# Observed source per product: the packaged cold-pool index (salinity) vs the gapctd survey-CTD
-# bottom O₂/pH product. Both are AFSC bottom-trawl survey, annual, summer, lagged.
-_OBS_FILE = {
-    "coldpool": "coldpool_index_observed_{region}.parquet",
-    "survey_ctd": "survey_ctd_observed_{region}.parquet",
-}
-_OBS_FETCH = {
-    "coldpool": "mhw-fetch-coldpool --region {region}",
-    "survey_ctd": "mhw-fetch-survey-ctd --region {region}",
-}
+# Human note per observed product. Both are AFSC bottom-trawl survey, annual, summer, lagged.
 _OBS_NOTE = {
     "coldpool": (
         "Observed AFSC bottom-trawl survey {label} — annual, summer survey, lagged. EBS/NBS "
@@ -98,18 +89,14 @@ def get_ocean_health_observed(
     variable = _check_variable(variable)
     region = _check_region(region)
     meta = VARIABLES[variable]
-    col = meta["col"]
-    product = meta["obs_product"]
-    p = RAW_DIR / _OBS_FILE[product].format(region=region)
-    if not p.exists():
+    resolved = resolve_observed(variable, region, RAW_DIR)
+    if resolved is None:
+        fetches = " or ".join(OBS_PRODUCT_FETCH[p].format(region=region)
+                              for p in meta["obs_products"])
         raise HTTPException(status_code=503,
-                            detail=f"Observed {variable!r} not fetched for {region!r}. "
-                                   f"Run: {_OBS_FETCH[product].format(region=region)}")
-    df = pd.read_parquet(p)
-    if col not in df.columns:
-        raise HTTPException(status_code=503,
-                            detail=f"Observed {variable!r} ({col}) not available for {region!r}.")
-    df = df[["year", col]].dropna(subset=[col])
+                            detail=f"Observed {variable!r} not available for {region!r}. Run: {fetches}")
+    product, p, col = resolved
+    df = pd.read_parquet(p)[["year", col]].dropna(subset=[col])
     if start_year is not None:
         df = df[df["year"] >= start_year]
     if end_year is not None:

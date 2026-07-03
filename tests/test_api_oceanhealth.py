@@ -49,8 +49,18 @@ def test_ocean_health_unknown_source_404(api_client):
     assert resp.status_code == 404
 
 
-def test_ocean_health_observed_goa_no_salinity_503(api_client):
-    # GOA has no packaged bottom salinity — must fail cleanly (503), never silently empty.
+def test_ocean_health_observed_goa_oxygen_503(api_client):
+    # GOA survey CTDs carry no O₂ — must fail cleanly (503), never silently empty.
+    resp = api_client.get("/v1/ocean-health/observed",
+                          params={"variable": "oxygen", "region": "goa"})
+    assert resp.status_code == 503
+
+
+def test_ocean_health_observed_goa_salinity_from_survey_ctd(api_client):
+    # GOA has no cold-pool salinity but DOES have survey-CTD salinity — resolver should find it.
     resp = api_client.get("/v1/ocean-health/observed",
                           params={"variable": "salinity", "region": "goa"})
-    assert resp.status_code == 503
+    if resp.status_code == 503:
+        pytest.skip("survey-CTD salinity not fetched for goa (run mhw-fetch-survey-ctd --region goa)")
+    assert resp.status_code == 200
+    assert resp.json()["units"] == "psu"
