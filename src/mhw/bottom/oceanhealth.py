@@ -40,11 +40,34 @@ from mhw.bottom.sources import SOURCES, MOM6_NEP, BottomSource
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DERIVED = PROJECT_ROOT / "data" / "derived" / "ocean_health"
 
+# Model unit transforms (applied to the model field before regrid so the modelled shelf mean
+# lands in the observed unit). O₂: MOM6 mol kg-1 → ml/l (AFSC survey-CTD unit); the standard
+# 1 ml/l = 44.6596 µmol/l with ρ ≈ 1.025 kg/l. pH: MOM6 carries bottom H+ (mol/kg), not pH, so
+# pH = -log10([H+]) on the total scale.
+O2_MOLKG_TO_MLL = 1.0e6 * 1.025 / 44.6596
+
+
+def _o2_molkg_to_mll(x: np.ndarray) -> np.ndarray:
+    return np.asarray(x, dtype="float64") * O2_MOLKG_TO_MLL
+
+
+def _htotal_to_ph(x: np.ndarray) -> np.ndarray:
+    a = np.asarray(x, dtype="float64")
+    return -np.log10(np.where(a > 0, a, np.nan))
+
+
 # Canonical ocean-health variables. ``col`` is the output/observed column name so a modelled
-# series lines up directly with the AFSC observed product (salinity → ``mean_bottom_salinity``,
-# matching EBS_COLUMN_MAP in mhw.bottom.regions). Add oxygen/etc. here in Increment 2.
-VARIABLES: dict[str, dict[str, str]] = {
-    "salinity": {"units": "psu", "label": "Bottom salinity", "col": "mean_bottom_salinity"},
+# series lines up directly with the observed product. ``obs_product`` selects the observed file:
+# "coldpool" = the AFSC cold-pool index parquet (salinity); "survey_ctd" = the gapctd survey-CTD
+# bottom O₂/pH parquet (mhw.fetch.survey_ctd). ``model_transform`` (optional) converts the model
+# field to the observed unit; ``provisional`` flags a sensor-drift caveat (pH).
+VARIABLES: dict[str, dict] = {
+    "salinity": {"units": "psu", "label": "Bottom salinity", "col": "mean_bottom_salinity",
+                 "obs_product": "coldpool"},
+    "oxygen": {"units": "ml/l", "label": "Bottom dissolved oxygen", "col": "mean_bottom_oxygen",
+               "obs_product": "survey_ctd", "model_transform": _o2_molkg_to_mll},
+    "ph": {"units": "", "label": "Bottom pH", "col": "mean_bottom_ph",
+           "obs_product": "survey_ctd", "model_transform": _htotal_to_ph, "provisional": True},
 }
 
 
@@ -106,8 +129,10 @@ def build_model_variable_series(
         field = nearest_summer_field(source, ds, year, variable, target_md, monthly=monthly)
         if field is None:
             continue
+        transform = meta.get("model_transform")
+        vals = field.values if transform is None else transform(field.values)
         grid = regrid_curvilinear_to_regular(
-            field.lat.values, field.lon.values, field.values, lats, lons, fill_nearest=False)
+            field.lat.values, field.lon.values, vals, lats, lons, fill_nearest=False)
         val = mean_shelf_bottom_temp(grid, shelf, areas)   # area-weighted shelf mean of the field
         rows.append({"year": year, "source": source.id, meta["col"]: round(val, 4)})
         print(f"  {year}: mean {variable} = {val:.3f} {meta['units']}")

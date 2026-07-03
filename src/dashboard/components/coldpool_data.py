@@ -257,25 +257,41 @@ def load_survey_replicate(source_id: str, region: str):
 # Display name -> canonical variable id (keys of mhw.bottom.oceanhealth.VARIABLES).
 OCEAN_HEALTH_VARS = {
     "Bottom salinity": "salinity",
+    "Bottom dissolved oxygen": "oxygen",
+    "Bottom pH": "ph",
+}
+
+# Observed product → raw parquet filename pattern (salinity = cold-pool index; O₂/pH = survey-CTD).
+_OH_OBS_FILE = {
+    "coldpool": "coldpool_index_observed_{region}.parquet",
+    "survey_ctd": "survey_ctd_observed_{region}.parquet",
 }
 
 
-def _oh_col(variable: str) -> str:
-    """Output/observed column name for an ocean-health variable (e.g. mean_bottom_salinity)."""
+def _oh_meta(variable: str) -> dict:
     from mhw.bottom.oceanhealth import VARIABLES
-    return VARIABLES[variable]["col"]
+    return VARIABLES[variable]
+
+
+def _oh_obs_path(variable: str, region: str) -> Path:
+    m = _oh_meta(variable)
+    return RAW_DIR / _OH_OBS_FILE[m["obs_product"]].format(region=region)
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def list_ocean_health_regions(variable: str, group: str | None = None) -> list[str]:
     """Regions with a non-null OBSERVED series for *variable* (optionally within *group*), S→N.
 
-    Salinity is packaged only for EBS/NBS, so this naturally returns just those in the Bering.
+    Salinity/O₂/pH are EBS/NBS-only, so this naturally returns just those in the Bering; a region
+    only appears once its observed product is fetched and carries a non-null value.
     """
-    col = _oh_col(variable)
+    m = _oh_meta(variable)
+    col = m["col"]
+    pattern = _OH_OBS_FILE[m["obs_product"]].replace("{region}", "*")
+    stem_prefix = pattern.split("*")[0]
     regs = []
-    for p in RAW_DIR.glob("coldpool_index_observed_*.parquet"):
-        rid = p.stem.replace("coldpool_index_observed_", "")
+    for p in RAW_DIR.glob(pattern):
+        rid = p.stem.replace(stem_prefix, "")
         if rid not in BOTTOM_REGIONS:
             continue
         if group is not None and BOTTOM_REGIONS[rid].group != group:
@@ -289,8 +305,8 @@ def list_ocean_health_regions(variable: str, group: str | None = None) -> list[s
 @st.cache_data(show_spinner="Loading observed ocean-health series …", ttl=3600)
 def load_ocean_health_observed(variable: str, region: str) -> pd.DataFrame | None:
     """Observed annual shelf-mean series → DataFrame[year, value], or None if unavailable."""
-    col = _oh_col(variable)
-    p = RAW_DIR / f"coldpool_index_observed_{region}.parquet"
+    col = _oh_meta(variable)["col"]
+    p = _oh_obs_path(variable, region)
     if not p.exists():
         return None
     df = pd.read_parquet(p)
@@ -303,7 +319,7 @@ def load_ocean_health_observed(variable: str, region: str) -> pd.DataFrame | Non
 @st.cache_data(show_spinner="Loading modelled ocean-health series …", ttl=3600)
 def load_ocean_health_model(variable: str, source_id: str, region: str) -> pd.DataFrame | None:
     """Modelled annual shelf-mean series → DataFrame[year, value], or None if not built."""
-    col = _oh_col(variable)
+    col = _oh_meta(variable)["col"]
     p = OCEAN_HEALTH_DIR / f"oceanhealth_{variable}_{source_id}_{region}.parquet"
     if not p.exists():
         return None
