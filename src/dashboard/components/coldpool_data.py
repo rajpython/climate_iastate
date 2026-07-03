@@ -303,15 +303,26 @@ def ocean_health_observed_product(variable: str, region: str) -> str | None:
     return res[0] if res else None
 
 
+# Per-variable station-count column in the survey-CTD product (absent in the cold-pool product).
+_OH_NSTATIONS = {"salinity": "n_stations_salinity", "oxygen": "n_stations_o2", "ph": "n_stations_ph"}
+
+
 @st.cache_data(show_spinner="Loading observed ocean-health series …", ttl=3600)
 def load_ocean_health_observed(variable: str, region: str) -> pd.DataFrame | None:
-    """Observed annual shelf-mean series → DataFrame[year, value], or None if unavailable."""
+    """Observed annual shelf-mean series → DataFrame[year, value(, n)], or None if unavailable.
+
+    ``n`` (station count that year) is included when the observed product carries it (survey-CTD),
+    so the sparse-data table can show how many casts back each value."""
     from mhw.bottom.oceanhealth import resolve_observed
     res = resolve_observed(variable, region, RAW_DIR)
     if res is None:
         return None
     _, p, col = res
-    out = pd.read_parquet(p)[["year", col]].dropna(subset=[col]).rename(columns={col: "value"})
+    df = pd.read_parquet(p)
+    out = df[["year", col]].dropna(subset=[col]).rename(columns={col: "value"})
+    ncol = _OH_NSTATIONS.get(variable)
+    if ncol and ncol in df.columns:
+        out = out.merge(df[["year", ncol]].rename(columns={ncol: "n"}), on="year", how="left")
     return out.sort_values("year").reset_index(drop=True) if not out.empty else None
 
 
