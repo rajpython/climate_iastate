@@ -129,8 +129,9 @@ check (2026-07-02) sorts the candidate variables into three tiers:
 | Variable | Observed availability | Tier / status |
 |---|---|---|
 | **Bottom salinity** | EBS + NBS: packaged AFSC survey gear salinity (`MEAN_GEAR_SALINITY`), ~2008– (EBS) / 2010– (NBS). GOA/AI: not packaged. | **1 — BUILT** (Increment 1) |
-| **Dissolved O₂ + chlorophyll** | EcoFOCI moorings M2 (SE Bering ~1995–), M8 (N Bering), GAK1 (GOA) via PMEL/AXDS ERDDAP. *Point* series, not regional fields. | **2 — planned** (new ERDDAP fetcher; point validation) |
-| **Aragonite Ω / pH / DIC** | No continuous observed shelf indicator; only sparse CCHDO/GLODAP cruises (~0–1/region/yr). Cannot validate the model. | **3 — DEFERRED** |
+| **Bottom dissolved O₂ + pH** | EBS + NBS: **AFSC survey-CTD** sea-floor O₂ (SBE 43) + pH, processed by `gapctd`, archived at **NCEI** (accession 0286094), per station at survey time. Regional + survey-time (like bottom temp). Short: O₂ 2023–2024, pH 2023 only (processing stabilised recently); grows each survey. pH provisional (ISFET drift). | **2 — BUILT** (Increment 2) |
+| Chlorophyll / nutrients | EcoFOCI moorings (M2/M8/GAK1, ERDDAP) — *point* series, not regional; or MOM6 (no observed anchor). | deferred (point-only) |
+| **Aragonite Ω / DIC** | No continuous observed shelf indicator; only sparse CCHDO/GLODAP cruises (~0–1/region/yr). Cannot validate the model. | **DEFERRED** |
 
 **Increment 1 (built).** Bottom-salinity ocean-health page for the Bering (EBS/NBS): observed
 survey gear salinity + MOM6 NEP10k (`sob`) co-presented as a validation panel. Engine
@@ -141,11 +142,20 @@ is MOM6-only for the model (Bering10K's bottom5m bundle carries no salt — it *
 /NH₄, a possible later nutrients layer). MOM6 EBS skill: bias −0.15 psu, RMSE 0.17 (r 0.39;
 low because the shelf-salinity signal is ~0.3 psu — level agreement is the honest lens).
 
-**Aragonite/pH deferred (firm).** Model-only aragonite violates the observed-first principle;
-held out until there is an observational basis (moored pCO₂/pH sensors, or a survey-CTD
-O₂/carbon program — AFSC deploys SBE 19plus CTDs archived at NCEI but `gapctd` processes only
-T/S today, no O₂/pH). Sparse cruise points could later *contextualize* (not validate) a model
-panel if ever desired.
+**Increment 2 (built).** Bottom **dissolved O₂ + pH** for the Bering (EBS/NBS), same
+observed-first page. Observed = AFSC survey-CTD sea-floor O₂/pH (`gapctd`/NCEI accession
+0286094), fetched by `src/mhw/fetch/survey_ctd.py` (CLI `mhw-fetch-survey-ctd`); model = MOM6
+`btm_o2` (mol kg⁻¹ → ml/l) and pH derived from `btm_htotal` (−log10). MOM6 EBS O₂ bias −0.35
+ml/l over 2023–2024. **Moorings were investigated and rejected**: EcoFOCI M2 near-bottom O₂ is
+a single ~7-month deployment, fragmented across ERDDAP datasets, point (not regional) — below
+the bar; the survey-CTD product is the defensible source (regional, survey-time, like bottom
+temp). Records are short (O₂ 2 yrs, pH 1 yr) and grow each survey; pH is provisional
+(ISFET drift, plausibility-filtered).
+
+**Aragonite Ω / DIC deferred (firm).** No continuous observed shelf indicator; sparse
+CCHDO/GLODAP cruise points could later *contextualize* (not validate) a model panel. (Note:
+`gapctd` **does** process O₂ and pH — corrected from an earlier assumption that it was T/S
+only — but not the carbonate system.)
 
 ## 5. Remaining validation items before/within each phase
 - ⬜ Confirm `nbs_mean_temperature` area-index methodology matches the EBS index (so the NBS

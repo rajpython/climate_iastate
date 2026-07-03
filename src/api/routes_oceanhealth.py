@@ -34,11 +34,24 @@ MODEL_DIR = ROOT / "data" / "derived" / "ocean_health"
 # at build time via BottomSource.variables); salinity is currently MOM6-only.
 _MODEL_LABELS = {"mom6_nep": "MOM6 NEP10k (CEFI, modelled)"}
 
-_OBS_NOTE = (
-    "Observed AFSC bottom-trawl survey {label} — annual, summer survey, lagged (not "
-    "near-real-time). EBS/NBS only; sensor coverage begins ~2008 (EBS) / 2010 (NBS), so early "
-    "years are absent."
-)
+# Observed source per product: the packaged cold-pool index (salinity) vs the gapctd survey-CTD
+# bottom O₂/pH product. Both are AFSC bottom-trawl survey, annual, summer, lagged.
+_OBS_FILE = {
+    "coldpool": "coldpool_index_observed_{region}.parquet",
+    "survey_ctd": "survey_ctd_observed_{region}.parquet",
+}
+_OBS_FETCH = {
+    "coldpool": "mhw-fetch-coldpool --region {region}",
+    "survey_ctd": "mhw-fetch-survey-ctd --region {region}",
+}
+_OBS_NOTE = {
+    "coldpool": (
+        "Observed AFSC bottom-trawl survey {label} — annual, summer survey, lagged. EBS/NBS "
+        "only; salinity sensor coverage begins ~2008 (EBS) / 2010 (NBS)."),
+    "survey_ctd": (
+        "Observed AFSC survey-CTD (SBE 19plus/43) {label} at each station's sea floor, "
+        "averaged over the region — annual, summer survey, lagged. EBS/NBS, ~2021–present."),
+}
 _MODEL_NOTE = (
     "Modelled shelf-mean {label} over the same depth-masked shelf footprint as the "
     "cold-pool/bottom-temperature products (0.25° regrid, area-weighted). Model output, "
@@ -84,11 +97,14 @@ def get_ocean_health_observed(
     """Observed survey-derived ocean-health series (annual shelf mean)."""
     variable = _check_variable(variable)
     region = _check_region(region)
-    col = VARIABLES[variable]["col"]
-    p = RAW_DIR / f"coldpool_index_observed_{region}.parquet"
+    meta = VARIABLES[variable]
+    col = meta["col"]
+    product = meta["obs_product"]
+    p = RAW_DIR / _OBS_FILE[product].format(region=region)
     if not p.exists():
         raise HTTPException(status_code=503,
-                            detail=f"Observed index not fetched for {region!r}. Run: mhw-fetch-coldpool --region {region}")
+                            detail=f"Observed {variable!r} not fetched for {region!r}. "
+                                   f"Run: {_OBS_FETCH[product].format(region=region)}")
     df = pd.read_parquet(p)
     if col not in df.columns:
         raise HTTPException(status_code=503,
@@ -103,8 +119,8 @@ def get_ocean_health_observed(
     return OceanHealthPayload(
         variable=variable, region=region, kind="observed",
         source=f"AFSC {BOTTOM_REGIONS[region].label} bottom-trawl survey (observed)",
-        units=VARIABLES[variable]["units"],
-        note=_OBS_NOTE.format(label=VARIABLES[variable]["label"].lower()),
+        units=meta["units"],
+        note=_OBS_NOTE[product].format(label=meta["label"].lower()),
         records=_records(df, col),
     )
 

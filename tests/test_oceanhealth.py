@@ -87,3 +87,30 @@ def test_build_series_rejects_unknown_variable_without_network():
     # Validation happens before any dataset is opened, so this needs no connectivity.
     with pytest.raises(ValueError, match="Unknown ocean-health variable"):
         build_model_variable_series(MOM6_NEP, variable="unobtanium")
+
+
+# --- O₂ / pH model transforms + registry ----------------------------------------------------
+
+def test_oxygen_and_ph_resolve_to_own_mom6_files():
+    assert resolve_variable(MOM6_NEP, "oxygen")[0] == "btm_o2"
+    assert resolve_variable(MOM6_NEP, "ph")[0] == "btm_htotal"
+
+
+def test_o2_molkg_to_mll_lands_in_observed_range():
+    from mhw.bottom.oceanhealth import _o2_molkg_to_mll
+    # ~0.00035 mol/kg is a typical EBS bottom O₂ → ~8 ml/l (observed range 4–10).
+    assert _o2_molkg_to_mll(np.array([0.00035]))[0] == pytest.approx(8.03, abs=0.1)
+
+
+def test_htotal_to_ph_inverts_log():
+    from mhw.bottom.oceanhealth import _htotal_to_ph
+    # [H+] = 1e-8 mol/kg → pH 8.0; non-positive → NaN (masked land/fill).
+    out = _htotal_to_ph(np.array([1e-8, 0.0, -1.0]))
+    assert out[0] == pytest.approx(8.0)
+    assert np.isnan(out[1]) and np.isnan(out[2])
+
+
+def test_survey_ctd_variables_carry_obs_product_and_units():
+    assert VARIABLES["oxygen"]["obs_product"] == "survey_ctd"
+    assert VARIABLES["oxygen"]["units"] == "ml/l"
+    assert VARIABLES["ph"].get("provisional") is True

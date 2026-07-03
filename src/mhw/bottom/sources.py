@@ -133,6 +133,16 @@ MOM6_NEP = BottomSource(
         "salinity": BottomVariable(
             var="sob", opendap_url=_mom6_url("sob"), units="psu", label="Bottom salinity",
         ),
+        # Bottom oxygen: native mol kg-1 (converted to ml/l in the ocean-health engine to
+        # match the AFSC survey-CTD observed unit). pH is derived from bottom H+ (btm_htotal,
+        # mol kg-1) as -log10 in the engine — the file carries H+, not pH directly.
+        "oxygen": BottomVariable(
+            var="btm_o2", opendap_url=_mom6_url("btm_o2"), units="mol kg-1", label="Bottom oxygen",
+        ),
+        "ph": BottomVariable(
+            var="btm_htotal", opendap_url=_mom6_url("btm_htotal"), units="mol kg-1",
+            label="Bottom H+ (→ pH)",
+        ),
     },
 )
 
