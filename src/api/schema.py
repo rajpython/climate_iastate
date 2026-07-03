@@ -147,6 +147,21 @@ class ColdPoolPayload(BaseModel):
 # Survey-replicated model validation (model sampled at haul locations + dates)
 # ---------------------------------------------------------------------------
 
+class OceanHealthRecord(BaseModel):
+    year:  int
+    value: float | None   # annual shelf mean of the variable (units in the payload)
+
+
+class OceanHealthPayload(BaseModel):
+    variable: str = "salinity"
+    region:   str = "sebs"
+    kind:     str = "observed"       # "observed" | "modelled"
+    source:   str
+    units:    str = "psu"
+    note:     str = ""
+    records:  list[OceanHealthRecord]
+
+
 class SurveyReplicateRecord(BaseModel):
     year:                    int
     n_hauls:                 int

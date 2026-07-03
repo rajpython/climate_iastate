@@ -17,6 +17,7 @@ from mhw.bottom.regions import BOTTOM_REGIONS
 ROOT = Path(__file__).resolve().parents[3]
 RAW_DIR = ROOT / "data" / "raw"
 MODEL_DIR = ROOT / "data" / "derived" / "cold_pool"
+OCEAN_HEALTH_DIR = ROOT / "data" / "derived" / "ocean_health"
 
 # Threshold label -> parquet column. Used by both the observed and model area views.
 THRESHOLDS = {
@@ -247,6 +248,69 @@ def load_survey_replicate(source_id: str, region: str):
             "n": int(len(h)),
         }
     return annual, skill
+
+
+# ---------------------------------------------------------------------------
+# Ocean-health layer (salinity now; oxygen etc. later) — observed + modelled shelf means
+# ---------------------------------------------------------------------------
+
+# Display name -> canonical variable id (keys of mhw.bottom.oceanhealth.VARIABLES).
+OCEAN_HEALTH_VARS = {
+    "Bottom salinity": "salinity",
+}
+
+
+def _oh_col(variable: str) -> str:
+    """Output/observed column name for an ocean-health variable (e.g. mean_bottom_salinity)."""
+    from mhw.bottom.oceanhealth import VARIABLES
+    return VARIABLES[variable]["col"]
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
+def list_ocean_health_regions(variable: str, group: str | None = None) -> list[str]:
+    """Regions with a non-null OBSERVED series for *variable* (optionally within *group*), S→N.
+
+    Salinity is packaged only for EBS/NBS, so this naturally returns just those in the Bering.
+    """
+    col = _oh_col(variable)
+    regs = []
+    for p in RAW_DIR.glob("coldpool_index_observed_*.parquet"):
+        rid = p.stem.replace("coldpool_index_observed_", "")
+        if rid not in BOTTOM_REGIONS:
+            continue
+        if group is not None and BOTTOM_REGIONS[rid].group != group:
+            continue
+        df = pd.read_parquet(p)
+        if col in df.columns and df[col].notna().any():
+            regs.append(rid)
+    return sorted(set(regs), key=_bt_key)
+
+
+@st.cache_data(show_spinner="Loading observed ocean-health series …", ttl=3600)
+def load_ocean_health_observed(variable: str, region: str) -> pd.DataFrame | None:
+    """Observed annual shelf-mean series → DataFrame[year, value], or None if unavailable."""
+    col = _oh_col(variable)
+    p = RAW_DIR / f"coldpool_index_observed_{region}.parquet"
+    if not p.exists():
+        return None
+    df = pd.read_parquet(p)
+    if col not in df.columns:
+        return None
+    out = df[["year", col]].dropna(subset=[col]).rename(columns={col: "value"})
+    return out.sort_values("year").reset_index(drop=True) if not out.empty else None
+
+
+@st.cache_data(show_spinner="Loading modelled ocean-health series …", ttl=3600)
+def load_ocean_health_model(variable: str, source_id: str, region: str) -> pd.DataFrame | None:
+    """Modelled annual shelf-mean series → DataFrame[year, value], or None if not built."""
+    col = _oh_col(variable)
+    p = OCEAN_HEALTH_DIR / f"oceanhealth_{variable}_{source_id}_{region}.parquet"
+    if not p.exists():
+        return None
+    df = pd.read_parquet(p)
+    if col not in df.columns:
+        return None
+    return df[["year", col]].rename(columns={col: "value"}).sort_values("year").reset_index(drop=True)
 
 
 def zscore(s: pd.Series) -> pd.Series:

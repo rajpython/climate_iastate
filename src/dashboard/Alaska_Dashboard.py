@@ -49,6 +49,7 @@ from dashboard.pages.marine_heatwaves import render as marine_heatwaves_render  
 from dashboard.pages.bottom_observed import render as bottom_observed_render  # noqa: E402
 from dashboard.pages.bottom_models import render as bottom_models_render  # noqa: E402
 from dashboard.pages.catch import render as catch_render  # noqa: E402
+from dashboard.pages.ocean_health import render as ocean_health_render  # noqa: E402
 from dashboard.pages.guides import (  # noqa: E402
     bottom_state_guide,
     dashboard_guide,
@@ -72,6 +73,7 @@ _COVERAGE = [
      [("Cold Pool & Bottom Temperature", "bering_bottom_observed"),
       ("Model Comparison", "bering_bottom_models"),
       ("Cold-Pool Position", "bering_cold_pool_position"),
+      ("Ocean Health", "bering_ocean_health"),
       ("Catch × Bottom State", "bering_catch")]),
     ("Gulf of Alaska", "Bottom Conditions &amp; Climate–Fisheries Relationships",
      "Bottom-temperature conditions and catch–environment relationships for the Gulf shelf "
@@ -208,6 +210,8 @@ nav = {
                 title="Model Comparison", url_path="bering_bottom_models"),
         st.Page("pages/cold_pool_position.py",
                 title="Cold-Pool Position", url_path="bering_cold_pool_position"),
+        st.Page(lambda: ocean_health_render(group="bering"),
+                title="Ocean Health", url_path="bering_ocean_health"),
         st.Page(lambda: catch_render(group="bering"),
                 title="Catch × Bottom State", url_path="bering_catch"),
     ],
