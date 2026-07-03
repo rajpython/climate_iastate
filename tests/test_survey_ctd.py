@@ -75,6 +75,7 @@ def test_regional_annual_means_intensive_mean_and_counts():
         "latitude": [57.0, 58.0, 57.5], "longitude": [-170.0, -171.0, -170.5],
         "o2_mll": [7.0, 8.0, np.nan],       # 2023 mean = 7.5; 2024 has no valid O₂
         "ph": [7.9, np.nan, 8.0],           # 2023 mean = 7.9 (one valid); 2024 = 8.0
+        "sal": [32.0, 33.0, 33.5],          # 2023 mean = 32.5; 2024 = 33.5
     })
     out = regional_annual_means(stations).set_index("year")
     assert out.loc[2023, "mean_bottom_oxygen"] == pytest.approx(7.5)
@@ -82,3 +83,5 @@ def test_regional_annual_means_intensive_mean_and_counts():
     assert np.isnan(out.loc[2024, "mean_bottom_oxygen"])   # no valid O₂ that year
     assert out.loc[2024, "n_stations_o2"] == 0
     assert out.loc[2024, "mean_bottom_ph"] == pytest.approx(8.0)
+    assert out.loc[2023, "mean_bottom_salinity"] == pytest.approx(32.5)
+    assert out.loc[2024, "n_stations_salinity"] == 1

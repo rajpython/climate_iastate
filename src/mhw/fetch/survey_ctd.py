@@ -31,18 +31,34 @@ from mhw.bottom.regions import BOTTOM_REGIONS, BottomRegion, get_region
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_RAW = PROJECT_ROOT / "data" / "raw"
 
-# NCEI Accession 0286094 (EBS+NBS), gapctd product. The arc-bucket + version are pinned like the
-# MOM6 release id — bump when NCEI publishes a new version (annual). Verified live 2026-07-03:
-# version 2.2 carries 2021–2024. One file per year: GAPCTD_EBS/<year>/GAPCTD_<year>_EBS.nc.
-_NCEI_BASE = ("https://www.ncei.noaa.gov/data/oceans/archive/arc0221/0286094/2.2/"
-              "data/0-data/GAPCTD_EBS")
-# The Bering CTD accession serves SEBS + NBS together; both region ids read the same files and
-# are split by polygon. (GOA/AI live in separate accessions — later increments.)
-_CTD_REGION_GROUP = {"sebs": "ebs", "nbs": "ebs"}
+# gapctd products by AFSC survey accession (NCEI). arc-bucket + version pinned like a release id
+# (bump when NCEI publishes a new annual version). One file per survey year:
+# GAPCTD_<SUFFIX>/<year>/GAPCTD_<year>_<SUFFIX>.nc. Verified live 2026-07-03.
+#   NOTE (verified): only the EBS/NBS accession carries processed sea-floor O₂ + pH (and only
+#   2023–2024). GOA and AI carry **T/S only** — so for GOA/AI this fetcher yields bottom
+#   *salinity* (sea_floor_practical_salinity); O₂/pH columns come out empty and are dropped.
+_NCEI_ROOT = "https://www.ncei.noaa.gov/data/oceans/archive"
+_CTD_ACCESSIONS = {
+    "ebs": {"base": f"{_NCEI_ROOT}/arc0221/0286094/2.2/data/0-data/GAPCTD_EBS",
+            "suffix": "EBS", "years": (2021, 2024)},
+    "goa": {"base": f"{_NCEI_ROOT}/arc0227/0291232/1.1/data/0-data/GAPCTD_GOA",
+            "suffix": "GOA", "years": (2021, 2023)},
+    "ai":  {"base": f"{_NCEI_ROOT}/arc0221/0286095/2.2/data/0-data/GAPCTD_AI",
+            "suffix": "AI", "years": (2022, 2024)},
+}
+# Region id -> accession group. Each accession serves its area + subareas; stations are split to a
+# region by polygon. (A known NCEI mislabel — GAPCTD_2024_AI.nc actually holds EBS 2023 data — is
+# harmless here: its Bering stations fall outside every AI polygon and are clipped away.)
+_CTD_REGION_GROUP = {
+    "sebs": "ebs", "nbs": "ebs",
+    "goa": "goa", "wgoa": "goa", "egoa": "goa",
+    "ai": "ai", "ai_west": "ai", "ai_central": "ai", "ai_east": "ai",
+}
 
 _FILL_THRESHOLD = 1e30          # gapctd NetCDF fill (~9.97e36) is not decoded to NaN — mask it
 _O2_VALID = (0.0, 15.0)         # ml/l — drop fills/negatives (EBS bottom O₂ ~4–10 ml/l)
 _PH_VALID = (7.0, 8.5)          # total scale — drop ISFET sensor-drift outliers (typical ~7.6–8.1)
+_SAL_VALID = (20.0, 36.0)       # PSS-78 — drop fills/outliers (Alaska shelf bottom ~31–34)
 
 # Per-station (2-D, along `index`) variables we keep from each gapctd file.
 _STATION_VARS = {
@@ -51,6 +67,7 @@ _STATION_VARS = {
     "stationid": "stationid",
     "sea_floor_dissolved_oxygen": "o2_mll",
     "sea_floor_ph_reported_on_total_scale": "ph",
+    "sea_floor_practical_salinity": "sal",
 }
 
 
@@ -89,6 +106,8 @@ def station_frame(ds, year: int) -> pd.DataFrame:
             cols[dst] = _mask_fill(vals, *_O2_VALID)
         elif dst == "ph":
             cols[dst] = _mask_fill(vals, *_PH_VALID)
+        elif dst == "sal":
+            cols[dst] = _mask_fill(vals, *_SAL_VALID)
         else:
             cols[dst] = np.asarray(vals, dtype="float64")
     df = pd.DataFrame(cols)
@@ -96,8 +115,8 @@ def station_frame(ds, year: int) -> pd.DataFrame:
     # Average down/up profiles per station (a station may appear twice).
     df = (df.groupby(["year", "stationid"], as_index=False)
             .agg(latitude=("latitude", "mean"), longitude=("longitude", "mean"),
-                 o2_mll=("o2_mll", "mean"), ph=("ph", "mean")))
-    return df[["year", "stationid", "latitude", "longitude", "o2_mll", "ph"]]
+                 o2_mll=("o2_mll", "mean"), ph=("ph", "mean"), sal=("sal", "mean")))
+    return df[["year", "stationid", "latitude", "longitude", "o2_mll", "ph", "sal"]]
 
 
 def regional_annual_means(stations: pd.DataFrame) -> pd.DataFrame:
@@ -108,14 +127,19 @@ def regional_annual_means(stations: pd.DataFrame) -> pd.DataFrame:
     values for a variable get NaN there. Columns: ``year, mean_bottom_oxygen, mean_bottom_ph,
     n_stations_o2, n_stations_ph``.
     """
+    def _mean(g, col):
+        return round(float(g[col].mean()), 4) if g[col].notna().any() else np.nan
+
     rows = []
     for yr, g in stations.groupby("year"):
         rows.append({
             "year": int(yr),
-            "mean_bottom_oxygen": round(float(g["o2_mll"].mean()), 4) if g["o2_mll"].notna().any() else np.nan,
-            "mean_bottom_ph": round(float(g["ph"].mean()), 4) if g["ph"].notna().any() else np.nan,
+            "mean_bottom_oxygen": _mean(g, "o2_mll"),
+            "mean_bottom_ph": _mean(g, "ph"),
+            "mean_bottom_salinity": _mean(g, "sal"),
             "n_stations_o2": int(g["o2_mll"].notna().sum()),
             "n_stations_ph": int(g["ph"].notna().sum()),
+            "n_stations_salinity": int(g["sal"].notna().sum()),
         })
     return pd.DataFrame(rows).sort_values("year").reset_index(drop=True)
 
@@ -142,8 +166,9 @@ def clip_to_region(stations: pd.DataFrame, region_id: str) -> pd.DataFrame:
 # Fetch (network)
 # ---------------------------------------------------------------------------
 
-def _year_url(year: int) -> str:
-    return f"{_NCEI_BASE}/{year}/GAPCTD_{year}_EBS.nc"
+def _year_url(group: str, year: int) -> str:
+    acc = _CTD_ACCESSIONS[group]
+    return f"{acc['base']}/{year}/GAPCTD_{year}_{acc['suffix']}.nc"
 
 
 def _download(url: str, dest: str, timeout: int = 60, retries: int = 3) -> None:
@@ -167,22 +192,23 @@ def _download(url: str, dest: str, timeout: int = 60, retries: int = 3) -> None:
     raise last
 
 
-def fetch_ctd_stations(start: int = 2021, end: int = 2024) -> pd.DataFrame:
-    """Download the Bering gapctd files for *start..end* and return all per-station rows."""
+def fetch_ctd_stations(group: str, start: int, end: int) -> pd.DataFrame:
+    """Download a group's gapctd files for *start..end* and return all per-station rows."""
     import xarray as xr
 
+    suffix = _CTD_ACCESSIONS[group]["suffix"]
     cache_dir = DATA_RAW / "ctd_cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     frames = []
     for year in range(start, end + 1):
-        # Cache the source NetCDF so re-runs (and the second Bering region) don't re-download.
-        local = cache_dir / f"GAPCTD_{year}_EBS.nc"
+        # Cache the source NetCDF so re-runs (and sibling regions/subareas) don't re-download.
+        local = cache_dir / f"GAPCTD_{year}_{suffix}.nc"
         try:
             if not local.exists() or local.stat().st_size == 0:
-                print(f"Fetching survey-CTD bottom O₂/pH ({year}) … {_year_url(year)}")
-                _download(_year_url(year), str(local))
+                print(f"Fetching survey-CTD ({group} {year}) … {_year_url(group, year)}")
+                _download(_year_url(group, year), str(local))
             else:
-                print(f"Using cached survey-CTD file for {year} ({local.name})")
+                print(f"Using cached survey-CTD file for {group} {year} ({local.name})")
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 ds = xr.open_dataset(local, mask_and_scale=True)
@@ -191,11 +217,12 @@ def fetch_ctd_stations(start: int = 2021, end: int = 2024) -> pd.DataFrame:
             continue
         f = station_frame(ds, year)
         ds.close()
-        print(f"  {year}: {len(f)} stations, O₂ valid {int(f['o2_mll'].notna().sum())}, "
-              f"pH valid {int(f['ph'].notna().sum())}")
+        print(f"  {year}: {len(f)} stations — O₂ {int(f['o2_mll'].notna().sum())}, "
+              f"pH {int(f['ph'].notna().sum())}, salinity {int(f['sal'].notna().sum())}")
         frames.append(f)
     if not frames:
-        return pd.DataFrame(columns=["year", "stationid", "latitude", "longitude", "o2_mll", "ph"])
+        return pd.DataFrame(
+            columns=["year", "stationid", "latitude", "longitude", "o2_mll", "ph", "sal"])
     return pd.concat(frames, ignore_index=True)
 
 
@@ -213,10 +240,10 @@ def save_parquet(df: pd.DataFrame, fname: str) -> Path:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Fetch AFSC survey-CTD observed bottom oxygen + pH (gapctd, NCEI).")
+        description="Fetch AFSC survey-CTD observed bottom O₂/pH (EBS/NBS) + salinity (all groups).")
     p.add_argument("--region", default="sebs", choices=sorted(BOTTOM_REGIONS), help="Bottom region id")
-    p.add_argument("--start", type=int, default=2021, help="First survey year")
-    p.add_argument("--end", type=int, default=2024, help="Last survey year")
+    p.add_argument("--start", type=int, default=None, help="First survey year (default: accession start)")
+    p.add_argument("--end", type=int, default=None, help="Last survey year (default: accession end)")
     return p.parse_args(argv)
 
 
@@ -224,23 +251,26 @@ def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     region: BottomRegion = get_region(args.region)
     if region.id not in _CTD_REGION_GROUP:
-        raise SystemExit(f"Survey-CTD O₂/pH not available for {region.id!r} "
-                         f"(Bering only for now: {sorted(_CTD_REGION_GROUP)}).")
+        raise SystemExit(f"Survey-CTD not available for {region.id!r} "
+                         f"(have: {sorted(_CTD_REGION_GROUP)}).")
 
-    # SEBS and NBS share the same source files — reuse the cached all-Bering station frame if it
-    # already covers the requested years (so a second region doesn't re-download).
+    # Regions in a group share the same source files; the year range defaults to the accession's
+    # known survey years. Reuse the cached all-group station frame so siblings don't re-download.
     group = _CTD_REGION_GROUP[region.id]
+    y0, y1 = _CTD_ACCESSIONS[group]["years"]
+    start = args.start if args.start is not None else y0
+    end = args.end if args.end is not None else y1
     cache = DATA_RAW / f"survey_ctd_stations_{group}.parquet"
     if cache.exists():
         stations = pd.read_parquet(cache)
         have = set(stations["year"].unique())
-        if set(range(args.start, args.end + 1)) <= have:
+        if set(range(start, end + 1)) <= have:
             print(f"Reusing cached stations {cache.name} ({sorted(have)}).")
         else:
-            stations = fetch_ctd_stations(args.start, args.end)
+            stations = fetch_ctd_stations(group, start, end)
             save_parquet(stations, cache.name)
     else:
-        stations = fetch_ctd_stations(args.start, args.end)
+        stations = fetch_ctd_stations(group, start, end)
         if stations.empty:
             print("No CTD stations fetched — check connectivity / year range.")
             return

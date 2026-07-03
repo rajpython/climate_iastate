@@ -56,19 +56,51 @@ def _htotal_to_ph(x: np.ndarray) -> np.ndarray:
     return -np.log10(np.where(a > 0, a, np.nan))
 
 
+# Observed products (raw parquet filename + rebuild command), keyed by product id.
+#   "coldpool"   = the AFSC cold-pool index (salinity, EBS/NBS only, long record).
+#   "survey_ctd" = the gapctd survey-CTD product (O₂/pH for EBS/NBS; salinity for GOA/AI too).
+OBS_PRODUCT_FILE = {
+    "coldpool": "coldpool_index_observed_{region}.parquet",
+    "survey_ctd": "survey_ctd_observed_{region}.parquet",
+}
+OBS_PRODUCT_FETCH = {
+    "coldpool": "mhw-fetch-coldpool --region {region}",
+    "survey_ctd": "mhw-fetch-survey-ctd --region {region}",
+}
+
 # Canonical ocean-health variables. ``col`` is the output/observed column name so a modelled
-# series lines up directly with the observed product. ``obs_product`` selects the observed file:
-# "coldpool" = the AFSC cold-pool index parquet (salinity); "survey_ctd" = the gapctd survey-CTD
-# bottom O₂/pH parquet (mhw.fetch.survey_ctd). ``model_transform`` (optional) converts the model
-# field to the observed unit; ``provisional`` flags a sensor-drift caveat (pH).
+# series lines up directly with the observed product. ``obs_products`` lists candidate observed
+# products in priority order — salinity comes from the cold-pool index where it exists (EBS/NBS,
+# 2008–) and falls back to the survey-CTD product (GOA/AI). ``model_transform`` (optional)
+# converts the model field to the observed unit; ``provisional`` flags a sensor-drift caveat (pH).
 VARIABLES: dict[str, dict] = {
     "salinity": {"units": "psu", "label": "Bottom salinity", "col": "mean_bottom_salinity",
-                 "obs_product": "coldpool"},
+                 "obs_products": ("coldpool", "survey_ctd")},
     "oxygen": {"units": "ml/l", "label": "Bottom dissolved oxygen", "col": "mean_bottom_oxygen",
-               "obs_product": "survey_ctd", "model_transform": _o2_molkg_to_mll},
+               "obs_products": ("survey_ctd",), "model_transform": _o2_molkg_to_mll},
     "ph": {"units": "", "label": "Bottom pH", "col": "mean_bottom_ph",
-           "obs_product": "survey_ctd", "model_transform": _htotal_to_ph, "provisional": True},
+           "obs_products": ("survey_ctd",), "model_transform": _htotal_to_ph, "provisional": True},
 }
+
+
+def resolve_observed(variable: str, region: str, raw_dir):
+    """Return ``(product, Path, col)`` for the first observed product that actually carries a
+    non-null value of *variable* for *region*, else ``None``. Shared by the API + dashboard so
+    salinity transparently reads the cold-pool product (EBS/NBS) or the survey-CTD product
+    (GOA/AI). ``raw_dir`` is the ``data/raw`` directory (Path)."""
+    import pandas as pd
+    meta = VARIABLES[variable]
+    col = meta["col"]
+    for product in meta["obs_products"]:
+        p = raw_dir / OBS_PRODUCT_FILE[product].format(region=region)
+        if not p.exists():
+            continue
+        cols = pd.read_parquet(p, columns=None).columns
+        if col not in cols:
+            continue
+        if pd.read_parquet(p, columns=[col])[col].notna().any():
+            return product, p, col
+    return None
 
 
 # ---------------------------------------------------------------------------

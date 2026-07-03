@@ -110,7 +110,9 @@ def test_htotal_to_ph_inverts_log():
     assert np.isnan(out[1]) and np.isnan(out[2])
 
 
-def test_survey_ctd_variables_carry_obs_product_and_units():
-    assert VARIABLES["oxygen"]["obs_product"] == "survey_ctd"
+def test_survey_ctd_variables_carry_obs_products_and_units():
+    assert VARIABLES["oxygen"]["obs_products"] == ("survey_ctd",)
     assert VARIABLES["oxygen"]["units"] == "ml/l"
     assert VARIABLES["ph"].get("provisional") is True
+    # Salinity can come from either product (cold-pool for EBS/NBS, survey-CTD for GOA/AI).
+    assert VARIABLES["salinity"]["obs_products"] == ("coldpool", "survey_ctd")
