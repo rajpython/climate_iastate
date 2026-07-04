@@ -162,6 +162,27 @@ class OceanHealthPayload(BaseModel):
     records:  list[OceanHealthRecord]
 
 
+class LandingsRecord(BaseModel):
+    year:         int
+    species:      str
+    species_code: str | None = None
+    landings_t:   float | None    # commercial landings, metric tons
+    value_usd:    float | None    # ex-vessel value, current (nominal) US$
+
+
+class LandingsPayload(BaseModel):
+    source:     str = "NOAA FOSS Commercial Landings (statewide Alaska)"
+    area_group: str = "statewide"
+    resolution: str = "statewide"   # statewide Alaska — NOT sub-region
+    units:      str = "metric tons (landings); current US$ (ex-vessel value)"
+    note:       str = (
+        "Fishery-DEPENDENT commercial harvest — distinct from the fishery-independent survey. "
+        "Statewide Alaska only (not sub-region). Ex-vessel value is nominal (not inflation-"
+        "adjusted). Annual, finalised with a lag. Aggregated/non-confidential (NOAA rule of three)."
+    )
+    records:    list[LandingsRecord]
+
+
 class SurveyReplicateRecord(BaseModel):
     year:                    int
     n_hauls:                 int
