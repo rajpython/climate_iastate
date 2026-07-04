@@ -50,6 +50,7 @@ from dashboard.pages.bottom_observed import render as bottom_observed_render  # 
 from dashboard.pages.bottom_models import render as bottom_models_render  # noqa: E402
 from dashboard.pages.catch import render as catch_render  # noqa: E402
 from dashboard.pages.ocean_health import render as ocean_health_render  # noqa: E402
+from dashboard.pages.commercial_landings import render as commercial_landings_render  # noqa: E402
 from dashboard.pages.guides import (  # noqa: E402
     bottom_state_guide,
     dashboard_guide,
@@ -93,6 +94,10 @@ _COVERAGE = [
      "Modelled bottom-temperature conditions for the Arctic shelf (MOM6; model-only — no "
      "in-region survey or validation).", False,
      [("Bottom Temperature", "arctic_bottom_observed")]),
+    ("Commercial Fisheries", "Commercial Harvest &amp; Ex-Vessel Value",
+     "Statewide-Alaska commercial landings and ex-vessel value by species and year "
+     "(fishery-dependent harvest — distinct from the survey).", False,
+     [("Commercial Landings", "commercial_landings")]),
     ("Research", "Research Resources",
      "Literature summaries, technical notes, forecast development, and project research.", False,
      [("Overview", "research"),
@@ -247,6 +252,13 @@ nav = {
     "Arctic": [
         st.Page(lambda: bottom_observed_render(group="arctic"),
                 title="Bottom Temperature", url_path="arctic_bottom_observed"),
+    ],
+    # Commercial harvest (fishery-DEPENDENT) — statewide Alaska landings + ex-vessel value. Its
+    # own top-level section because the FOSS feed resolves to statewide Alaska, not a survey
+    # region; region-wise groundfish (NPFMC areas via AKFIN) would add pages here later.
+    "Commercial Fisheries": [
+        st.Page(commercial_landings_render, title="Commercial Landings",
+                url_path="commercial_landings"),
     ],
     "Research": [
         st.Page(research_render, title="Overview", url_path="research"),

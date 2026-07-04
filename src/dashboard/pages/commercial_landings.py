@@ -1,0 +1,189 @@
+"""Commercial Landings — statewide Alaska commercial harvest (tons) + ex-vessel value ($).
+
+The board's first **fishery-dependent** (commercial harvest) page, the economic counterpart to
+the fishery-independent survey CPUE pages. Source is NOAA FOSS Commercial Landings — statewide
+Alaska only (not sub-region), so it lives in its own top-level section rather than under a
+geography group. Region-wise groundfish (NPFMC areas) is a later AKFIN track.
+
+Reads ``data/raw/landings_foss_ak.parquet`` directly (build with ``mhw-fetch-landings-foss``).
+"""
+from __future__ import annotations
+
+from pathlib import Path
+
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
+
+from dashboard.components.bottom_ui import (
+    AMBER,
+    BLUE,
+    GREEN,
+    SLATE,
+    callout,
+    footer,
+    inject_css,
+    kpi_card,
+    kpi_grid,
+    page_header,
+    section_title,
+    styled_table,
+)
+from mhw.econ.sources import FOSS_LANDINGS
+
+ROOT = Path(__file__).resolve().parents[3]
+RAW_DIR = ROOT / "data" / "raw"
+
+# Below this many years, draw a table rather than a misleading short line (shared board rule).
+_MIN_FOR_CHART = 3
+# Distinct, colour-blind-friendly line colours cycled across the selected species.
+_PALETTE = ["#1565c0", "#b35900", "#2e7d32", "#6a3d9a", "#c62828", "#0097a7", "#8d6e63", "#455a64"]
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
+def load_landings() -> pd.DataFrame | None:
+    """Load the statewide-AK commercial landings frame (None if not fetched yet)."""
+    p = RAW_DIR / f"landings_{FOSS_LANDINGS.id}.parquet"
+    if not p.exists():
+        return None
+    return pd.read_parquet(p).sort_values(["year", "species"]).reset_index(drop=True)
+
+
+def _fmt_usd(v: float) -> str:
+    """Compact $ label: $1.23B / $456M / $7.8M / $12,345."""
+    if v is None or pd.isna(v):
+        return "—"
+    a = abs(v)
+    if a >= 1e9:
+        return f"${v / 1e9:.2f}B"
+    if a >= 1e6:
+        return f"${v / 1e6:.1f}M"
+    return f"${v:,.0f}"
+
+
+def _fmt_t(v: float) -> str:
+    """Compact metric-tons label: 1.23M t / 456k t / 7,800 t."""
+    if v is None or pd.isna(v):
+        return "—"
+    a = abs(v)
+    if a >= 1e6:
+        return f"{v / 1e6:.2f}M t"
+    if a >= 1e3:
+        return f"{v / 1e3:.0f}k t"
+    return f"{v:,.0f} t"
+
+
+def _top_species_by_value(df: pd.DataFrame, n: int = 5) -> list[str]:
+    """The *n* species with the greatest cumulative ex-vessel value (default selection)."""
+    g = df.groupby("species")["value_usd"].sum().sort_values(ascending=False)
+    return list(g.head(n).index)
+
+
+def _line_chart(df: pd.DataFrame, value_col: str, y_title: str, fmt: str) -> None:
+    """One line per species over the year axis (gaps not connected)."""
+    fig = go.Figure()
+    years = list(range(int(df["year"].min()), int(df["year"].max()) + 1))
+    for i, (sp, g) in enumerate(df.groupby("species")):
+        s = g.set_index("year")[value_col].reindex(years)   # missing years → NaN (break the line)
+        fig.add_trace(go.Scatter(
+            x=years, y=s.values, mode="lines+markers", name=sp,
+            line=dict(color=_PALETTE[i % len(_PALETTE)], width=2), marker=dict(size=5),
+            connectgaps=False,
+            hovertemplate="%{x}: %{y:" + fmt + "}<extra>" + sp + "</extra>"))
+    fig.update_layout(
+        template="plotly_white", height=400, margin=dict(l=10, r=10, t=30, b=10),
+        yaxis_title=y_title, xaxis_title="Year", font=dict(size=13),
+        legend=dict(orientation="h", y=1.14, font=dict(size=11)))
+    fig.update_xaxes(dtick=5, tickformat="d")
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def _species_table(df: pd.DataFrame, value_col: str, col_title: str) -> None:
+    """Sparse fallback: a species × year table instead of a short, misleading line."""
+    wide = df.pivot_table(index="species", columns="year", values=value_col, aggfunc="sum")
+    wide.columns = [str(int(c)) for c in wide.columns]
+    st.caption(f"Too few years for a time series — {col_title.lower()} shown as a table.")
+    st.markdown(styled_table(wide, precision=0), unsafe_allow_html=True)
+
+
+def render() -> None:
+    """Render the statewide-Alaska Commercial Landings page (nav shell owns config/fonts)."""
+    inject_css()
+
+    df = load_landings()
+    if df is None or df.empty:
+        st.title("💰 Commercial Landings")
+        st.info("Statewide-Alaska commercial landings are not built yet. Fetch them with "
+                "`mhw-fetch-landings-foss` (writes `data/raw/landings_foss_ak.parquet`).")
+        return
+
+    y_min, y_max = int(df["year"].min()), int(df["year"].max())
+    all_species = sorted(df["species"].unique())
+
+    st.sidebar.header("Controls")
+    yr = st.sidebar.slider("Year range", y_min, y_max, (max(y_min, y_max - 25), y_max), key="cl_years")
+    picked = st.sidebar.multiselect(
+        "Species", all_species, default=_top_species_by_value(df, 5), key="cl_species")
+
+    page_header("💰", "Commercial Landings", "Statewide Alaska",
+                "Alaska — statewide",
+                caption=("Fishery-dependent commercial harvest — landings and ex-vessel value "
+                         "reported to NOAA. Statewide Alaska only (not sub-region), current-dollar "
+                         "(nominal) value."))
+    callout(
+        "This is <b>commercial harvest</b> (fishery-<i>dependent</i>) — what vessels landed and "
+        "sold — and is <b>distinct from the survey</b>: survey CPUE on the Catch × Bottom State "
+        "pages is a fishery-<i>independent</i> abundance index, not landings. Values are "
+        "<b>statewide Alaska</b> (no Bering/GOA/AI split in this source) and <b>nominal</b> "
+        "(not inflation-adjusted).",
+        icon="🎣", tint=BLUE)
+
+    sel = df[(df["year"] >= yr[0]) & (df["year"] <= yr[1])]
+    if picked:
+        sel = sel[sel["species"].isin(picked)]
+    if sel.empty:
+        st.warning("No landings for the selected species / years.")
+        return
+
+    latest = int(sel["year"].max())
+    latest_rows = sel[sel["year"] == latest]
+    n_years = sel["year"].nunique()
+
+    # --- Landings (metric tons) --------------------------------------------------------------
+    with st.container(border=True):
+        section_title("Commercial landings", note="metric tons, selected species")
+        kpi_grid([
+            kpi_card(f"Landings ({latest})", _fmt_t(latest_rows["landings_t"].sum()), GREEN,
+                     sub="selected species"),
+            kpi_card("Ex-vessel value", _fmt_usd(latest_rows["value_usd"].sum()), AMBER,
+                     sub=f"{latest} · nominal $", label_note=f"({latest})"),
+            kpi_card("Species shown", f"{sel['species'].nunique()}", BLUE,
+                     sub=f"of {len(all_species)} landed"),
+            kpi_card("Years", f"{n_years}", SLATE, sub=f"{int(sel['year'].min())}–{latest}"),
+        ], cols=4)
+        if n_years >= _MIN_FOR_CHART:
+            _line_chart(sel, "landings_t", "Landings (metric tons)", ",.0f")
+        else:
+            _species_table(sel, "landings_t", "Landings (t)")
+
+    # --- Ex-vessel value ($) + price ---------------------------------------------------------
+    with st.container(border=True):
+        section_title("Ex-vessel value", note="current (nominal) US$, selected species")
+        if n_years >= _MIN_FOR_CHART:
+            _line_chart(sel, "value_usd", "Ex-vessel value (US$)", "$,.0f")
+        else:
+            _species_table(sel, "value_usd", "Ex-vessel value ($)")
+        # Fleet-wide realised price (Σ value / Σ landings) over the selection — a simple $/t.
+        tot_t, tot_v = sel["landings_t"].sum(), sel["value_usd"].sum()
+        price = tot_v / tot_t if tot_t else float("nan")
+        callout(
+            f"Across the selection, ex-vessel value averaged <b>{_fmt_usd(price)}/t</b> "
+            f"(Σ value ÷ Σ landings). Price varies widely by species — high-value shellfish and "
+            f"salmon fetch far more per ton than groundfish like pollock.",
+            icon="💵", tint=AMBER)
+
+    footer(
+        "Source: NOAA FOSS Commercial Landings (statewide Alaska; ex-vessel value; "
+        f"latest finalised year {y_max}). Aggregated to protect confidential vessel/processor "
+        "data (NOAA rule of three).",
+        guide_url="/dashboard_guide")
