@@ -84,7 +84,9 @@ def _line_chart(df: pd.DataFrame, value_col: str, y_title: str, fmt: str) -> Non
     fig = go.Figure()
     years = list(range(int(df["year"].min()), int(df["year"].max()) + 1))
     for i, (sp, g) in enumerate(df.groupby("species")):
-        s = g.set_index("year")[value_col].reindex(years)   # missing years → NaN (break the line)
+        # Some FOSS species (aggregate groups like "FLATFISHES **") carry >1 row per year, so
+        # sum per year before reindex — a bare set_index("year") would duplicate the index.
+        s = g.groupby("year")[value_col].sum().reindex(years)   # missing years → NaN (break the line)
         fig.add_trace(go.Scatter(
             x=years, y=s.values, mode="lines+markers", name=sp,
             line=dict(color=_PALETTE[i % len(_PALETTE)], width=2), marker=dict(size=5),
@@ -138,9 +140,11 @@ def render() -> None:
         "(not inflation-adjusted).",
         icon="🎣", tint=BLUE)
 
-    sel = df[(df["year"] >= yr[0]) & (df["year"] <= yr[1])]
-    if picked:
-        sel = sel[sel["species"].isin(picked)]
+    if not picked:
+        st.info("Select one or more species in the sidebar to see landings and ex-vessel value. "
+                "(Charting all 98 landed species at once would be unreadable.)")
+        return
+    sel = df[(df["year"] >= yr[0]) & (df["year"] <= yr[1]) & (df["species"].isin(picked))]
     if sel.empty:
         st.warning("No landings for the selected species / years.")
         return
