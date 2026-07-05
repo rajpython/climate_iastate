@@ -51,9 +51,14 @@ from dashboard.pages.bottom_models import render as bottom_models_render  # noqa
 from dashboard.pages.catch import render as catch_render  # noqa: E402
 from dashboard.pages.ocean_health import render as ocean_health_render  # noqa: E402
 from dashboard.pages.commercial_landings import render as commercial_landings_render  # noqa: E402
+from dashboard.pages.econ_safe import (  # noqa: E402
+    render_catch_value as econ_catch_value_render,
+    render_prices as econ_prices_render,
+)
 from dashboard.pages.guides import (  # noqa: E402
     bottom_state_guide,
     dashboard_guide,
+    econ_safe_guide,
     marine_heatwave_guide,
 )
 from dashboard.pages.research import render as research_render  # noqa: E402
@@ -95,9 +100,11 @@ _COVERAGE = [
      "in-region survey or validation).", False,
      [("Bottom Temperature", "arctic_bottom_observed")]),
     ("Commercial Fisheries", "Commercial Harvest &amp; Ex-Vessel Value",
-     "Statewide-Alaska commercial landings and ex-vessel value by species and year "
-     "(fishery-dependent harvest — distinct from the survey).", False,
-     [("Commercial Landings", "commercial_landings")]),
+     "Statewide landings plus groundfish catch, ex-vessel value &amp; price by FMP area "
+     "(BSAI / GOA) from the Economic SAFE (fishery-dependent — distinct from the survey).", False,
+     [("Commercial Landings", "commercial_landings"),
+      ("Catch & Ex-Vessel Value", "econ_catch_value"),
+      ("Ex-Vessel Prices", "econ_prices")]),
     ("Research", "Research Resources",
      "Literature summaries, technical notes, forecast development, and project research.", False,
      [("Overview", "research"),
@@ -107,7 +114,8 @@ _COVERAGE = [
      "Documentation, methodology, and background material.", False,
      [("Dashboard Guide", "dashboard_guide"),
       ("Marine Heatwave Guide", "marine_heatwave_guide"),
-      ("Bottom-State Guide", "bottom_state_guide")]),
+      ("Bottom-State Guide", "bottom_state_guide"),
+      ("Groundfish Economics Guide", "econ_safe_guide")]),
 ]
 
 # Custom-class divs (not <p>) so the explanatory-font p-rule does not override these sizes.
@@ -259,6 +267,9 @@ nav = {
     "Commercial Fisheries": [
         st.Page(commercial_landings_render, title="Commercial Landings",
                 url_path="commercial_landings"),
+        st.Page(econ_catch_value_render, title="Catch & Ex-Vessel Value",
+                url_path="econ_catch_value"),
+        st.Page(econ_prices_render, title="Ex-Vessel Prices", url_path="econ_prices"),
     ],
     "Research": [
         st.Page(research_render, title="Overview", url_path="research"),
@@ -272,6 +283,8 @@ nav = {
                 url_path="marine_heatwave_guide"),
         st.Page(bottom_state_guide, title="Bottom-State Guide",
                 url_path="bottom_state_guide"),
+        st.Page(econ_safe_guide, title="Groundfish Economics Guide",
+                url_path="econ_safe_guide"),
     ],
 }
 

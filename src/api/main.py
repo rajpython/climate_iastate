@@ -18,6 +18,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes_coldpool import router as coldpool_router
+from api.routes_econ_safe import router as econ_safe_router
 from api.routes_landings import router as landings_router
 from api.routes_oceanhealth import router as oceanhealth_router
 from api.routes_indices import router as indices_router
@@ -70,6 +71,7 @@ app.include_router(indices_router,  prefix="/v1", tags=["Indices"])
 app.include_router(coldpool_router, prefix="/v1", tags=["Cold Pool"])
 app.include_router(oceanhealth_router, prefix="/v1", tags=["Ocean Health"])
 app.include_router(landings_router, prefix="/v1", tags=["Landings"])
+app.include_router(econ_safe_router, prefix="/v1", tags=["Economic SAFE"])
 
 
 # ---------------------------------------------------------------------------

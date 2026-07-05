@@ -162,6 +162,43 @@ class OceanHealthPayload(BaseModel):
     records:  list[OceanHealthRecord]
 
 
+class EconMeasureInfo(BaseModel):
+    col:   str
+    label: str
+    units: str
+    kind:  str = ""
+
+
+class EconReportInfo(BaseModel):
+    id:         str
+    code:       str
+    title:      str
+    family:     str
+    dimensions: list[str]
+    measures:   list[EconMeasureInfo]
+    year_span:  str
+
+
+class EconReportListPayload(BaseModel):
+    source:  str = "AKFIN Groundfish Economic SAFE (NOAA/AFSC)"
+    note:    str = (
+        "Fishery-dependent commercial groundfish economics at FMP-area resolution "
+        "(BSAI / GOA / All Alaska) — distinct from the survey ecosystem regions. Annual, "
+        "download-and-cache from AKFIN Apex reports."
+    )
+    reports: list[EconReportInfo]
+
+
+class EconDataPayload(BaseModel):
+    report_id: str
+    code:      str
+    title:     str
+    family:    str
+    columns:   list[str]
+    note:      str = ""
+    records:   list[dict]
+
+
 class LandingsRecord(BaseModel):
     year:         int
     species:      str

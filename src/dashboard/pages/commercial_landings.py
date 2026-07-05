@@ -73,6 +73,11 @@ def _fmt_t(v: float) -> str:
     return f"{v:,.0f} t"
 
 
+def _species_label(species: str) -> str:
+    """Tag NOAA aggregate/confidential rollup categories so they read as groups, not species."""
+    return species[:-2].rstrip() + " (group)" if species.rstrip().endswith("**") else species
+
+
 def _top_species_by_value(df: pd.DataFrame, n: int = 5) -> list[str]:
     """The *n* species with the greatest cumulative ex-vessel value (default selection)."""
     g = df.groupby("species")["value_usd"].sum().sort_values(ascending=False)
@@ -120,12 +125,17 @@ def render() -> None:
         return
 
     y_min, y_max = int(df["year"].min()), int(df["year"].max())
-    all_species = sorted(df["species"].unique())
 
     st.sidebar.header("Controls")
     yr = st.sidebar.slider("Year range", y_min, y_max, (max(y_min, y_max - 25), y_max), key="cl_years")
+    # Only offer species actually landed within the selected window — species landed only in
+    # earlier decades would otherwise clutter the list and chart as empty lines.
+    in_range = df[(df["year"] >= yr[0]) & (df["year"] <= yr[1])]
+    available = sorted(in_range["species"].unique())
+    all_species = sorted(df["species"].unique())
     picked = st.sidebar.multiselect(
-        "Species", all_species, default=_top_species_by_value(df, 5), key="cl_species")
+        "Species", available, default=_top_species_by_value(in_range, 5),
+        format_func=_species_label, key="cl_species")
 
     page_header("💰", "Commercial Landings", "Statewide Alaska",
                 "Alaska — statewide",
