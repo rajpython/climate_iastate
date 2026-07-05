@@ -37,6 +37,7 @@ from dashboard.components.econ_data import (
     available_areas,
     fmp_label,
     load_safe_report,
+    stacked_bar,
 )
 
 _MIN_FOR_CHART = 3
@@ -165,14 +166,14 @@ def render_catch_value() -> None:
                      sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=4)
         if n_years >= _MIN_FOR_CHART:
-            _series_chart(sel, "species_group", "retained_catch_mt", "Retained catch (metric tons)", ",.0f")
+            stacked_bar(sel, "species_group", "retained_catch_mt", "Retained catch (metric tons)", ",.0f")
         else:
             _sparse_table(sel, "species_group", "retained_catch_mt", "Retained catch (t)")
 
     with st.container(border=True):
         section_title("Ex-vessel value", note="current (nominal) US$, selected species")
         if n_years >= _MIN_FOR_CHART:
-            _series_chart(sel, "species_group", "exvessel_value", "Ex-vessel value (US$)", "$,.0f")
+            stacked_bar(sel, "species_group", "exvessel_value", "Ex-vessel value (US$)", "$,.0f")
         else:
             _sparse_table(sel, "species_group", "exvessel_value", "Ex-vessel value ($)")
 
@@ -321,14 +322,14 @@ def render_wholesale() -> None:
                      sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=4)
         if n_years >= _MIN_FOR_CHART:
-            _series_chart(sel, "species", "product_weight_mt", "Product weight (metric tons)", ",.0f")
+            stacked_bar(sel, "species", "product_weight_mt", "Product weight (metric tons)", ",.0f")
         else:
             _sparse_table(sel, "species", "product_weight_mt", "Product weight (t)")
 
     with st.container(border=True):
         section_title("Wholesale value", note="current (nominal) US$, selected species")
         if n_years >= _MIN_FOR_CHART:
-            _series_chart(sel, "species", "wholesale_value", "Wholesale value (US$)", "$,.0f")
+            stacked_bar(sel, "species", "wholesale_value", "Wholesale value (US$)", "$,.0f")
         else:
             _sparse_table(sel, "species", "wholesale_value", "Wholesale value ($)")
 
@@ -371,7 +372,7 @@ def _wholesale_processor_panel(area: str, yr: tuple[int, int]) -> None:
         section_title("First-wholesale value by processor group",
                       note="US$ millions, top processor groups (GFSAFE014, 2012–)")
         if d["year"].nunique() >= _MIN_FOR_CHART:
-            _series_chart(d, "fleet_port", "wsval_m", "First-wholesale value (US$ millions)", "$,.1f")
+            stacked_bar(d, "fleet_port", "wsval_m", "First-wholesale value (US$ millions)", "$,.1f")
         else:
             _sparse_table(d, "fleet_port", "wsval_m", "Value ($M)")
 
@@ -465,7 +466,7 @@ def render_effort_labor() -> None:
                 section_title("Fishing effort (vessel-weeks)",
                               note="all gear, summed across sectors, by target (GFSAFE017)")
                 if w["year"].nunique() >= _MIN_FOR_CHART:
-                    _series_chart(w, "groundfish_target_species", "vessel_weeks", "Vessel-weeks", ",.0f")
+                    stacked_bar(w, "groundfish_target_species", "vessel_weeks", "Vessel-weeks", ",.0f")
                 else:
                     _sparse_table(w, "groundfish_target_species", "vessel_weeks", "Vessel-weeks")
 
@@ -482,7 +483,7 @@ def render_effort_labor() -> None:
             with st.container(border=True):
                 section_title("Crew labor (crew-weeks)", note="annual, by sector (GFSAFE018, 2009–)")
                 if long["year"].nunique() >= _MIN_FOR_CHART:
-                    _series_chart(long, "series", "crewweeks", "Crew weeks", ",.0f", agg="sum")
+                    stacked_bar(long, "series", "crewweeks", "Crew weeks", ",.0f")
                 else:
                     _sparse_table(long, "series", "crewweeks", "Crew weeks")
 
@@ -530,7 +531,7 @@ def render_fleet_ownership() -> None:
                      sub=f"{yr[0]}–{yr[1]}"),
         ], cols=3)
         if dd["year"].nunique() >= _MIN_FOR_CHART:
-            _series_chart(dd, "fleet", "exves_val_m", "Ex-vessel value (US$ millions)", "$,.1f")
+            stacked_bar(dd, "fleet", "exves_val_m", "Ex-vessel value (US$ millions)", "$,.1f")
         else:
             _sparse_table(dd, "fleet", "exves_val_m", "Value ($M)")
 
@@ -674,14 +675,14 @@ def render_crab() -> None:
                      sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=4)
         if n_years >= _MIN_FOR_CHART:
-            _series_chart(sel, "stock", "hpy_soldmt", "Harvest (metric tons)", ",.0f")
+            stacked_bar(sel, "stock", "hpy_soldmt", "Harvest (metric tons)", ",.0f")
         else:
             _sparse_table(sel, "stock", "hpy_soldmt", "Harvest (t)")
 
     with st.container(border=True):
         section_title("Ex-vessel value", note="current (nominal) US$, by crab fishery")
         if n_years >= _MIN_FOR_CHART:
-            _series_chart(sel, "stock", "hpy_exv_nom", "Ex-vessel value (US$)", "$,.0f")
+            stacked_bar(sel, "stock", "hpy_exv_nom", "Ex-vessel value (US$)", "$,.0f")
         else:
             _sparse_table(sel, "stock", "hpy_exv_nom", "Ex-vessel value ($)")
 
