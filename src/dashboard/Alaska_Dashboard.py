@@ -152,11 +152,18 @@ _HOME_CSS = """<style>
 .amed-card-title { font-size: 1.12rem; font-weight: 700; margin-bottom: 0.3rem; }
 .amed-card-sub { font-size: 0.97rem; font-weight: 600; opacity: 0.95; margin-bottom: 0.35rem; }
 .amed-card-desc { font-size: 0.92rem; line-height: 1.45; opacity: 0.7; }
-/* Related-page links: collapsed (zero height) at rest, revealed on hover. */
-.amed-card-links { display: flex; flex-direction: column; gap: 0.18rem; max-height: 0;
-    overflow: hidden; opacity: 0; margin-top: 0;
-    transition: max-height .25s ease, opacity .2s ease, margin-top .2s ease; }
-.amed-card:hover .amed-card-links { max-height: 340px; opacity: 1; margin-top: 0.7rem; }
+/* Related-page links: an ABSOLUTE dropdown anchored to the card's bottom edge, so revealing it on
+   hover never changes the card's box. That is what keeps the grid from reflowing (rows are equal-
+   height via grid-auto-rows) — otherwise a growing card would push every row and the hovered card
+   would jitter out from under the cursor. */
+.amed-card-links { position: absolute; left: 0; right: 0; top: 100%; z-index: 11;
+    display: flex; flex-direction: column; gap: 0.18rem; padding: 0 1.2rem;
+    background: var(--background-color, #ffffff);
+    border: 1px solid rgba(130,130,130,0.55); border-top: none; border-radius: 0 0 0.5rem 0.5rem;
+    box-shadow: 0 18px 34px rgba(0,0,0,0.18);
+    max-height: 0; overflow: hidden; opacity: 0;
+    transition: max-height .25s ease, opacity .2s ease, padding .2s ease; }
+.amed-card:hover .amed-card-links { max-height: 340px; opacity: 1; padding: 0.5rem 1.2rem 0.85rem; }
 .amed-card-links a { font-size: 0.86rem; font-weight: 600; line-height: 1.5;
     color: var(--primary-color, #1f77b4); text-decoration: none; }
 .amed-card-links a:hover { text-decoration: underline; }

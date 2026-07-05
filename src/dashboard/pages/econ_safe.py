@@ -35,6 +35,7 @@ from dashboard.components.bottom_ui import (
 from dashboard.components.econ_data import (
     ECON_PALETTE,
     available_areas,
+    category_colors,
     fmp_label,
     load_safe_report,
     stacked_bar,
@@ -154,6 +155,7 @@ def render_catch_value() -> None:
     tot_t, tot_v = float(lr["retained_catch_mt"].sum()), float(lr["exvessel_value"].sum())
     price = tot_v / (tot_t * _LBS_PER_TONNE) if tot_t else float("nan")
     n_years = sel["year"].nunique()
+    cmap = category_colors(all_sp)
 
     with st.container(border=True):
         section_title("Retained catch & ex-vessel value", note=f"{sector.lower()}, selected species")
@@ -166,14 +168,16 @@ def render_catch_value() -> None:
                      sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=4)
         if n_years >= _MIN_FOR_CHART:
-            stacked_bar(sel, "species_group", "retained_catch_mt", "Retained catch (metric tons)", ",.0f")
+            stacked_bar(sel, "species_group", "retained_catch_mt", "Retained catch (metric tons)",
+                        ",.0f", colors=cmap)
         else:
             _sparse_table(sel, "species_group", "retained_catch_mt", "Retained catch (t)")
 
     with st.container(border=True):
         section_title("Ex-vessel value", note="current (nominal) US$, selected species")
         if n_years >= _MIN_FOR_CHART:
-            stacked_bar(sel, "species_group", "exvessel_value", "Ex-vessel value (US$)", "$,.0f")
+            stacked_bar(sel, "species_group", "exvessel_value", "Ex-vessel value (US$)", "$,.0f",
+                        colors=cmap)
         else:
             _sparse_table(sel, "species_group", "exvessel_value", "Ex-vessel value ($)")
 
@@ -310,6 +314,7 @@ def render_wholesale() -> None:
     tot_t, tot_v = float(lr["product_weight_mt"].sum()), float(lr["wholesale_value"].sum())
     price = tot_v / (tot_t * _LBS_PER_TONNE) if tot_t else float("nan")
     n_years = sel["year"].nunique()
+    cmap = category_colors(all_sp)
 
     with st.container(border=True):
         section_title("Wholesale production & value", note=f"{product.lower()}, selected species")
@@ -322,14 +327,16 @@ def render_wholesale() -> None:
                      sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=4)
         if n_years >= _MIN_FOR_CHART:
-            stacked_bar(sel, "species", "product_weight_mt", "Product weight (metric tons)", ",.0f")
+            stacked_bar(sel, "species", "product_weight_mt", "Product weight (metric tons)",
+                        ",.0f", colors=cmap)
         else:
             _sparse_table(sel, "species", "product_weight_mt", "Product weight (t)")
 
     with st.container(border=True):
         section_title("Wholesale value", note="current (nominal) US$, selected species")
         if n_years >= _MIN_FOR_CHART:
-            stacked_bar(sel, "species", "wholesale_value", "Wholesale value (US$)", "$,.0f")
+            stacked_bar(sel, "species", "wholesale_value", "Wholesale value (US$)", "$,.0f",
+                        colors=cmap)
         else:
             _sparse_table(sel, "species", "wholesale_value", "Wholesale value ($)")
 
@@ -661,6 +668,7 @@ def render_crab() -> None:
     latest = int(sel.dropna(subset=["hpy_soldmt"])["year"].max())
     lr = sel[sel["year"] == latest]
     n_years = sel["year"].nunique()
+    cmap = category_colors(all_stocks)
 
     with st.container(border=True):
         section_title("Harvest & ex-vessel value", note="by crab fishery (CRSAFEEXEC01)")
@@ -675,14 +683,14 @@ def render_crab() -> None:
                      sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=4)
         if n_years >= _MIN_FOR_CHART:
-            stacked_bar(sel, "stock", "hpy_soldmt", "Harvest (metric tons)", ",.0f")
+            stacked_bar(sel, "stock", "hpy_soldmt", "Harvest (metric tons)", ",.0f", colors=cmap)
         else:
             _sparse_table(sel, "stock", "hpy_soldmt", "Harvest (t)")
 
     with st.container(border=True):
         section_title("Ex-vessel value", note="current (nominal) US$, by crab fishery")
         if n_years >= _MIN_FOR_CHART:
-            stacked_bar(sel, "stock", "hpy_exv_nom", "Ex-vessel value (US$)", "$,.0f")
+            stacked_bar(sel, "stock", "hpy_exv_nom", "Ex-vessel value (US$)", "$,.0f", colors=cmap)
         else:
             _sparse_table(sel, "stock", "hpy_exv_nom", "Ex-vessel value ($)")
 

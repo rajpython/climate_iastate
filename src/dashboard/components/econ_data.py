@@ -21,9 +21,22 @@ SAFE_DIR = ROOT / "data" / "raw" / "econ_safe"
 # FMP-area display order for selectors.
 FMP_ORDER = ("bsai", "goa", "ak")
 
-# Distinct, colour-blind-friendly line colours cycled across selected series.
-ECON_PALETTE = ["#1565c0", "#b35900", "#2e7d32", "#6a3d9a", "#c62828",
-                "#0097a7", "#8d6e63", "#455a64", "#00695c", "#9e6c00"]
+# A high-contrast categorical palette. Colours are assigned to categories by *identity*
+# (see category_colors), so a species/stock/fleet keeps the same colour across pages and
+# regardless of how many are selected — never "always blue for the first one".
+ECON_PALETTE = ["#1565c0", "#e65100", "#2e7d32", "#c62828", "#6a3d9a", "#00838f",
+                "#ad1457", "#5d4037", "#f9a825", "#37474f", "#0277bd", "#558b2f"]
+
+
+def category_colors(categories) -> dict[str, str]:
+    """Stable {category → colour} over the full category vocabulary.
+
+    Sorted deterministically and assigned palette colours, so each category's colour is fixed by
+    its identity. Build this once from the *full* vocabulary (not just the selected subset) and
+    pass it to :func:`stacked_bar` so colours stay put as the selection changes.
+    """
+    cats = sorted({str(c) for c in categories})
+    return {c: ECON_PALETTE[i % len(ECON_PALETTE)] for i, c in enumerate(cats)}
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
@@ -49,26 +62,38 @@ def available_areas(df: pd.DataFrame) -> list[str]:
 
 
 def stacked_bar(df: pd.DataFrame, cat_col: str, val_col: str, y_title: str,
-                hover_fmt: str = ",.0f", height: int = 400) -> None:
+                hover_fmt: str = ",.0f", colors: dict[str, str] | None = None,
+                height: int = 400) -> None:
     """Stacked bar per year — for **additive** quantities (they sum to a meaningful total).
 
     Each category is a coloured segment; the full bar height is the total across the selected
     categories, so composition *and* total read at a glance. Use for landings, catch, value,
-    harvest, wholesale value, effort-weeks — NOT for prices/shares/means (those don't sum; keep
-    :func:`stacked_bar` for those to a line chart instead).
+    harvest, wholesale value, effort-weeks — NOT for prices/shares/means (those don't sum).
+
+    Behaviour:
+    - **Colour follows identity.** Pass *colors* (from :func:`category_colors` over the full
+      vocabulary) so each category keeps its own colour; falls back to a stable per-selection map.
+    - **Largest at the bottom.** Segments are stacked by total magnitude over the shown years,
+      biggest on the bottom and decreasing upward.
+    - Hover shows the category name (bold) + year + value in a readable font.
     """
+    if df.empty:
+        return
     years = list(range(int(df["year"].min()), int(df["year"].max()) + 1))
+    order = df.groupby(cat_col)[val_col].sum().sort_values(ascending=False).index.tolist()
+    cmap = colors or category_colors(order)
     fig = go.Figure()
-    for i, (cat, g) in enumerate(df.groupby(cat_col)):
-        s = g.groupby("year")[val_col].sum().reindex(years)
+    for cat in order:  # add largest first → it sits at the bottom of the stack
+        s = df[df[cat_col] == cat].groupby("year")[val_col].sum().reindex(years)
         fig.add_trace(go.Bar(
             x=years, y=s.values, name=str(cat),
-            marker_color=ECON_PALETTE[i % len(ECON_PALETTE)],
-            hovertemplate="%{x}: %{y:" + hover_fmt + "}<extra>" + str(cat) + "</extra>"))
+            marker_color=cmap.get(str(cat), ECON_PALETTE[0]),
+            hovertemplate="<b>%{fullData.name}</b><br>%{x}: %{y:" + hover_fmt + "}<extra></extra>"))
     fig.update_layout(
         barmode="stack", template="plotly_white", height=height,
         margin=dict(l=10, r=10, t=30, b=10), bargap=0.15,
         yaxis_title=y_title, xaxis_title="Year", font=dict(size=13),
+        hovermode="closest", hoverlabel=dict(font_size=14, namelength=-1),
         legend=dict(orientation="h", y=1.14, font=dict(size=11)))
     fig.update_xaxes(dtick=5, tickformat="d")
     st.plotly_chart(fig, use_container_width=True)

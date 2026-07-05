@@ -28,7 +28,7 @@ from dashboard.components.bottom_ui import (
     section_title,
     styled_table,
 )
-from dashboard.components.econ_data import stacked_bar
+from dashboard.components.econ_data import category_colors, stacked_bar
 from mhw.econ.sources import FOSS_LANDINGS
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -143,6 +143,7 @@ def render() -> None:
     latest = int(sel["year"].max())
     latest_rows = sel[sel["year"] == latest]
     n_years = sel["year"].nunique()
+    cmap = category_colors(all_species)   # stable colour per species across the whole record
 
     # --- Landings (metric tons) --------------------------------------------------------------
     with st.container(border=True):
@@ -157,7 +158,7 @@ def render() -> None:
             kpi_card("Years", f"{n_years}", SLATE, sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=4)
         if n_years >= _MIN_FOR_CHART:
-            stacked_bar(sel, "species", "landings_t", "Landings (metric tons)", ",.0f")
+            stacked_bar(sel, "species", "landings_t", "Landings (metric tons)", ",.0f", colors=cmap)
         else:
             _species_table(sel, "landings_t", "Landings (t)")
 
@@ -165,7 +166,7 @@ def render() -> None:
     with st.container(border=True):
         section_title("Ex-vessel value", note="current (nominal) US$, selected species")
         if n_years >= _MIN_FOR_CHART:
-            stacked_bar(sel, "species", "value_usd", "Ex-vessel value (US$)", "$,.0f")
+            stacked_bar(sel, "species", "value_usd", "Ex-vessel value (US$)", "$,.0f", colors=cmap)
         else:
             _species_table(sel, "value_usd", "Ex-vessel value ($)")
         # Fleet-wide realised price (Σ value / Σ landings) over the selection — a simple $/t.
