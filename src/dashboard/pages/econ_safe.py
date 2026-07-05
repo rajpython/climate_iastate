@@ -250,3 +250,125 @@ def render_prices() -> None:
 
     footer("Source: NOAA/AFSC Groundfish Economic SAFE via AKFIN (GFSAFE009); FMP-area, annual, "
            "nominal ex-vessel price.", guide_url="/econ_safe_guide")
+
+
+# ---------------------------------------------------------------------------
+# Page: Wholesale production & value (GFSAFE012 / 013 / 014)
+# ---------------------------------------------------------------------------
+
+def _pick_prefer(sub: pd.DataFrame, col: str, label: str, key: str, prefer: str):
+    opts = sorted(sub[col].dropna().unique())
+    opts = [o for o in opts if o == prefer] + [o for o in opts if o != prefer]
+    return st.sidebar.selectbox(label, opts, key=key)
+
+
+def _top_by(df: pd.DataFrame, cat_col: str, val_col: str, n: int, exclude=()) -> list[str]:
+    g = df[~df[cat_col].isin(exclude)].groupby(cat_col)[val_col].sum().sort_values(ascending=False)
+    return g.head(n).index.tolist()
+
+
+def render_wholesale() -> None:
+    inject_css()
+    prod = load_safe_report("gfsafe012")
+    if prod is None or prod.empty:
+        st.title("🏭 Groundfish Wholesale Production & Value")
+        st.info("Economic SAFE data not built yet. Run `mhw-ingest-econ-safe`.")
+        return
+
+    st.sidebar.header("Controls")
+    area = _fmp_selector(prod, "ws_area")
+    sub = prod[prod["area_code"] == area]
+    psector = _pick_prefer(sub, "processing_sector", "Processing sector", "ws_psector", "All Sectors")
+    product = _pick_prefer(sub, "product", "Product form", "ws_product", "All Products")
+    sub = sub[(sub["processing_sector"] == psector) & (sub["product"] == product)]
+
+    y0, y1 = int(sub["year"].min()), int(sub["year"].max())
+    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="ws_years")
+    all_sp = [s for s in sorted(sub["species"].unique()) if s != "All Groundfish"]
+    default_sp = _top_by(sub, "species", "wholesale_value", 5, exclude=("All Groundfish",))
+    picked = st.sidebar.multiselect("Species", all_sp, default=default_sp, key="ws_species")
+
+    page_header("🏭", "Groundfish Wholesale Production & Value", fmp_label(area),
+                f"{fmp_label(area)} · {psector} · {product}",
+                caption=("First-wholesale (processed) production, value, and price of Alaska "
+                         "groundfish — NOAA Economic SAFE (GFSAFE012/013/014)."))
+    _econ_callout()
+
+    if not picked:
+        st.info("Select one or more species in the sidebar.")
+        return
+    sel = sub[(sub["year"] >= yr[0]) & (sub["year"] <= yr[1]) & (sub["species"].isin(picked))]
+    if sel.empty:
+        st.warning("No wholesale data for the selected species / years / filters.")
+        return
+
+    latest = int(sel["year"].max())
+    lr = sel[sel["year"] == latest]
+    tot_t, tot_v = float(lr["product_weight_mt"].sum()), float(lr["wholesale_value"].sum())
+    price = tot_v / (tot_t * _LBS_PER_TONNE) if tot_t else float("nan")
+    n_years = sel["year"].nunique()
+
+    with st.container(border=True):
+        section_title("Wholesale production & value", note=f"{product.lower()}, selected species")
+        kpi_grid([
+            kpi_card(f"Product weight ({latest})", _fmt_t(tot_t), GREEN, sub="processed weight"),
+            kpi_card(f"Wholesale value ({latest})", _fmt_usd(tot_v), AMBER, sub="nominal $"),
+            kpi_card(f"Wholesale price ({latest})", f"${price:.2f}/lb" if tot_t else "—", BLUE,
+                     sub="value ÷ weight"),
+            kpi_card("Species · years", f"{sel['species'].nunique()} · {n_years}", SLATE,
+                     sub=f"{int(sel['year'].min())}–{latest}"),
+        ], cols=4)
+        if n_years >= _MIN_FOR_CHART:
+            _series_chart(sel, "species", "product_weight_mt", "Product weight (metric tons)", ",.0f")
+        else:
+            _sparse_table(sel, "species", "product_weight_mt", "Product weight (t)")
+
+    with st.container(border=True):
+        section_title("Wholesale value", note="current (nominal) US$, selected species")
+        if n_years >= _MIN_FOR_CHART:
+            _series_chart(sel, "species", "wholesale_value", "Wholesale value (US$)", "$,.0f")
+        else:
+            _sparse_table(sel, "species", "wholesale_value", "Wholesale value ($)")
+
+    _wholesale_unit_value_panel(area, yr)
+    _wholesale_processor_panel(area, yr)
+
+    footer("Source: NOAA/AFSC Groundfish Economic SAFE via AKFIN (GFSAFE012/013/014); FMP-area, "
+           "annual, nominal first-wholesale value.", guide_url="/econ_safe_guide")
+
+
+def _wholesale_unit_value_panel(area: str, yr: tuple[int, int]) -> None:
+    df = load_safe_report("gfsafe013")
+    if df is None or df.empty:
+        return
+    # 013's processing sectors are area-specific (no universal "All Sectors" row for BSAI), so
+    # average the unit value across whatever sectors are present per species group × year.
+    d = df[(df["area_code"] == area) & (df["year"] >= yr[0]) & (df["year"] <= yr[1])]
+    d = d[d["species_group"] != "All Groundfish"]
+    if d.empty or d["wslprice_perroundmt"].dropna().empty:
+        return
+    with st.container(border=True):
+        section_title("Wholesale unit value", note="US$ per round metric ton, sector-mean (GFSAFE013)")
+        if d["year"].nunique() >= _MIN_FOR_CHART:
+            _series_chart(d, "species_group", "wslprice_perroundmt",
+                          "Wholesale unit value (US$/round t)", "$,.0f", agg="mean")
+        else:
+            _sparse_table(d, "species_group", "wslprice_perroundmt", "Unit value ($/round t)")
+
+
+def _wholesale_processor_panel(area: str, yr: tuple[int, int]) -> None:
+    df = load_safe_report("gfsafe014")
+    if df is None or df.empty:
+        return
+    d = df[(df["area_code"] == area) & (df["year"] >= yr[0]) & (df["year"] <= yr[1])]
+    if d.empty or d["wsval_m"].dropna().empty:
+        return
+    top = _top_by(d, "fleet_port", "wsval_m", 8)
+    d = d[d["fleet_port"].isin(top)]
+    with st.container(border=True):
+        section_title("First-wholesale value by processor group",
+                      note="US$ millions, top processor groups (GFSAFE014, 2012–)")
+        if d["year"].nunique() >= _MIN_FOR_CHART:
+            _series_chart(d, "fleet_port", "wsval_m", "First-wholesale value (US$ millions)", "$,.1f")
+        else:
+            _sparse_table(d, "fleet_port", "wsval_m", "Value ($M)")

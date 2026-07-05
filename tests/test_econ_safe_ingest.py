@@ -46,6 +46,20 @@ def test_suppression_bands():
     assert "PERCENT_VAL_SUPPRESSED" not in out.columns
 
 
+def test_missing_sentinel_blanked():
+    raw = pd.DataFrame({
+        "FMP_AREA": ["Gulf of Alaska", "Gulf of Alaska"],
+        "FLEET_PORT": ["Inshore Floating Processors", "Kodiak Shoreside Processors"],
+        "YEAR": [2024, 2024],
+        "WSVAL_M": [-9999, 42.5],           # first cell is the suppressed sentinel
+        "PROCESSING_PERMITS": [-9999, 5],   # undeclared numeric col also cleaned
+    })
+    out = tidy_report(raw, get_report("gfsafe014"))
+    assert pd.isna(out["wsval_m"].iloc[0]) and out["wsval_m"].iloc[1] == 42.5
+    assert pd.isna(out["processing_permits"].iloc[0])
+    assert (out["wsval_m"] == -9999).sum() == 0
+
+
 def test_tidy_report_with_suppression():
     raw = pd.DataFrame({
         "FMP_AREA": ["Bering Sea and Aleutian Islands"],

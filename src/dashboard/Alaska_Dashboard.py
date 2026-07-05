@@ -54,6 +54,7 @@ from dashboard.pages.commercial_landings import render as commercial_landings_re
 from dashboard.pages.econ_safe import (  # noqa: E402
     render_catch_value as econ_catch_value_render,
     render_prices as econ_prices_render,
+    render_wholesale as econ_wholesale_render,
 )
 from dashboard.pages.guides import (  # noqa: E402
     bottom_state_guide,
@@ -104,7 +105,8 @@ _COVERAGE = [
      "(BSAI / GOA) from the Economic SAFE (fishery-dependent — distinct from the survey).", False,
      [("Commercial Landings", "commercial_landings"),
       ("Catch & Ex-Vessel Value", "econ_catch_value"),
-      ("Ex-Vessel Prices", "econ_prices")]),
+      ("Ex-Vessel Prices", "econ_prices"),
+      ("Wholesale Production & Value", "econ_wholesale")]),
     ("Research", "Research Resources",
      "Literature summaries, technical notes, forecast development, and project research.", False,
      [("Overview", "research"),
@@ -270,6 +272,8 @@ nav = {
         st.Page(econ_catch_value_render, title="Catch & Ex-Vessel Value",
                 url_path="econ_catch_value"),
         st.Page(econ_prices_render, title="Ex-Vessel Prices", url_path="econ_prices"),
+        st.Page(econ_wholesale_render, title="Wholesale Production & Value",
+                url_path="econ_wholesale"),
     ],
     "Research": [
         st.Page(research_render, title="Overview", url_path="research"),
