@@ -56,6 +56,20 @@ All dollar figures are **nominal** (current-year dollars), not adjusted for infl
 | Labor | 018 | Crew-weeks (catcher-vessel & at-sea processor) |
 | Fleet | 019 | Fleet technical characteristics (length, tonnage) |
 
+## Crab (BSAI Crab Economic SAFE)
+
+Alongside the groundfish reports, the board ingests the **BSAI Crab Economic SAFE** (CRSAFE)
+series — a parallel product for the Bering Sea and Aleutian Islands crab fisheries. Unlike the
+groundfish reports, crab is keyed by **fishery/stock** (Bering Sea snow crab, Bristol Bay red king
+crab, Bering Sea Tanner, Aleutian Islands golden king, etc.), not by FMP area, and is BSAI-only.
+The **Crab Economics** page shows harvest (t), ex-vessel value ($), and ex-vessel price ($/lb) by
+fishery (CRSAFEEXEC01, 1998–2023).
+
+This is where the cold pool meets the dock: the page's **snow-crab spotlight** documents the
+2022 collapse of Bering Sea snow crab — the fishery was closed for the 2022/23 and 2023/24 seasons
+after the stock crashed, coinciding with the record-warm Bering Sea of 2018–2019 and the loss of
+the cold pool. The page cross-links to the Bering cold-pool and Catch × Bottom State pages.
+
 ## Currency and refresh
 
 - **Coverage:** most reports 2003–2024; a few begin 2009 or 2012.

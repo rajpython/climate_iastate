@@ -22,7 +22,14 @@ import pandas as pd
 
 from mhw.econ import areas
 from mhw.econ.confidential import normalize_suppression
-from mhw.econ.safe_reports import SAFE_REPORTS, EconReport, get_report, reports_by_family
+from mhw.econ.safe_reports import (
+    ALL_REPORTS,
+    CRAB_REPORTS,
+    SAFE_REPORTS,
+    EconReport,
+    get_report,
+    reports_by_family,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 EXPORTS_DIR = PROJECT_ROOT / "data" / "raw" / "akfin_exports"
@@ -132,12 +139,13 @@ def main(argv: list[str] | None = None) -> None:
             return
         reports = [r]
     elif args.family:
-        reports = reports_by_family(args.family)
+        reports = reports_by_family(args.family) or [
+            r for r in CRAB_REPORTS.values() if r.family == args.family]
         if not reports:
             print(f"No reports in family {args.family!r}")
             return
     else:
-        reports = list(SAFE_REPORTS.values())
+        reports = list(ALL_REPORTS.values())
 
     print(f"Ingesting {len(reports)} Economic SAFE report(s) from {EXPORTS_DIR} …")
     paths = build(reports)
