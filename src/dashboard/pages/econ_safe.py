@@ -20,6 +20,8 @@ from dashboard.components.bottom_ui import (
     AMBER,
     BLUE,
     GREEN,
+    PURPLE,
+    RED,
     SLATE,
     callout,
     footer,
@@ -569,3 +571,126 @@ def render_fleet_ownership() -> None:
 
     footer("Source: NOAA/AFSC Groundfish Economic SAFE via AKFIN (GFSAFE010/011/019); FMP-area, annual.",
            guide_url="/econ_safe_guide")
+
+
+# ---------------------------------------------------------------------------
+# Page: Crab Economics (BSAI Crab Economic SAFE — CRSAFEEXEC01)
+# ---------------------------------------------------------------------------
+
+def _titlecase(name: str) -> str:
+    """Nicely title-case an all-caps fishery name (keeps 'and' lowercase)."""
+    t = str(name).title()
+    return t.replace(" And ", " and ").replace("St.", "St.")
+
+
+def _snow_crab_spotlight(d: pd.DataFrame) -> None:
+    """The signature panel: the Bering Sea snow-crab collapse and its cold-pool link."""
+    sc = d[d["fishery_name"] == "BERING SEA SNOW CRAB"].dropna(subset=["hpy_soldmt"]).sort_values("year")
+    if sc.empty:
+        return
+    last = sc.iloc[-1]
+    # Use the RECENT pre-collapse peak (last ~8 years), not the all-time 1998 high — the climate
+    # story is the 2021→2022 crash, and framing it against a 1990s baseline would overstate it.
+    recent = sc[sc["year"] >= int(last["year"]) - 8]
+    peak = recent.loc[recent["hpy_soldmt"].idxmax()]
+    drop = (1 - last["hpy_soldmt"] / peak["hpy_soldmt"]) * 100 if peak["hpy_soldmt"] else 0
+    with st.container(border=True):
+        section_title("Spotlight — snow crab & the cold pool",
+                      note="a climate–fisheries collapse in ex-vessel terms")
+        kpi_grid([
+            kpi_card(f"Recent peak ({int(peak['year'])})", _fmt_t(float(peak["hpy_soldmt"])), GREEN,
+                     sub=_fmt_usd(float(peak["hpy_exv_nom"])) + " ex-vessel"),
+            kpi_card(f"Final season ({int(last['year'])})", _fmt_t(float(last["hpy_soldmt"])), RED,
+                     sub=_fmt_usd(float(last["hpy_exv_nom"])) + " ex-vessel"),
+            kpi_card(f"Decline ({int(peak['year'])}→{int(last['year'])})", f"−{drop:.0f}%", RED,
+                     sub="harvested weight"),
+        ], cols=3)
+        callout(
+            "Bering Sea <b>snow crab</b> harvest fell from "
+            f"<b>{float(peak['hpy_soldmt']):,.0f} t</b> in {int(peak['year'])} to "
+            f"<b>{float(last['hpy_soldmt']):,.0f} t</b> in {int(last['year'])}, and the fishery was "
+            "then <b>closed</b> for the 2022/23 and 2023/24 seasons after the stock collapsed. The "
+            "crash followed the record-warm Bering Sea of 2018–2019 and the loss of the cold pool "
+            "that snow crab depend on — see the <a target='_self' href='/bering_bottom_observed'>"
+            "Bering Cold Pool &amp; Bottom Temperature</a> and "
+            "<a target='_self' href='/bering_catch'>Catch × Bottom State</a> pages.",
+            icon="❄️", tint=PURPLE)
+
+
+def render_crab() -> None:
+    inject_css()
+    d = load_safe_report("crsafeexec01")
+    if d is None or d.empty:
+        st.title("🦀 BSAI Crab Economics")
+        st.info("Crab Economic SAFE data not built yet. Run `mhw-ingest-econ-safe`.")
+        return
+
+    d = d.copy()
+    d["stock"] = d["fishery_name"].map(_titlecase)
+    st.sidebar.header("Controls")
+    y0, y1 = int(d["year"].min()), int(d["year"].max())
+    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="crab_years")
+    all_stocks = sorted(d["stock"].unique())
+    default = [s for s in all_stocks if any(k in s for k in
+              ("Snow", "Bristol Bay Red King", "Bering Sea Tanner", "Golden King"))]
+    picked = st.sidebar.multiselect("Crab fishery", all_stocks, default=default or all_stocks,
+                                    key="crab_stocks")
+
+    page_header("🦀", "BSAI Crab Economics", "Bering Sea & Aleutian Islands",
+                "Bering Sea & Aleutian Islands crab",
+                caption=("Commercial crab harvest, ex-vessel value, and price by fishery/stock — "
+                         "NOAA BSAI Crab Economic SAFE (CRSAFEEXEC01)."))
+    callout(
+        "BSAI <b>crab</b> economics (fishery-dependent), by crab stock — snow, Bristol Bay red king, "
+        "Bering Sea Tanner, and the king-crab fisheries. Distinct from the survey; values are "
+        "<b>nominal</b> (not inflation-adjusted). This is where the cold pool meets the dock — "
+        "see the snow-crab spotlight below.",
+        icon="🦀", tint=BLUE)
+
+    _snow_crab_spotlight(d)
+
+    if not picked:
+        st.info("Select one or more crab fisheries in the sidebar.")
+        return
+    sel = d[(d["year"] >= yr[0]) & (d["year"] <= yr[1]) & (d["stock"].isin(picked))]
+    if sel.empty:
+        st.warning("No crab data for the selected fisheries / years.")
+        return
+
+    latest = int(sel.dropna(subset=["hpy_soldmt"])["year"].max())
+    lr = sel[sel["year"] == latest]
+    n_years = sel["year"].nunique()
+
+    with st.container(border=True):
+        section_title("Harvest & ex-vessel value", note="by crab fishery (CRSAFEEXEC01)")
+        kpi_grid([
+            kpi_card(f"Harvest ({latest})", _fmt_t(float(lr["hpy_soldmt"].sum())), GREEN,
+                     sub="selected fisheries"),
+            kpi_card(f"Ex-vessel value ({latest})", _fmt_usd(float(lr["hpy_exv_nom"].sum())), AMBER,
+                     sub="nominal $"),
+            kpi_card(f"Mean price ({latest})", f"${lr['hpy_exvpr_nom'].mean():.2f}/lb" if not lr.empty else "—",
+                     BLUE, sub="ex-vessel"),
+            kpi_card("Fisheries · years", f"{sel['stock'].nunique()} · {n_years}", SLATE,
+                     sub=f"{int(sel['year'].min())}–{latest}"),
+        ], cols=4)
+        if n_years >= _MIN_FOR_CHART:
+            _series_chart(sel, "stock", "hpy_soldmt", "Harvest (metric tons)", ",.0f")
+        else:
+            _sparse_table(sel, "stock", "hpy_soldmt", "Harvest (t)")
+
+    with st.container(border=True):
+        section_title("Ex-vessel value", note="current (nominal) US$, by crab fishery")
+        if n_years >= _MIN_FOR_CHART:
+            _series_chart(sel, "stock", "hpy_exv_nom", "Ex-vessel value (US$)", "$,.0f")
+        else:
+            _sparse_table(sel, "stock", "hpy_exv_nom", "Ex-vessel value ($)")
+
+    with st.container(border=True):
+        section_title("Ex-vessel price", note="US$ per pound, by crab fishery")
+        if n_years >= _MIN_FOR_CHART:
+            _series_chart(sel, "stock", "hpy_exvpr_nom", "Ex-vessel price (US$/lb)", "$.2f", agg="mean")
+        else:
+            _sparse_table(sel, "stock", "hpy_exvpr_nom", "Price ($/lb)")
+
+    footer("Source: NOAA/AFSC BSAI Crab Economic SAFE via AKFIN (CRSAFEEXEC01); by crab fishery, "
+           "annual, nominal ex-vessel value.", guide_url="/econ_safe_guide")

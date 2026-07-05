@@ -1,5 +1,8 @@
 """Registry integrity for the Groundfish Economic SAFE catalog (no IO)."""
 from mhw.econ.safe_reports import (
+    ALL_REPORTS,
+    CRAB_FAMILIES,
+    CRAB_REPORTS,
     FAMILIES,
     SAFE_REPORTS,
     all_families,
@@ -37,3 +40,16 @@ def test_family_helpers():
     assert {r.id for r in reports_by_family("value")} == {"gfsafe002", "gfsafe007", "gfsafe008"}
     fam = all_families()
     assert sum(len(v) for v in fam.values()) == 17
+
+
+def test_crab_reports():
+    assert len(CRAB_REPORTS) == 5
+    assert set(CRAB_REPORTS) == {"crsafeexec01", "crsafeexec02", "crsafeexec03",
+                                 "crsafe004", "crsafe005"}
+    for r in CRAB_REPORTS.values():
+        assert r.id == r.code.lower()
+        assert r.family in CRAB_FAMILIES
+        assert r.files and r.measures
+    # crab ids resolve through the shared lookup, and merge into ALL_REPORTS
+    assert get_report("CRSAFEEXEC01") is CRAB_REPORTS["crsafeexec01"]
+    assert len(ALL_REPORTS) == 22 and "gfsafe001" in ALL_REPORTS

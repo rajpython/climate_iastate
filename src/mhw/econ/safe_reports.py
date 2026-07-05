@@ -196,9 +196,70 @@ SAFE_REPORTS: dict[str, EconReport] = {r.id: r for r in (
 )}
 
 
+# --- BSAI Crab Economic SAFE (CRSAFE) — a parallel series, keyed by crab fishery/stock --------
+# Different shape from the groundfish reports: no FMP area (BSAI-only), the key dimension is
+# FISHERY_NAME (the crab stock), and dollars come in both nominal (_NOM) and real (_REAL) forms.
+# Reuses the same EconReport/Measure + generic ingest. The 004/005 quota reports are keyed by
+# crab SEASON (e.g. "2022/2023") rather than YEAR. Source menu: reports.psmfc.org/akfin f?p=501:2002.
+CRAB_FAMILIES = ("crab_output", "crab_labor", "crab_quota")
+
+CRAB_REPORTS: dict[str, EconReport] = {r.id: r for r in (
+    EconReport(
+        "crsafeexec01", "CRSAFEEXEC01",
+        "BSAI crab harvest, ex-vessel value & price by fishery", "crab_output",
+        ("CRSAFEEXEC01-1998---2023.csv",), ("FISHERY_NAME",),
+        (_m("HPY_SOLDMT", "Harvest", _MT, "catch"),
+         _m("HPY_EXV_NOM", "Ex-vessel value", _USD, "value"),
+         _m("HPY_EXVPR_NOM", "Ex-vessel price", "US$/lb", "price"),
+         _m("HPY_WSV_NOM", "Wholesale value", _USD, "value"),
+         _m("HPY_WSPR_NOM", "Wholesale price", "US$/lb", "price"),
+         _m("HPY_VESCOUNT", "Vessels", "count", "count"),
+         _m("HPY_PROCCOUNT", "Processors", "count", "count")),
+        year_span="1998-2023", app_page="950",
+        notes="Harvesting & processing sector output by crab fishery/stock (BSAI, all sectors)."),
+    EconReport(
+        "crsafeexec02", "CRSAFEEXEC02",
+        "BSAI crab sector employment by fishery", "crab_labor",
+        ("CRSAFEEXEC02-2009---2023.csv",), ("FISHERY_NAME",),
+        (_m("EMPY_VESCOUNT", "Vessels", "count", "count"),
+         _m("EMPY_HCRPOSTOT", "Harvest crew positions", "count", "count"),
+         _m("EMPY_HCREWPAY_NOM", "Crew pay", _USD, "value"),
+         _m("EMPY_PROCCOUNT", "Processors", "count", "count")),
+        year_span="2009-2023", app_page="951"),
+    EconReport(
+        "crsafeexec03", "CRSAFEEXEC03",
+        "BSAI crab harvest quota lease activity", "crab_quota",
+        ("CRSAFEEXEC03-2012---2023.csv",), ("FISHERY_NAME", "QUOTA_TYPE"),
+        (_m("QLY_LBSLEASE", "Pounds leased", "lb", "weight"),
+         _m("QLY_COST_NOM", "Lease cost", _USD, "value"),
+         _m("QLY_PRICEMEAN_NOM", "Mean lease price", "US$/lb", "price")),
+        year_span="2012-2023", app_page="952"),
+    EconReport(
+        "crsafe004", "CRSAFE004",
+        "BSAI crab quota-share holdings", "crab_quota",
+        ("CRSAFE004-Initial-allocation---2023.csv",), ("FISHERY_NAME", "QUOTA_TYPE"),
+        (_m("INITIALQSHOLDER_COUNT", "Initial QS holders", "count", "count"),
+         _m("NEWQSHOLDER_COUNT", "Current QS holders", "count", "count")),
+        year_span="2005/06-2023/24", app_page="953",
+        notes="Keyed by crab SEASON (e.g. 2022/2023), not calendar year."),
+    EconReport(
+        "crsafe005", "CRSAFE005",
+        "BSAI crab quota-share distribution", "crab_quota",
+        ("CRSAFE005-Initial-allocation---2023.csv",), ("FISHERY_NAME", "QUOTA_TYPE"),
+        (_m("QUOTA_HOLDERS", "Quota holders", "count", "count"),
+         _m("MEDIAN_SHARE", "Median share", "share", "share"),
+         _m("GINI_COEFFICIENT", "Gini coefficient", "index", "share")),
+        year_span="2005/06-2023/24", app_page="954",
+        notes="Keyed by crab SEASON, not calendar year."),
+)}
+
+# Every report the ingest/API knows about (groundfish + crab).
+ALL_REPORTS: dict[str, EconReport] = {**SAFE_REPORTS, **CRAB_REPORTS}
+
+
 def get_report(report_id: str) -> EconReport | None:
-    """Look up a report by id (case-insensitive; accepts 'gfsafe001' or 'GFSAFE001')."""
-    return SAFE_REPORTS.get(report_id.lower())
+    """Look up any report (groundfish or crab) by id, case-insensitive."""
+    return ALL_REPORTS.get(report_id.lower())
 
 
 def reports_by_family(family: str) -> list[EconReport]:
