@@ -51,6 +51,7 @@ from dashboard.pages.bottom_models import render as bottom_models_render  # noqa
 from dashboard.pages.catch import render as catch_render  # noqa: E402
 from dashboard.pages.ocean_health import render as ocean_health_render  # noqa: E402
 from dashboard.pages.commercial_landings import render as commercial_landings_render  # noqa: E402
+from dashboard.pages.eco_econ import render as eco_econ_render  # noqa: E402
 from dashboard.pages.econ_safe import (  # noqa: E402
     render_catch_value as econ_catch_value_render,
     render_crab as econ_crab_render,
@@ -112,7 +113,8 @@ _COVERAGE = [
       ("Wholesale Production & Value", "econ_wholesale"),
       ("Fishing Effort & Labor", "econ_effort"),
       ("Fleet & Ownership", "econ_fleet"),
-      ("Crab Economics", "econ_crab")]),
+      ("Crab Economics", "econ_crab"),
+      ("Ecosystem × Economics", "eco_econ")]),
     ("Research", "Research Resources",
      "Literature summaries, technical notes, forecast development, and project research.", False,
      [("Overview", "research"),
@@ -283,6 +285,7 @@ nav = {
         st.Page(econ_effort_render, title="Fishing Effort & Labor", url_path="econ_effort"),
         st.Page(econ_fleet_render, title="Fleet & Ownership", url_path="econ_fleet"),
         st.Page(econ_crab_render, title="Crab Economics", url_path="econ_crab"),
+        st.Page(eco_econ_render, title="Ecosystem × Economics", url_path="eco_econ"),
     ],
     "Research": [
         st.Page(research_render, title="Overview", url_path="research"),
