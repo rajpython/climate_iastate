@@ -39,3 +39,7 @@ def marine_heatwave_guide() -> None:
 
 def bottom_state_guide() -> None:
     _render("bottom_state_guide.md")
+
+
+def econ_safe_guide() -> None:
+    _render("econ_safe_guide.md")

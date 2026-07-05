@@ -56,3 +56,41 @@ def crosswalk(area: str) -> str | None:
 def board_groups() -> tuple[str, ...]:
     """The board groups the crosswalk can map into."""
     return BOARD_GROUPS
+
+
+# ---------------------------------------------------------------------------
+# FMP-area normalization (Economic SAFE / GFSAFE reports)
+# ---------------------------------------------------------------------------
+# The Groundfish Economic SAFE reports are keyed at **FMP-area** resolution, whose only values
+# are the three below. FMP area is the management unit economists use; it does NOT split into the
+# board's Bering/Aleutians ecosystem regions — "Bering Sea and Aleutian Islands" (BSAI) bundles
+# both, so `bsai` maps to NO single survey region. `ak` = the statewide total row. Codes are the
+# stable ids used in parquet/API/dashboard; labels are for display.
+FMP_AREAS = ("bsai", "goa", "ak")
+
+_FMP_LABELS: dict[str, str] = {
+    "bsai": "Bering Sea & Aleutian Islands",
+    "goa": "Gulf of Alaska",
+    "ak": "All Alaska",
+}
+
+_FMP_STRING_TO_CODE: dict[str, str] = {
+    "bering sea and aleutian islands": "bsai",
+    "bsai": "bsai",
+    "gulf of alaska": "goa",
+    "goa": "goa",
+    "all alaska": "ak",
+    "alaska": "ak",
+}
+
+
+def fmp_area_code(area: str) -> str | None:
+    """Normalize an FMP_AREA string (e.g. 'Gulf of Alaska') to a code ('goa'); None if unknown."""
+    if area is None:
+        return None
+    return _FMP_STRING_TO_CODE.get(str(area).strip().lower())
+
+
+def fmp_area_label(code: str) -> str:
+    """Full display label for an FMP-area code (falls back to the upper-cased code)."""
+    return _FMP_LABELS.get(str(code).strip().lower(), str(code).upper())

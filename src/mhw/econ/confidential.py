@@ -42,3 +42,36 @@ def suppress_confidential(df: pd.DataFrame) -> pd.DataFrame:
     if "confidential" not in df.columns:
         return df
     return df[~df["confidential"].astype(bool)].reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
+# Economic SAFE suppression bands
+# ---------------------------------------------------------------------------
+# The Groundfish Economic SAFE reports do NOT null suppressed cells; the published (rounded /
+# partially-imputed) value stays, alongside a companion band column telling you how much of the
+# cell was confidential. So we ANNOTATE (band label + a midpoint % + a boolean), never drop —
+# AKFIN already releases these as non-confidential aggregates. Bands are ordered least→most.
+SUPPRESSION_BANDS = ("0%", "<1%", "1-5%", "5-10%", "10-25%", "25-50%", "50-75%", "100%")
+
+# Band → representative midpoint percent (for optional numeric use / sorting).
+_BAND_MIDPOINT: dict[str, float] = {
+    "0%": 0.0, "<1%": 0.5, "1-5%": 3.0, "5-10%": 7.5,
+    "10-25%": 17.5, "25-50%": 37.5, "50-75%": 62.5, "100%": 100.0,
+}
+
+
+def normalize_suppression(df: pd.DataFrame, col: str) -> pd.DataFrame:
+    """Turn a raw ``PERCENT_*_SUPPRESSED`` band column into tidy annotation columns.
+
+    Adds ``suppressed_band`` (cleaned band label, e.g. '1-5%'), ``suppressed_pct`` (band midpoint,
+    float), and ``suppressed`` (bool: any suppression, i.e. band not '0%'/empty). The original
+    *col* is dropped. A no-op (adds no columns) if *col* is absent. Does not mutate the input.
+    """
+    out = df.copy()
+    if col not in out.columns:
+        return out
+    band = out[col].astype("string").str.strip()
+    out["suppressed_band"] = band.where(band.isin(SUPPRESSION_BANDS), other=pd.NA)
+    out["suppressed_pct"] = out["suppressed_band"].map(_BAND_MIDPOINT)
+    out["suppressed"] = out["suppressed_pct"].fillna(0.0) > 0.0
+    return out.drop(columns=[col])
