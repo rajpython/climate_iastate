@@ -372,3 +372,200 @@ def _wholesale_processor_panel(area: str, yr: tuple[int, int]) -> None:
             _series_chart(d, "fleet_port", "wsval_m", "First-wholesale value (US$ millions)", "$,.1f")
         else:
             _sparse_table(d, "fleet_port", "wsval_m", "Value ($M)")
+
+
+# ---------------------------------------------------------------------------
+# Month-axis chart (seasonality)
+# ---------------------------------------------------------------------------
+_MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def _month_chart(df: pd.DataFrame, cat_col: str, val_col: str, y_title: str) -> None:
+    """One line per category across the calendar year (mean over the selected years)."""
+    fig = go.Figure()
+    for i, (cat, g) in enumerate(df.groupby(cat_col)):
+        s = g.groupby("month_number")[val_col].mean().reindex(range(1, 13))
+        fig.add_trace(go.Scatter(
+            x=_MONTH_ABBR, y=s.values, mode="lines+markers", name=str(cat),
+            line=dict(color=ECON_PALETTE[i % len(ECON_PALETTE)], width=2), marker=dict(size=5),
+            connectgaps=False, hovertemplate="%{x}: %{y:,.0f}<extra>" + str(cat) + "</extra>"))
+    fig.update_layout(
+        template="plotly_white", height=360, margin=dict(l=10, r=10, t=30, b=10),
+        yaxis_title=y_title, xaxis_title="Month", font=dict(size=13),
+        legend=dict(orientation="h", y=1.16, font=dict(size=11)))
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ---------------------------------------------------------------------------
+# Page: Fishing Effort & Labor (GFSAFE015 / 016 / 017 / 018)
+# ---------------------------------------------------------------------------
+
+def render_effort_labor() -> None:
+    inject_css()
+    ves = load_safe_report("gfsafe015")
+    if ves is None or ves.empty:
+        st.title("🚢 Groundfish Fishing Effort & Labor")
+        st.info("Economic SAFE data not built yet. Run `mhw-ingest-econ-safe`.")
+        return
+
+    st.sidebar.header("Controls")
+    area = _fmp_selector(ves, "ef_area")
+    sub = ves[ves["area_code"] == area]
+    sector = _pick_prefer(sub, "harvest_sector", "Harvest sector", "ef_sector", "All Sectors")
+    y0, y1 = int(sub["year"].min()), int(sub["year"].max())
+    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="ef_years")
+
+    page_header("🚢", "Groundfish Fishing Effort & Labor", fmp_label(area),
+                f"{fmp_label(area)} · {sector}",
+                caption=("Fishing activity and employment in the groundfish fisheries — vessels, "
+                         "effort, and crew (NOAA Economic SAFE, GFSAFE015–018)."))
+    _econ_callout()
+
+    # A) Vessels by target fishery (015)
+    va = sub[(sub["harvest_sector"] == sector) & (sub["year"] >= yr[0]) & (sub["year"] <= yr[1])
+             & (sub["target"] != "All Target Species")]
+    with st.container(border=True):
+        section_title("Vessels by target fishery", note=f"{sector.lower()} (GFSAFE015)")
+        allv = sub[(sub["harvest_sector"] == sector) & (sub["target"] == "All Target Species")]
+        latest = int(allv["year"].max()) if not allv.empty else int(sub["year"].max())
+        tot = int(allv.loc[allv["year"] == latest, "vessels"].sum()) if not allv.empty else 0
+        kpi_grid([
+            kpi_card(f"Vessels ({latest})", f"{tot:,}", BLUE, sub="all target species"),
+            kpi_card("Targets · years", f"{va['target'].nunique()} · {va['year'].nunique()}", SLATE,
+                     sub=f"{yr[0]}–{yr[1]}"),
+        ], cols=2)
+        if not va.empty and va["year"].nunique() >= _MIN_FOR_CHART:
+            _series_chart(va, "target", "vessels", "Vessels", ",.0f")
+        else:
+            _sparse_table(va, "target", "vessels", "Vessels")
+
+    # B) Seasonality — vessels by month (016)
+    mv = load_safe_report("gfsafe016")
+    if mv is not None and not mv.empty:
+        m = mv[(mv["area_code"] == area) & (mv["month"] != "All Months")
+               & (mv["gear"] != "All Gear") & (mv["year"] >= yr[0]) & (mv["year"] <= yr[1])]
+        if "harvest_sector" in m.columns and (m["harvest_sector"] == sector).any():
+            m = m[m["harvest_sector"] == sector]
+        if not m.empty:
+            with st.container(border=True):
+                section_title("Seasonality of activity", note="mean vessels per month by gear (GFSAFE016)")
+                _month_chart(m, "gear", "vessels", "Vessels (monthly mean)")
+
+    # C) Fishing effort — vessel-weeks (017)
+    vw = load_safe_report("gfsafe017")
+    if vw is not None and not vw.empty:
+        w = vw[(vw["area_code"] == area) & (vw["gear"] == "All Gear")
+               & (vw["groundfish_target_species"] != "All Target Species")
+               & (vw["year"] >= yr[0]) & (vw["year"] <= yr[1])]
+        if not w.empty:
+            with st.container(border=True):
+                section_title("Fishing effort (vessel-weeks)",
+                              note="all gear, summed across sectors, by target (GFSAFE017)")
+                if w["year"].nunique() >= _MIN_FOR_CHART:
+                    _series_chart(w, "groundfish_target_species", "vessel_weeks", "Vessel-weeks", ",.0f")
+                else:
+                    _sparse_table(w, "groundfish_target_species", "vessel_weeks", "Vessel-weeks")
+
+    # D) Crew labor — crew-weeks (018)
+    cw = load_safe_report("gfsafe018")
+    if cw is not None and not cw.empty:
+        c = cw[(cw["area_code"] == area) & (cw["month"] == "All Months")
+               & (cw["year"] >= yr[0]) & (cw["year"] <= yr[1])]
+        if not c.empty and (c["cv_crewweeks"].notna().any() or c["atseaproc_crewweeks"].notna().any()):
+            long = pd.concat([
+                pd.DataFrame({"year": c["year"], "series": "Catcher vessels", "crewweeks": c["cv_crewweeks"]}),
+                pd.DataFrame({"year": c["year"], "series": "At-sea processors", "crewweeks": c["atseaproc_crewweeks"]}),
+            ], ignore_index=True).dropna(subset=["crewweeks"])
+            with st.container(border=True):
+                section_title("Crew labor (crew-weeks)", note="annual, by sector (GFSAFE018, 2009–)")
+                if long["year"].nunique() >= _MIN_FOR_CHART:
+                    _series_chart(long, "series", "crewweeks", "Crew weeks", ",.0f", agg="sum")
+                else:
+                    _sparse_table(long, "series", "crewweeks", "Crew weeks")
+
+    footer("Source: NOAA/AFSC Groundfish Economic SAFE via AKFIN (GFSAFE015–018); FMP-area, annual.",
+           guide_url="/econ_safe_guide")
+
+
+# ---------------------------------------------------------------------------
+# Page: Fleet & Ownership (GFSAFE011 / 019 / 010)
+# ---------------------------------------------------------------------------
+
+def render_fleet_ownership() -> None:
+    inject_css()
+    val = load_safe_report("gfsafe011")
+    if val is None or val.empty:
+        st.title("⚓ Groundfish Fleet & Ownership")
+        st.info("Economic SAFE data not built yet. Run `mhw-ingest-econ-safe`.")
+        return
+
+    st.sidebar.header("Controls")
+    area = _fmp_selector(val, "fo_area")
+    sub = val[val["area_code"] == area]
+    y0, y1 = int(sub["year"].min()), int(sub["year"].max())
+    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="fo_years")
+
+    page_header("⚓", "Groundfish Fleet & Ownership", fmp_label(area),
+                fmp_label(area),
+                caption=("Who fishes for groundfish — value by fleet, fleet characteristics, and "
+                         "how ex-vessel value splits between Alaska and out-of-state (Economic SAFE)."))
+    _econ_callout()
+
+    # A) Ex-vessel value by fleet (011)
+    d = sub[(sub["year"] >= yr[0]) & (sub["year"] <= yr[1])]
+    top = _top_by(d, "fleet", "exves_val_m", 8)
+    dd = d[d["fleet"].isin(top)]
+    latest = int(d["year"].max())
+    lr = d[d["year"] == latest]
+    with st.container(border=True):
+        section_title("Ex-vessel value by fleet", note="US$ millions, top fleets (GFSAFE011, 2009–)")
+        kpi_grid([
+            kpi_card(f"Fleet value ({latest})", _fmt_usd(float(lr["exves_val_m"].sum()) * 1e6), AMBER,
+                     sub="all fleets, nominal"),
+            kpi_card(f"Vessels ({latest})", f"{int(lr['vessels'].sum()):,}", BLUE, sub="all fleets"),
+            kpi_card("Fleets · years", f"{d['fleet'].nunique()} · {d['year'].nunique()}", SLATE,
+                     sub=f"{yr[0]}–{yr[1]}"),
+        ], cols=3)
+        if dd["year"].nunique() >= _MIN_FOR_CHART:
+            _series_chart(dd, "fleet", "exves_val_m", "Ex-vessel value (US$ millions)", "$,.1f")
+        else:
+            _sparse_table(dd, "fleet", "exves_val_m", "Value ($M)")
+
+    # B) Fleet characteristics (019)
+    fc = load_safe_report("gfsafe019")
+    if fc is not None and not fc.empty:
+        f = fc[(fc["area_code"] == area) & (fc["fleet"] != "No Fleet / Other")]
+        if not f.empty:
+            fy = int(f["year"].max())
+            t = f[f["year"] == fy].copy()
+            tbl = pd.DataFrame({
+                "Fleet": t["fleet"],
+                "Vessels": t["vessels"].astype("Int64"),
+                "Mean length (ft)": t["length_avg"].round(0).astype("Int64"),
+                "Mean net tonnage": t["nton_avg"].round(0).astype("Int64"),
+            }).sort_values("Vessels", ascending=False).set_index("Fleet")
+            with st.container(border=True):
+                section_title("Fleet characteristics", note=f"vessel size by fleet, {fy} (GFSAFE019)")
+                st.markdown(styled_table(tbl, precision=0), unsafe_allow_html=True)
+
+    # C) Ex-vessel value by residency (010)
+    res = load_safe_report("gfsafe010")
+    if res is not None and not res.empty:
+        r = res[(res["area_code"] == area) & (res["species_group"] != "All Groundfish")
+                & (res["year"] >= yr[0]) & (res["year"] <= yr[1])].copy()
+        r = r[r["alaska_exvesval_share"].notna()]
+        if not r.empty:
+            r["ak_pct"] = r["alaska_exvesval_share"] * 100.0
+            with st.container(border=True):
+                section_title("Ex-vessel value kept by Alaska residents",
+                              note="% of ex-vessel value to Alaska-resident harvesters (GFSAFE010)")
+                callout("Share of each species group's ex-vessel value paid to <b>Alaska-resident</b> "
+                        "vessels (the remainder goes to out-of-state harvesters).", icon="🏠", tint=SLATE)
+                if r["year"].nunique() >= _MIN_FOR_CHART:
+                    _series_chart(r, "species_group", "ak_pct", "Alaska-resident value share (%)", ".0f", agg="mean")
+                else:
+                    _sparse_table(r, "species_group", "ak_pct", "AK share (%)")
+
+    footer("Source: NOAA/AFSC Groundfish Economic SAFE via AKFIN (GFSAFE010/011/019); FMP-area, annual.",
+           guide_url="/econ_safe_guide")

@@ -48,16 +48,17 @@ def test_suppression_bands():
 
 def test_missing_sentinel_blanked():
     raw = pd.DataFrame({
-        "FMP_AREA": ["Gulf of Alaska", "Gulf of Alaska"],
-        "FLEET_PORT": ["Inshore Floating Processors", "Kodiak Shoreside Processors"],
-        "YEAR": [2024, 2024],
-        "WSVAL_M": [-9999, 42.5],           # first cell is the suppressed sentinel
-        "PROCESSING_PERMITS": [-9999, 5],   # undeclared numeric col also cleaned
+        "FMP_AREA": ["Gulf of Alaska", "Gulf of Alaska", "Gulf of Alaska"],
+        "FLEET_PORT": ["Inshore Floating Processors", "Kodiak Shoreside Processors", "AFA CP"],
+        "YEAR": [2024, 2024, 2024],
+        "WSVAL_M": [-9999, 42.5, -8888],     # both negative sentinels are blanked
+        "PROCESSING_PERMITS": [-9999, 5, 3],  # undeclared numeric col also cleaned
     })
     out = tidy_report(raw, get_report("gfsafe014"))
     assert pd.isna(out["wsval_m"].iloc[0]) and out["wsval_m"].iloc[1] == 42.5
+    assert pd.isna(out["wsval_m"].iloc[2])            # -8888 sentinel also blanked
     assert pd.isna(out["processing_permits"].iloc[0])
-    assert (out["wsval_m"] == -9999).sum() == 0
+    assert (out.select_dtypes("number").drop(columns=["year"]) < 0).sum().sum() == 0
 
 
 def test_tidy_report_with_suppression():
