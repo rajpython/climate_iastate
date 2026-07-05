@@ -103,9 +103,9 @@ _COVERAGE = [
      "Modelled bottom-temperature conditions for the Arctic shelf (MOM6; model-only — no "
      "in-region survey or validation).", False,
      [("Bottom Temperature", "arctic_bottom_observed")]),
-    ("Commercial Fisheries", "Commercial Harvest &amp; Ex-Vessel Value",
-     "Statewide landings plus groundfish catch, ex-vessel value &amp; price by FMP area "
-     "(BSAI / GOA) from the Economic SAFE (fishery-dependent — distinct from the survey).", False,
+    ("Fishery Economics", "Commercial Harvest, Value &amp; Fleet",
+     "Statewide landings plus groundfish and crab catch, ex-vessel &amp; wholesale value, price, "
+     "effort, and fleet from the Economic SAFE (fishery-dependent — distinct from the survey).", False,
      [("Commercial Landings", "commercial_landings"),
       ("Catch & Ex-Vessel Value", "econ_catch_value"),
       ("Ex-Vessel Prices", "econ_prices"),
@@ -272,7 +272,7 @@ nav = {
     # Commercial harvest (fishery-DEPENDENT) — statewide Alaska landings + ex-vessel value. Its
     # own top-level section because the FOSS feed resolves to statewide Alaska, not a survey
     # region; region-wise groundfish (NPFMC areas via AKFIN) would add pages here later.
-    "Commercial Fisheries": [
+    "Fishery Economics": [
         st.Page(commercial_landings_render, title="Commercial Landings",
                 url_path="commercial_landings"),
         st.Page(econ_catch_value_render, title="Catch & Ex-Vessel Value",

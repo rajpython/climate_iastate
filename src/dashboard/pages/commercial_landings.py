@@ -12,7 +12,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
 from dashboard.components.bottom_ui import (
@@ -29,15 +28,14 @@ from dashboard.components.bottom_ui import (
     section_title,
     styled_table,
 )
+from dashboard.components.econ_data import stacked_bar
 from mhw.econ.sources import FOSS_LANDINGS
 
 ROOT = Path(__file__).resolve().parents[3]
 RAW_DIR = ROOT / "data" / "raw"
 
-# Below this many years, draw a table rather than a misleading short line (shared board rule).
+# Below this many years, draw a table rather than a misleading short bar series (shared board rule).
 _MIN_FOR_CHART = 3
-# Distinct, colour-blind-friendly line colours cycled across the selected species.
-_PALETTE = ["#1565c0", "#b35900", "#2e7d32", "#6a3d9a", "#c62828", "#0097a7", "#8d6e63", "#455a64"]
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
@@ -84,25 +82,8 @@ def _top_species_by_value(df: pd.DataFrame, n: int = 5) -> list[str]:
     return list(g.head(n).index)
 
 
-def _line_chart(df: pd.DataFrame, value_col: str, y_title: str, fmt: str) -> None:
-    """One line per species over the year axis (gaps not connected)."""
-    fig = go.Figure()
-    years = list(range(int(df["year"].min()), int(df["year"].max()) + 1))
-    for i, (sp, g) in enumerate(df.groupby("species")):
-        # Some FOSS species (aggregate groups like "FLATFISHES **") carry >1 row per year, so
-        # sum per year before reindex — a bare set_index("year") would duplicate the index.
-        s = g.groupby("year")[value_col].sum().reindex(years)   # missing years → NaN (break the line)
-        fig.add_trace(go.Scatter(
-            x=years, y=s.values, mode="lines+markers", name=sp,
-            line=dict(color=_PALETTE[i % len(_PALETTE)], width=2), marker=dict(size=5),
-            connectgaps=False,
-            hovertemplate="%{x}: %{y:" + fmt + "}<extra>" + sp + "</extra>"))
-    fig.update_layout(
-        template="plotly_white", height=400, margin=dict(l=10, r=10, t=30, b=10),
-        yaxis_title=y_title, xaxis_title="Year", font=dict(size=13),
-        legend=dict(orientation="h", y=1.14, font=dict(size=11)))
-    fig.update_xaxes(dtick=5, tickformat="d")
-    st.plotly_chart(fig, use_container_width=True)
+# Landings and value are additive across species → stacked bars (composition + total at a glance);
+# see dashboard.components.econ_data.stacked_bar.
 
 
 def _species_table(df: pd.DataFrame, value_col: str, col_title: str) -> None:
@@ -176,7 +157,7 @@ def render() -> None:
             kpi_card("Years", f"{n_years}", SLATE, sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=4)
         if n_years >= _MIN_FOR_CHART:
-            _line_chart(sel, "landings_t", "Landings (metric tons)", ",.0f")
+            stacked_bar(sel, "species", "landings_t", "Landings (metric tons)", ",.0f")
         else:
             _species_table(sel, "landings_t", "Landings (t)")
 
@@ -184,7 +165,7 @@ def render() -> None:
     with st.container(border=True):
         section_title("Ex-vessel value", note="current (nominal) US$, selected species")
         if n_years >= _MIN_FOR_CHART:
-            _line_chart(sel, "value_usd", "Ex-vessel value (US$)", "$,.0f")
+            stacked_bar(sel, "species", "value_usd", "Ex-vessel value (US$)", "$,.0f")
         else:
             _species_table(sel, "value_usd", "Ex-vessel value ($)")
         # Fleet-wide realised price (Σ value / Σ landings) over the selection — a simple $/t.

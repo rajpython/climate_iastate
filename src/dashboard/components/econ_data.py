@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from mhw.econ import areas
@@ -45,3 +46,29 @@ def available_areas(df: pd.DataFrame) -> list[str]:
         return []
     present = set(df["area_code"].dropna().unique())
     return [a for a in FMP_ORDER if a in present]
+
+
+def stacked_bar(df: pd.DataFrame, cat_col: str, val_col: str, y_title: str,
+                hover_fmt: str = ",.0f", height: int = 400) -> None:
+    """Stacked bar per year — for **additive** quantities (they sum to a meaningful total).
+
+    Each category is a coloured segment; the full bar height is the total across the selected
+    categories, so composition *and* total read at a glance. Use for landings, catch, value,
+    harvest, wholesale value, effort-weeks — NOT for prices/shares/means (those don't sum; keep
+    :func:`stacked_bar` for those to a line chart instead).
+    """
+    years = list(range(int(df["year"].min()), int(df["year"].max()) + 1))
+    fig = go.Figure()
+    for i, (cat, g) in enumerate(df.groupby(cat_col)):
+        s = g.groupby("year")[val_col].sum().reindex(years)
+        fig.add_trace(go.Bar(
+            x=years, y=s.values, name=str(cat),
+            marker_color=ECON_PALETTE[i % len(ECON_PALETTE)],
+            hovertemplate="%{x}: %{y:" + hover_fmt + "}<extra>" + str(cat) + "</extra>"))
+    fig.update_layout(
+        barmode="stack", template="plotly_white", height=height,
+        margin=dict(l=10, r=10, t=30, b=10), bargap=0.15,
+        yaxis_title=y_title, xaxis_title="Year", font=dict(size=13),
+        legend=dict(orientation="h", y=1.14, font=dict(size=11)))
+    fig.update_xaxes(dtick=5, tickformat="d")
+    st.plotly_chart(fig, use_container_width=True)
