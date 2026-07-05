@@ -28,6 +28,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 EXPORTS_DIR = PROJECT_ROOT / "data" / "raw" / "akfin_exports"
 OUT_DIR = PROJECT_ROOT / "data" / "raw" / "econ_safe"
 
+# AKFIN codes a suppressed / not-available cell as -9999 (never a real measure value here).
+_MISSING_SENTINEL = -9999
+
 
 # ---------------------------------------------------------------------------
 # Pure transform (network-free, unit-testable)
@@ -55,6 +58,13 @@ def tidy_report(df: pd.DataFrame, report: EconReport) -> pd.DataFrame:
         c = m.col.lower()
         if c in out.columns:
             out[c] = pd.to_numeric(out[c], errors="coerce")
+
+    # -9999 is AKFIN's suppressed/missing sentinel — never a real value for these non-negative
+    # measures. Blank it to NaN across every numeric column (except year) so it is never plotted,
+    # summed, or returned by the API.
+    num_cols = [c for c in out.select_dtypes("number").columns if c != "year"]
+    if num_cols:
+        out[num_cols] = out[num_cols].where(out[num_cols] != _MISSING_SENTINEL)
 
     if report.suppression_col:
         out = normalize_suppression(out, report.suppression_col.lower())
