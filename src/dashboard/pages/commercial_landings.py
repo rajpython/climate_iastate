@@ -108,7 +108,7 @@ def render() -> None:
     y_min, y_max = int(df["year"].min()), int(df["year"].max())
 
     st.sidebar.header("Controls")
-    yr = year_slider("Year range", y_min, y_max, "cl_years",
+    yr = year_slider("Years", y_min, y_max, "cl_years",
                      default=(max(y_min, y_max - 25), y_max))
     # Only offer species actually landed within the selected window — species landed only in
     # earlier decades would otherwise clutter the list and chart as empty lines.

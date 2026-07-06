@@ -69,7 +69,7 @@ def year_slider(label: str, y0: int, y1: int, key: str,
     """
     default = default if default is not None else (y0, y1)
     cur = st.session_state.get(key, default)
-    return st.sidebar.slider(f"{label} · {int(cur[0])}–{int(cur[1])}", y0, y1, default, key=key)
+    return st.sidebar.slider(f"{label}: {int(cur[0])}–{int(cur[1])}", y0, y1, default, key=key)
 
 
 def by_total(df: pd.DataFrame, cat_col: str, val_col: str) -> list[str]:
