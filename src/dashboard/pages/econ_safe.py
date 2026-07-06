@@ -40,6 +40,7 @@ from dashboard.components.econ_data import (
     fmp_label,
     load_safe_report,
     stacked_bar,
+    year_slider,
 )
 
 _MIN_FOR_CHART = 3
@@ -133,7 +134,7 @@ def render_catch_value() -> None:
     sub = sub[sub["harvest_sector"] == sector]
 
     y0, y1 = int(sub["year"].min()), int(sub["year"].max())
-    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="cv_years")
+    yr = year_slider("Year range", y0, y1, "cv_years")
 
     ir = sub[(sub["year"] >= yr[0]) & (sub["year"] <= yr[1]) & (sub["species_group"] != "All Groundfish")]
     catch_by_sp = ir.groupby("species_group")["retained_catch_mt"].sum().sort_values(ascending=False)
@@ -232,7 +233,7 @@ def render_prices() -> None:
     sub = sub[(sub["gear"] == gear) & (sub["processing_sector"] == psector)]
 
     y0, y1 = int(sub["year"].min()), int(sub["year"].max())
-    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="pr_years")
+    yr = year_slider("Year range", y0, y1, "pr_years")
     all_sp = [s for s in sorted(sub["species"].unique()) if s != "All Groundfish"]
     default_sp = all_sp[:5]
     picked = st.sidebar.multiselect("Species", all_sp, default=default_sp, key="pr_species")
@@ -304,7 +305,7 @@ def render_wholesale() -> None:
     sub = sub[(sub["processing_sector"] == psector) & (sub["product"] == product)]
 
     y0, y1 = int(sub["year"].min()), int(sub["year"].max())
-    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="ws_years")
+    yr = year_slider("Year range", y0, y1, "ws_years")
     all_sp = [s for s in sorted(sub["species"].unique()) if s != "All Groundfish"]
     default_sp = _top_by(sub, "species", "wholesale_value", 5, exclude=("All Groundfish",))
     picked = st.sidebar.multiselect("Species", all_sp, default=default_sp, key="ws_species")
@@ -439,7 +440,7 @@ def render_effort_labor() -> None:
     sub = ves[ves["area_code"] == area]
     sector = _pick_prefer(sub, "harvest_sector", "Harvest sector", "ef_sector", "All Sectors")
     y0, y1 = int(sub["year"].min()), int(sub["year"].max())
-    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="ef_years")
+    yr = year_slider("Year range", y0, y1, "ef_years")
 
     page_header("🚢", "Groundfish Fishing Effort & Labor", fmp_label(area),
                 f"{fmp_label(area)} · {sector}",
@@ -529,7 +530,7 @@ def render_fleet_ownership() -> None:
     area = _fmp_selector(val, "fo_area")
     sub = val[val["area_code"] == area]
     y0, y1 = int(sub["year"].min()), int(sub["year"].max())
-    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="fo_years")
+    yr = year_slider("Year range", y0, y1, "fo_years")
 
     page_header("⚓", "Groundfish Fleet & Ownership", fmp_label(area),
                 fmp_label(area),
@@ -652,7 +653,7 @@ def render_crab() -> None:
     d["stock"] = d["fishery_name"].map(_titlecase)
     st.sidebar.header("Controls")
     y0, y1 = int(d["year"].min()), int(d["year"].max())
-    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="crab_years")
+    yr = year_slider("Year range", y0, y1, "crab_years")
     all_stocks = sorted(d["stock"].unique())
     default = [s for s in all_stocks if any(k in s for k in
               ("Snow", "Bristol Bay Red King", "Bering Sea Tanner", "Golden King"))]

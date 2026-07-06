@@ -28,7 +28,7 @@ from dashboard.components.bottom_ui import (
     section_title,
     styled_table,
 )
-from dashboard.components.econ_data import by_total, category_colors, stacked_bar
+from dashboard.components.econ_data import by_total, category_colors, stacked_bar, year_slider
 from mhw.econ.sources import FOSS_LANDINGS
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -108,7 +108,8 @@ def render() -> None:
     y_min, y_max = int(df["year"].min()), int(df["year"].max())
 
     st.sidebar.header("Controls")
-    yr = st.sidebar.slider("Year range", y_min, y_max, (max(y_min, y_max - 25), y_max), key="cl_years")
+    yr = year_slider("Year range", y_min, y_max, "cl_years",
+                     default=(max(y_min, y_max - 25), y_max))
     # Only offer species actually landed within the selected window — species landed only in
     # earlier decades would otherwise clutter the list and chart as empty lines.
     in_range = df[(df["year"] >= yr[0]) & (df["year"] <= yr[1])]

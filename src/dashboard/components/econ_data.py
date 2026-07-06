@@ -60,6 +60,18 @@ def fmp_label(code: str) -> str:
     return areas.fmp_area_label(code)
 
 
+def year_slider(label: str, y0: int, y1: int, key: str,
+                default: tuple[int, int] | None = None) -> tuple[int, int]:
+    """A sidebar year-range slider that echoes the current selection in its own label.
+
+    The narrow sidebar sometimes clips the blue value labels above the slider handles, so the
+    selected span is repeated in the label text (always visible) — e.g. "Year range · 2000–2020".
+    """
+    default = default if default is not None else (y0, y1)
+    cur = st.session_state.get(key, default)
+    return st.sidebar.slider(f"{label} · {int(cur[0])}–{int(cur[1])}", y0, y1, default, key=key)
+
+
 def by_total(df: pd.DataFrame, cat_col: str, val_col: str) -> list[str]:
     """Categories ordered by summed *val_col* (largest first) — the importance order for colours."""
     if df.empty or cat_col not in df.columns:
