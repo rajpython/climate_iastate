@@ -109,7 +109,7 @@ def _rgba(hex_color: str, alpha: float) -> str:
 
 
 def _latest_table(sel: pd.DataFrame, cat_col: str, val_col: str, value_header: str,
-                  unit: str = "", suffix: str = "") -> None:
+                  unit: str = "", suffix: str = "", valfmt: str = ".2f") -> None:
     """Flexible snapshot table: one row per category with its latest value and that value's year.
 
     Ranked by value (largest first) and driven by the selection, so adding a species adds a row.
@@ -120,20 +120,21 @@ def _latest_table(sel: pd.DataFrame, cat_col: str, val_col: str, value_header: s
         return
     last = d.groupby(cat_col).tail(1).sort_values(val_col, ascending=False)
     disp = pd.DataFrame({
-        value_header: [f"{unit}{v:.2f}{suffix}" for v in last[val_col]],
+        value_header: [f"{unit}{v:{valfmt}}{suffix}" for v in last[val_col]],
         "Year": [str(int(y)) for y in last["year"]],
     }, index=last[cat_col].astype(str).tolist())
     disp.index.name = cat_col.replace("_", " ").title()
     st.markdown(styled_table(disp), unsafe_allow_html=True)
 
 
-def _price_small_multiples(sel: pd.DataFrame, cat_col: str, val_col: str, unit: str,
-                           cmap: dict[str, str], suffix: str = "", cols: int = 3) -> None:
+def _small_multiples(sel: pd.DataFrame, cat_col: str, val_col: str, unit: str,
+                     cmap: dict[str, str], suffix: str = "", valfmt: str = ".2f",
+                     cols: int = 3) -> None:
     """Small multiples — one self-scaled mini-panel per category, ordered by latest value.
 
     The right tool when series differ by 10–50× (e.g. sablefish vs pollock price): each panel
-    has its own y-axis (no squeezing), gaps read locally (no broken overlaid lines), and the
-    panel title carries the current level so ranking is visible without a shared axis.
+    has its own y-axis (no squeezing), gaps read locally (no broken overlaid lines). The exact
+    latest value + year live in the snapshot table above; panel titles are just the category.
     """
     years = list(range(int(sel["year"].min()), int(sel["year"].max()) + 1))
     latest = (sel.dropna(subset=[val_col]).sort_values("year")
@@ -143,7 +144,7 @@ def _price_small_multiples(sel: pd.DataFrame, cat_col: str, val_col: str, unit: 
     n = len(order)
     cols = max(1, min(cols, n))
     rows = math.ceil(n / cols)
-    titles = [str(c) for c in order]  # exact latest value + year lives in the table above
+    titles = [str(c) for c in order]
     fig = make_subplots(rows=rows, cols=cols, subplot_titles=titles,
                         vertical_spacing=0.16 if rows > 1 else 0.1, horizontal_spacing=0.07)
     for i, cat in enumerate(order):
@@ -153,7 +154,8 @@ def _price_small_multiples(sel: pd.DataFrame, cat_col: str, val_col: str, unit: 
         fig.add_trace(go.Scatter(
             x=years, y=s.values, mode="lines", line=dict(color=colr, width=2),
             connectgaps=False, fill="tozeroy", fillcolor=_rgba(colr, 0.13),
-            hovertemplate="%{x}: " + unit + "%{y:.2f}" + suffix + "<extra></extra>"), row=r, col=c)
+            hovertemplate="%{x}: " + unit + "%{y:" + valfmt + "}" + suffix + "<extra></extra>"),
+            row=r, col=c)
         fig.update_yaxes(rangemode="tozero", row=r, col=c, nticks=4)
         fig.update_xaxes(dtick=10, tickformat="d", row=r, col=c)
     fig.update_layout(template="plotly_white", height=190 * rows,
@@ -346,7 +348,7 @@ def render_prices() -> None:
         ], cols=3)
         _latest_table(sel, "species", "exves_price_lb", "Latest price", unit="$", suffix="/lb")
         if n_years >= _MIN_FOR_CHART:
-            _price_small_multiples(sel, "species", "exves_price_lb", "$", cmap, suffix="/lb")
+            _small_multiples(sel, "species", "exves_price_lb", "$", cmap, suffix="/lb")
         else:
             _sparse_table(sel, "species", "exves_price_lb", "Price ($/lb)")
         callout(
@@ -395,9 +397,18 @@ def render_wholesale() -> None:
 
     y0, y1 = int(sub["year"].min()), int(sub["year"].max())
     yr = year_slider("Years", y0, y1, "ws_years")
-    all_sp = [s for s in sorted(sub["species"].unique()) if s != "All Groundfish"]
-    default_sp = _top_by(sub, "species", "wholesale_value", 5, exclude=("All Groundfish",))
-    picked = st.sidebar.multiselect("Species", all_sp, default=default_sp, key="ws_species")
+    ir = sub[(sub["year"] >= yr[0]) & (sub["year"] <= yr[1]) & (sub["species"] != "All Groundfish")]
+    weight_by_sp = ir.groupby("species")["product_weight_mt"].sum().sort_values(ascending=False)
+    all_sp = weight_by_sp.index.tolist()
+    default_sp = _top_by(ir, "species", "wholesale_value", 5, exclude=("All Groundfish",))
+
+    def _ws_label(sp: str) -> str:
+        return f"{sp} — {_fmt_t(float(weight_by_sp.get(sp, 0.0)))}"
+
+    picked = st.sidebar.multiselect("Species (by product weight)", all_sp, default=default_sp,
+                                    format_func=_ws_label, key="ws_species")
+    st.sidebar.caption(f"Each figure is total product weight over {yr[0]}–{yr[1]} "
+                       f"({product.lower()}); the list re-ranks as you move the year-range slider.")
 
     page_header("🏭", "Groundfish Wholesale Production & Value", fmp_label(area),
                 f"{fmp_label(area)} · {psector} · {product}",
@@ -462,11 +473,16 @@ def _wholesale_unit_value_panel(area: str, yr: tuple[int, int]) -> None:
     d = d[d["species_group"] != "All Groundfish"]
     if d.empty or d["wslprice_perroundmt"].dropna().empty:
         return
+    # Unit value ($/round t) is a per-unit measure spanning ~10× across species groups (premium
+    # sablefish vs pollock), so small multiples + a snapshot table read far better than one axis.
+    cmap = category_colors(by_total(d, "species_group", "wslprice_perroundmt"))
     with st.container(border=True):
         section_title("Wholesale unit value", note="US$ per round metric ton, sector-mean (GFSAFE013)")
+        _latest_table(d, "species_group", "wslprice_perroundmt", "Latest unit value",
+                      unit="$", suffix="/round t", valfmt=",.0f")
         if d["year"].nunique() >= _MIN_FOR_CHART:
-            _series_chart(d, "species_group", "wslprice_perroundmt",
-                          "Wholesale unit value (US$/round t)", "$,.0f", agg="mean")
+            _small_multiples(d, "species_group", "wslprice_perroundmt", "$", cmap,
+                             suffix="/round t", valfmt=",.0f")
         else:
             _sparse_table(d, "species_group", "wslprice_perroundmt", "Unit value ($/round t)")
 
