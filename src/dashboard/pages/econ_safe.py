@@ -12,9 +12,12 @@ Build data with ``mhw-ingest-econ-safe``.
 """
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from plotly.subplots import make_subplots
 
 from dashboard.components.bottom_ui import (
     AMBER,
@@ -35,10 +38,12 @@ from dashboard.components.bottom_ui import (
 from dashboard.components.econ_data import (
     ECON_PALETTE,
     available_areas,
+    by_total,
     category_colors,
     fmp_label,
     load_safe_report,
     stacked_bar,
+    year_slider,
 )
 
 _MIN_FOR_CHART = 3
@@ -72,22 +77,91 @@ def _fmt_t(v: float) -> str:
 
 
 def _series_chart(df: pd.DataFrame, cat_col: str, val_col: str, y_title: str,
-                  hover_fmt: str, agg: str = "sum") -> None:
-    """One line per category over the year axis (gaps broken; duplicate years aggregated)."""
+                  hover_fmt: str, agg: str = "sum", colors: dict[str, str] | None = None) -> None:
+    """One line per category over the year axis (gaps broken; duplicate years aggregated).
+
+    Pass *colors* (a {category → colour} map from :func:`category_colors`) so a line keeps its
+    category's own colour — never "always blue for the first one". Hover shows the category name
+    (bold) + year + value in a readable font.
+    """
     fig = go.Figure()
     years = list(range(int(df["year"].min()), int(df["year"].max()) + 1))
     for i, (cat, g) in enumerate(df.groupby(cat_col)):
         s = g.groupby("year")[val_col].agg(agg).reindex(years)
+        color = (colors or {}).get(str(cat)) or ECON_PALETTE[i % len(ECON_PALETTE)]
         fig.add_trace(go.Scatter(
             x=years, y=s.values, mode="lines+markers", name=str(cat),
-            line=dict(color=ECON_PALETTE[i % len(ECON_PALETTE)], width=2), marker=dict(size=5),
-            connectgaps=False,
-            hovertemplate="%{x}: %{y:" + hover_fmt + "}<extra>" + str(cat) + "</extra>"))
+            line=dict(color=color, width=2), marker=dict(size=5), connectgaps=False,
+            hovertemplate="<b>%{fullData.name}</b><br>%{x}: %{y:" + hover_fmt + "}<extra></extra>"))
     fig.update_layout(
         template="plotly_white", height=400, margin=dict(l=10, r=10, t=30, b=10),
         yaxis_title=y_title, xaxis_title="Year", font=dict(size=13),
+        hovermode="closest", hoverlabel=dict(font_size=14, namelength=-1),
         legend=dict(orientation="h", y=1.14, font=dict(size=11)))
     fig.update_xaxes(dtick=5, tickformat="d")
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def _rgba(hex_color: str, alpha: float) -> str:
+    """'#1565c0' → 'rgba(21,101,192,alpha)' (Plotly rejects 8-digit hex fills)."""
+    h = hex_color.lstrip("#")
+    return f"rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{alpha})"
+
+
+def _latest_table(sel: pd.DataFrame, cat_col: str, val_col: str, value_header: str,
+                  unit: str = "", suffix: str = "", valfmt: str = ".2f") -> None:
+    """Flexible snapshot table: one row per category with its latest value and that value's year.
+
+    Ranked by value (largest first) and driven by the selection, so adding a species adds a row.
+    The per-row Year makes the "latest" explicit even when categories' most-recent years differ.
+    """
+    d = sel.dropna(subset=[val_col]).sort_values("year")
+    if d.empty:
+        return
+    last = d.groupby(cat_col).tail(1).sort_values(val_col, ascending=False)
+    disp = pd.DataFrame({
+        value_header: [f"{unit}{v:{valfmt}}{suffix}" for v in last[val_col]],
+        "Year": [str(int(y)) for y in last["year"]],
+    }, index=last[cat_col].astype(str).tolist())
+    disp.index.name = cat_col.replace("_", " ").title()
+    st.markdown(styled_table(disp), unsafe_allow_html=True)
+
+
+def _small_multiples(sel: pd.DataFrame, cat_col: str, val_col: str, unit: str,
+                     cmap: dict[str, str], suffix: str = "", valfmt: str = ".2f",
+                     cols: int = 3) -> None:
+    """Small multiples — one self-scaled mini-panel per category, ordered by latest value.
+
+    The right tool when series differ by 10–50× (e.g. sablefish vs pollock price): each panel
+    has its own y-axis (no squeezing), gaps read locally (no broken overlaid lines). The exact
+    latest value + year live in the snapshot table above; panel titles are just the category.
+    """
+    years = list(range(int(sel["year"].min()), int(sel["year"].max()) + 1))
+    latest = (sel.dropna(subset=[val_col]).sort_values("year")
+              .groupby(cat_col).tail(1).set_index(cat_col)[val_col])
+    order = latest.sort_values(ascending=False).index.tolist()
+    order += [c for c in sel[cat_col].unique() if c not in order]  # any with no latest, at the end
+    n = len(order)
+    cols = max(1, min(cols, n))
+    rows = math.ceil(n / cols)
+    titles = [str(c) for c in order]
+    fig = make_subplots(rows=rows, cols=cols, subplot_titles=titles,
+                        vertical_spacing=0.16 if rows > 1 else 0.1, horizontal_spacing=0.07)
+    for i, cat in enumerate(order):
+        r, c = i // cols + 1, i % cols + 1
+        s = sel[sel[cat_col] == cat].groupby("year")[val_col].mean().reindex(years)
+        colr = cmap.get(str(cat), ECON_PALETTE[i % len(ECON_PALETTE)])
+        fig.add_trace(go.Scatter(
+            x=years, y=s.values, mode="lines", line=dict(color=colr, width=2),
+            connectgaps=False, fill="tozeroy", fillcolor=_rgba(colr, 0.13),
+            hovertemplate="%{x}: " + unit + "%{y:" + valfmt + "}" + suffix + "<extra></extra>"),
+            row=r, col=c)
+        fig.update_yaxes(rangemode="tozero", row=r, col=c, nticks=4)
+        fig.update_xaxes(dtick=10, tickformat="d", row=r, col=c)
+    fig.update_layout(template="plotly_white", height=190 * rows,
+                      margin=dict(l=10, r=10, t=36, b=10), showlegend=False, font=dict(size=11),
+                      hoverlabel=dict(font_size=13))
+    fig.update_annotations(font_size=12)
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -95,16 +169,20 @@ def _fmp_selector(df: pd.DataFrame, key: str) -> str | None:
     opts = available_areas(df)
     if not opts:
         return None
-    return st.sidebar.selectbox("FMP area", opts, format_func=fmp_label, key=key)
+    return st.sidebar.selectbox(
+        "FMP area", opts, format_func=fmp_label, key=key,
+        help=("FMP = Fishery Management Plan. BSAI (Bering Sea & Aleutian Islands) and GOA "
+              "(Gulf of Alaska) are the two North Pacific groundfish management areas defined "
+              "under NPFMC's Fishery Management Plans."))
 
 
 def _econ_callout() -> None:
     callout(
         "Commercial groundfish economics from NOAA/AFSC's <b>Economic SAFE</b> (via AKFIN), at "
-        "<b>FMP-area</b> resolution — <b>BSAI</b> (Bering Sea & Aleutian Islands) and <b>GOA</b> "
-        "(Gulf of Alaska). These are management areas, <b>not</b> the survey ecosystem regions: "
-        "BSAI bundles the Bering Sea and Aleutians and cannot be split. Values are "
-        "<b>nominal</b> (not inflation-adjusted).",
+        "<b>FMP</b> (Fishery Management Plan) area resolution — <b>BSAI</b> (Bering Sea & Aleutian "
+        "Islands) and <b>GOA</b> (Gulf of Alaska). These are management areas, <b>not</b> the "
+        "survey ecosystem regions: BSAI bundles the Bering Sea and Aleutians and cannot be split. "
+        "Values are <b>nominal</b> (not inflation-adjusted).",
         icon="⚓", tint=BLUE)
 
 
@@ -128,13 +206,21 @@ def render_catch_value() -> None:
     sub = sub[sub["harvest_sector"] == sector]
 
     y0, y1 = int(sub["year"].min()), int(sub["year"].max())
-    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="cv_years")
+    yr = year_slider("Years", y0, y1, "cv_years")
 
-    all_sp = [s for s in sorted(sub["species_group"].unique()) if s != "All Groundfish"]
-    default_sp = (sub[sub["species_group"] != "All Groundfish"]
-                  .groupby("species_group")["exvessel_value"].sum()
+    ir = sub[(sub["year"] >= yr[0]) & (sub["year"] <= yr[1]) & (sub["species_group"] != "All Groundfish")]
+    catch_by_sp = ir.groupby("species_group")["retained_catch_mt"].sum().sort_values(ascending=False)
+    all_sp = catch_by_sp.index.tolist()
+    default_sp = (ir.groupby("species_group")["exvessel_value"].sum()
                   .sort_values(ascending=False).head(5).index.tolist())
-    picked = st.sidebar.multiselect("Species group", all_sp, default=default_sp, key="cv_species")
+
+    def _sp_label(sp: str) -> str:
+        return f"{sp} — {_fmt_t(float(catch_by_sp.get(sp, 0.0)))}"
+
+    picked = st.sidebar.multiselect("Species group (by catch)", all_sp, default=default_sp,
+                                    format_func=_sp_label, key="cv_species")
+    st.sidebar.caption(f"Each figure is total retained catch over {yr[0]}–{yr[1]} "
+                       f"({sector.lower()}); the list re-ranks as you move the year-range slider.")
 
     page_header("💵", "Groundfish Catch & Ex-Vessel Value", fmp_label(area),
                 f"{fmp_label(area)} · {sector}",
@@ -155,7 +241,8 @@ def render_catch_value() -> None:
     tot_t, tot_v = float(lr["retained_catch_mt"].sum()), float(lr["exvessel_value"].sum())
     price = tot_v / (tot_t * _LBS_PER_TONNE) if tot_t else float("nan")
     n_years = sel["year"].nunique()
-    cmap = category_colors(all_sp)
+    cmap = category_colors(by_total(sub[sub["species_group"] != "All Groundfish"],
+                                    "species_group", "exvessel_value"))
 
     with st.container(border=True):
         section_title("Retained catch & ex-vessel value", note=f"{sector.lower()}, selected species")
@@ -218,10 +305,19 @@ def render_prices() -> None:
     sub = sub[(sub["gear"] == gear) & (sub["processing_sector"] == psector)]
 
     y0, y1 = int(sub["year"].min()), int(sub["year"].max())
-    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="pr_years")
+    yr = year_slider("Years", y0, y1, "pr_years")
     all_sp = [s for s in sorted(sub["species"].unique()) if s != "All Groundfish"]
-    default_sp = all_sp[:5]
+    # Default to the headline groundfish (present in this area) rather than the arbitrary first-5
+    # alphabetically. GFSAFE009 carries no volume, so we can't rank by tonnage here.
+    _headline = ["Pollock", "Pacific Cod", "Sablefish", "Atka Mackerel", "Pacific Ocean Perch",
+                 "Yellowfin Sole", "Arrowtooth Flounder", "Rock Sole"]
+    default_sp = []
+    for h in _headline:
+        default_sp += [s for s in all_sp if s.startswith(h) and s not in default_sp]
+    default_sp = (default_sp or all_sp)[:5]
     picked = st.sidebar.multiselect("Species", all_sp, default=default_sp, key="pr_species")
+    # Colour by identity, default species first so the initial view is collision-free.
+    cmap = category_colors(default_sp + [s for s in all_sp if s not in default_sp])
 
     page_header("🏷️", "Groundfish Ex-Vessel Prices", fmp_label(area),
                 f"{fmp_label(area)} · {gear} · {psector}",
@@ -250,10 +346,20 @@ def render_prices() -> None:
             kpi_card("Species · years", f"{sel['species'].nunique()} · {n_years}", SLATE,
                      sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=3)
+        _latest_table(sel, "species", "exves_price_lb", "Latest price", unit="$", suffix="/lb")
         if n_years >= _MIN_FOR_CHART:
-            _series_chart(sel, "species", "exves_price_lb", "Ex-vessel price (US$/lb)", "$.2f", agg="mean")
+            _small_multiples(sel, "species", "exves_price_lb", "$", cmap, suffix="/lb")
         else:
             _sparse_table(sel, "species", "exves_price_lb", "Price ($/lb)")
+        callout(
+            "Ex-vessel price varies with <b>gear</b> and <b>processing sector</b> because they "
+            "change the fish's quality and end market. <b>Fixed</b> gear (hook-and-line, pot) "
+            "catches fish individually with less damage and often bleeds them, so it grades higher "
+            "and sells for more than <b>trawl</b>-caught fish — a small gap for commodity species "
+            "like Pacific cod, but a large one for premium species: BSAI sablefish recently fetched "
+            "~$1.23/lb fixed-gear vs ~$0.71/lb trawl. Use the Gear / Processing-sector selectors to "
+            "compare.",
+            icon="🎣", tint=SLATE)
 
     footer("Source: NOAA/AFSC Groundfish Economic SAFE via AKFIN (GFSAFE009); FMP-area, annual, "
            "nominal ex-vessel price.", guide_url="/econ_safe_guide")
@@ -290,10 +396,19 @@ def render_wholesale() -> None:
     sub = sub[(sub["processing_sector"] == psector) & (sub["product"] == product)]
 
     y0, y1 = int(sub["year"].min()), int(sub["year"].max())
-    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="ws_years")
-    all_sp = [s for s in sorted(sub["species"].unique()) if s != "All Groundfish"]
-    default_sp = _top_by(sub, "species", "wholesale_value", 5, exclude=("All Groundfish",))
-    picked = st.sidebar.multiselect("Species", all_sp, default=default_sp, key="ws_species")
+    yr = year_slider("Years", y0, y1, "ws_years")
+    ir = sub[(sub["year"] >= yr[0]) & (sub["year"] <= yr[1]) & (sub["species"] != "All Groundfish")]
+    weight_by_sp = ir.groupby("species")["product_weight_mt"].sum().sort_values(ascending=False)
+    all_sp = weight_by_sp.index.tolist()
+    default_sp = _top_by(ir, "species", "wholesale_value", 5, exclude=("All Groundfish",))
+
+    def _ws_label(sp: str) -> str:
+        return f"{sp} — {_fmt_t(float(weight_by_sp.get(sp, 0.0)))}"
+
+    picked = st.sidebar.multiselect("Species (by product weight)", all_sp, default=default_sp,
+                                    format_func=_ws_label, key="ws_species")
+    st.sidebar.caption(f"Each figure is total product weight over {yr[0]}–{yr[1]} "
+                       f"({product.lower()}); the list re-ranks as you move the year-range slider.")
 
     page_header("🏭", "Groundfish Wholesale Production & Value", fmp_label(area),
                 f"{fmp_label(area)} · {psector} · {product}",
@@ -314,7 +429,8 @@ def render_wholesale() -> None:
     tot_t, tot_v = float(lr["product_weight_mt"].sum()), float(lr["wholesale_value"].sum())
     price = tot_v / (tot_t * _LBS_PER_TONNE) if tot_t else float("nan")
     n_years = sel["year"].nunique()
-    cmap = category_colors(all_sp)
+    cmap = category_colors(by_total(sub[sub["species"] != "All Groundfish"],
+                                    "species", "wholesale_value"))
 
     with st.container(border=True):
         section_title("Wholesale production & value", note=f"{product.lower()}, selected species")
@@ -357,11 +473,16 @@ def _wholesale_unit_value_panel(area: str, yr: tuple[int, int]) -> None:
     d = d[d["species_group"] != "All Groundfish"]
     if d.empty or d["wslprice_perroundmt"].dropna().empty:
         return
+    # Unit value ($/round t) is a per-unit measure spanning ~10× across species groups (premium
+    # sablefish vs pollock), so small multiples + a snapshot table read far better than one axis.
+    cmap = category_colors(by_total(d, "species_group", "wslprice_perroundmt"))
     with st.container(border=True):
         section_title("Wholesale unit value", note="US$ per round metric ton, sector-mean (GFSAFE013)")
+        _latest_table(d, "species_group", "wslprice_perroundmt", "Latest unit value",
+                      unit="$", suffix="/round t", valfmt=",.0f")
         if d["year"].nunique() >= _MIN_FOR_CHART:
-            _series_chart(d, "species_group", "wslprice_perroundmt",
-                          "Wholesale unit value (US$/round t)", "$,.0f", agg="mean")
+            _small_multiples(d, "species_group", "wslprice_perroundmt", "$", cmap,
+                             suffix="/round t", valfmt=",.0f")
         else:
             _sparse_table(d, "species_group", "wslprice_perroundmt", "Unit value ($/round t)")
 
@@ -424,7 +545,7 @@ def render_effort_labor() -> None:
     sub = ves[ves["area_code"] == area]
     sector = _pick_prefer(sub, "harvest_sector", "Harvest sector", "ef_sector", "All Sectors")
     y0, y1 = int(sub["year"].min()), int(sub["year"].max())
-    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="ef_years")
+    yr = year_slider("Years", y0, y1, "ef_years")
 
     page_header("🚢", "Groundfish Fishing Effort & Labor", fmp_label(area),
                 f"{fmp_label(area)} · {sector}",
@@ -514,7 +635,7 @@ def render_fleet_ownership() -> None:
     area = _fmp_selector(val, "fo_area")
     sub = val[val["area_code"] == area]
     y0, y1 = int(sub["year"].min()), int(sub["year"].max())
-    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="fo_years")
+    yr = year_slider("Years", y0, y1, "fo_years")
 
     page_header("⚓", "Groundfish Fleet & Ownership", fmp_label(area),
                 fmp_label(area),
@@ -637,7 +758,7 @@ def render_crab() -> None:
     d["stock"] = d["fishery_name"].map(_titlecase)
     st.sidebar.header("Controls")
     y0, y1 = int(d["year"].min()), int(d["year"].max())
-    yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="crab_years")
+    yr = year_slider("Years", y0, y1, "crab_years")
     all_stocks = sorted(d["stock"].unique())
     default = [s for s in all_stocks if any(k in s for k in
               ("Snow", "Bristol Bay Red King", "Bering Sea Tanner", "Golden King"))]
@@ -668,7 +789,7 @@ def render_crab() -> None:
     latest = int(sel.dropna(subset=["hpy_soldmt"])["year"].max())
     lr = sel[sel["year"] == latest]
     n_years = sel["year"].nunique()
-    cmap = category_colors(all_stocks)
+    cmap = category_colors(by_total(d, "stock", "hpy_soldmt"))
 
     with st.container(border=True):
         section_title("Harvest & ex-vessel value", note="by crab fishery (CRSAFEEXEC01)")

@@ -28,7 +28,7 @@ from dashboard.components.bottom_ui import (
     section_title,
     styled_table,
 )
-from dashboard.components.econ_data import category_colors, stacked_bar
+from dashboard.components.econ_data import by_total, category_colors, stacked_bar, year_slider
 from mhw.econ.sources import FOSS_LANDINGS
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -108,15 +108,26 @@ def render() -> None:
     y_min, y_max = int(df["year"].min()), int(df["year"].max())
 
     st.sidebar.header("Controls")
-    yr = st.sidebar.slider("Year range", y_min, y_max, (max(y_min, y_max - 25), y_max), key="cl_years")
+    yr = year_slider("Years", y_min, y_max, "cl_years",
+                     default=(max(y_min, y_max - 25), y_max))
     # Only offer species actually landed within the selected window — species landed only in
     # earlier decades would otherwise clutter the list and chart as empty lines.
     in_range = df[(df["year"] >= yr[0]) & (df["year"] <= yr[1])]
-    available = sorted(in_range["species"].unique())
     all_species = sorted(df["species"].unique())
+    # Order the picker by landings (largest first) and label each option with its scale, so the
+    # dominant fisheries lead and a user can see at a glance that, e.g., "TUNA, ALBACORE — 18 t"
+    # will be invisible next to pollock (~1.4M t). Alphabetical + no size cue was the frustration.
+    land_by_sp = in_range.groupby("species")["landings_t"].sum().sort_values(ascending=False)
+    available = land_by_sp.index.tolist()
+
+    def _option_label(sp: str) -> str:
+        return f"{_species_label(sp)} — {_fmt_t(float(land_by_sp.get(sp, 0.0)))}"
+
     picked = st.sidebar.multiselect(
-        "Species", available, default=_top_species_by_value(in_range, 5),
-        format_func=_species_label, key="cl_species")
+        "Species (by landings)", available, default=_top_species_by_value(in_range, 5),
+        format_func=_option_label, key="cl_species")
+    st.sidebar.caption(f"Each species' figure is its **total landings over {yr[0]}–{yr[1]}** "
+                       "(the selected years); the list re-ranks as you move the year-range slider.")
 
     page_header("💰", "Commercial Landings", "Statewide Alaska",
                 "Alaska — statewide",
@@ -143,7 +154,10 @@ def render() -> None:
     latest = int(sel["year"].max())
     latest_rows = sel[sel["year"] == latest]
     n_years = sel["year"].nunique()
-    cmap = category_colors(all_species)   # stable colour per species across the whole record
+    # Stable colour per species, assigned by total ex-vessel VALUE (the basis of the default
+    # selection), so the species a user actually sees get the distinct leading palette colours;
+    # only the low-value tail — rarely shown — can wrap onto a repeat.
+    cmap = category_colors(by_total(df, "species", "value_usd"))
 
     # --- Landings (metric tons) --------------------------------------------------------------
     with st.container(border=True):

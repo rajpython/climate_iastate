@@ -23,20 +23,27 @@ FMP_ORDER = ("bsai", "goa", "ak")
 
 # A high-contrast categorical palette. Colours are assigned to categories by *identity*
 # (see category_colors), so a species/stock/fleet keeps the same colour across pages and
-# regardless of how many are selected — never "always blue for the first one".
-ECON_PALETTE = ["#1565c0", "#e65100", "#2e7d32", "#c62828", "#6a3d9a", "#00838f",
-                "#ad1457", "#5d4037", "#f9a825", "#37474f", "#0277bd", "#558b2f"]
+# regardless of how many are selected — never "always blue for the first one". Deliberately ONE
+# colour per hue family (a single blue, green, purple, …) so two co-shown series never look alike.
+ECON_PALETTE = ["#1565c0", "#ef6c00", "#2e7d32", "#c62828", "#8e24aa", "#00838f",
+                "#c2185b", "#6d4c41", "#f9a825", "#455a64", "#9e9d24", "#5e35b1"]
 
 
 def category_colors(categories) -> dict[str, str]:
-    """Stable {category → colour} over the full category vocabulary.
+    """Stable {category → colour}, assigned in the given order.
 
-    Sorted deterministically and assigned palette colours, so each category's colour is fixed by
-    its identity. Build this once from the *full* vocabulary (not just the selected subset) and
-    pass it to :func:`stacked_bar` so colours stay put as the selection changes.
+    Colours are handed out in the order *categories* are passed (first-seen, de-duplicated), so
+    pass the full vocabulary **ordered by importance** (e.g. total landings/value, largest first).
+    The most significant categories — the ones actually shown — then get the distinct leading
+    palette colours, and only the negligible long tail can wrap onto a repeat. Each category's
+    colour is fixed by identity (a single selection shows its own colour, not "always blue").
     """
-    cats = sorted({str(c) for c in categories})
-    return {c: ECON_PALETTE[i % len(ECON_PALETTE)] for i, c in enumerate(cats)}
+    out: dict[str, str] = {}
+    for c in categories:
+        c = str(c)
+        if c not in out:
+            out[c] = ECON_PALETTE[len(out) % len(ECON_PALETTE)]
+    return out
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
@@ -51,6 +58,25 @@ def load_safe_report(report_id: str) -> pd.DataFrame | None:
 def fmp_label(code: str) -> str:
     """Full FMP-area label for a code (e.g. 'goa' → 'Gulf of Alaska')."""
     return areas.fmp_area_label(code)
+
+
+def year_slider(label: str, y0: int, y1: int, key: str,
+                default: tuple[int, int] | None = None) -> tuple[int, int]:
+    """A sidebar year-range slider that echoes the current selection in its own label.
+
+    The narrow sidebar sometimes clips the blue value labels above the slider handles, so the
+    selected span is repeated in the label text (always visible) — e.g. "Year range · 2000–2020".
+    """
+    default = default if default is not None else (y0, y1)
+    cur = st.session_state.get(key, default)
+    return st.sidebar.slider(f"{label}: {int(cur[0])}–{int(cur[1])}", y0, y1, default, key=key)
+
+
+def by_total(df: pd.DataFrame, cat_col: str, val_col: str) -> list[str]:
+    """Categories ordered by summed *val_col* (largest first) — the importance order for colours."""
+    if df.empty or cat_col not in df.columns:
+        return []
+    return df.groupby(cat_col)[val_col].sum().sort_values(ascending=False).index.astype(str).tolist()
 
 
 def available_areas(df: pd.DataFrame) -> list[str]:
