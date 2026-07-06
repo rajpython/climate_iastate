@@ -785,7 +785,7 @@ def render_crab() -> None:
     inject_css()
     d = load_safe_report("crsafeexec01")
     if d is None or d.empty:
-        st.title("🦀 BSAI Crab Economics")
+        st.title("🦀 Crabonomics")
         st.info("Crab Economic SAFE data not built yet. Run `mhw-ingest-econ-safe`.")
         return
 
@@ -800,7 +800,7 @@ def render_crab() -> None:
     picked = st.sidebar.multiselect("Crab fishery", all_stocks, default=default or all_stocks,
                                     key="crab_stocks")
 
-    page_header("🦀", "BSAI Crab Economics", "Bering Sea & Aleutian Islands",
+    page_header("🦀", "Crabonomics", "Bering Sea & Aleutian Islands",
                 "Bering Sea & Aleutian Islands crab",
                 caption=("Commercial crab harvest, ex-vessel value, and price by fishery/stock — "
                          "NOAA BSAI Crab Economic SAFE (CRSAFEEXEC01)."))
