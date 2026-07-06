@@ -50,7 +50,7 @@ _ECON = {
     "Snow crab — ex-vessel value": ("crab", "BERING SEA SNOW CRAB", "hpy_exv_nom",
                                     "Ex-vessel value (US$)", "$,.0f"),
     "Snow crab — harvest": ("crab", "BERING SEA SNOW CRAB", "hpy_soldmt",
-                            "Harvest (t)", ",.0f"),
+                            "Harvest (metric tons)", ",.0f"),
     "Bristol Bay red king crab — ex-vessel value": ("crab", "BRISTOL BAY RED KING CRAB",
                                                     "hpy_exv_nom", "Ex-vessel value (US$)", "$,.0f"),
     "BSAI groundfish — ex-vessel value": ("gf", "All Groundfish", "exvessel_value",
@@ -222,4 +222,4 @@ def _harvest_vs_survey_panel() -> None:
             "abundance, whereas the survey measures the population directly. That is exactly why "
             "the <b>survey</b>, not landings, is the abundance index managers rely on.",
             icon="🦀", tint=PURPLE)
-        _overlay(harvest, cpue, "Commercial harvest (t)", "Survey CPUE (kg/km²)", ",.0f", ",.1f")
+        _overlay(harvest, cpue, "Commercial harvest (metric tons)", "Survey CPUE (kg/km²)", ",.0f", ",.1f")
