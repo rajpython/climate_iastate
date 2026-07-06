@@ -12,9 +12,12 @@ Build data with ``mhw-ingest-econ-safe``.
 """
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from plotly.subplots import make_subplots
 
 from dashboard.components.bottom_ui import (
     AMBER,
@@ -96,6 +99,67 @@ def _series_chart(df: pd.DataFrame, cat_col: str, val_col: str, y_title: str,
         hovermode="closest", hoverlabel=dict(font_size=14, namelength=-1),
         legend=dict(orientation="h", y=1.14, font=dict(size=11)))
     fig.update_xaxes(dtick=5, tickformat="d")
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def _rgba(hex_color: str, alpha: float) -> str:
+    """'#1565c0' → 'rgba(21,101,192,alpha)' (Plotly rejects 8-digit hex fills)."""
+    h = hex_color.lstrip("#")
+    return f"rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{alpha})"
+
+
+def _latest_table(sel: pd.DataFrame, cat_col: str, val_col: str, value_header: str,
+                  unit: str = "", suffix: str = "") -> None:
+    """Flexible snapshot table: one row per category with its latest value and that value's year.
+
+    Ranked by value (largest first) and driven by the selection, so adding a species adds a row.
+    The per-row Year makes the "latest" explicit even when categories' most-recent years differ.
+    """
+    d = sel.dropna(subset=[val_col]).sort_values("year")
+    if d.empty:
+        return
+    last = d.groupby(cat_col).tail(1).sort_values(val_col, ascending=False)
+    disp = pd.DataFrame({
+        value_header: [f"{unit}{v:.2f}{suffix}" for v in last[val_col]],
+        "Year": [str(int(y)) for y in last["year"]],
+    }, index=last[cat_col].astype(str).tolist())
+    disp.index.name = cat_col.replace("_", " ").title()
+    st.markdown(styled_table(disp), unsafe_allow_html=True)
+
+
+def _price_small_multiples(sel: pd.DataFrame, cat_col: str, val_col: str, unit: str,
+                           cmap: dict[str, str], suffix: str = "", cols: int = 3) -> None:
+    """Small multiples — one self-scaled mini-panel per category, ordered by latest value.
+
+    The right tool when series differ by 10–50× (e.g. sablefish vs pollock price): each panel
+    has its own y-axis (no squeezing), gaps read locally (no broken overlaid lines), and the
+    panel title carries the current level so ranking is visible without a shared axis.
+    """
+    years = list(range(int(sel["year"].min()), int(sel["year"].max()) + 1))
+    latest = (sel.dropna(subset=[val_col]).sort_values("year")
+              .groupby(cat_col).tail(1).set_index(cat_col)[val_col])
+    order = latest.sort_values(ascending=False).index.tolist()
+    order += [c for c in sel[cat_col].unique() if c not in order]  # any with no latest, at the end
+    n = len(order)
+    cols = max(1, min(cols, n))
+    rows = math.ceil(n / cols)
+    titles = [str(c) for c in order]  # exact latest value + year lives in the table above
+    fig = make_subplots(rows=rows, cols=cols, subplot_titles=titles,
+                        vertical_spacing=0.16 if rows > 1 else 0.1, horizontal_spacing=0.07)
+    for i, cat in enumerate(order):
+        r, c = i // cols + 1, i % cols + 1
+        s = sel[sel[cat_col] == cat].groupby("year")[val_col].mean().reindex(years)
+        colr = cmap.get(str(cat), ECON_PALETTE[i % len(ECON_PALETTE)])
+        fig.add_trace(go.Scatter(
+            x=years, y=s.values, mode="lines", line=dict(color=colr, width=2),
+            connectgaps=False, fill="tozeroy", fillcolor=_rgba(colr, 0.13),
+            hovertemplate="%{x}: " + unit + "%{y:.2f}" + suffix + "<extra></extra>"), row=r, col=c)
+        fig.update_yaxes(rangemode="tozero", row=r, col=c, nticks=4)
+        fig.update_xaxes(dtick=10, tickformat="d", row=r, col=c)
+    fig.update_layout(template="plotly_white", height=190 * rows,
+                      margin=dict(l=10, r=10, t=36, b=10), showlegend=False, font=dict(size=11),
+                      hoverlabel=dict(font_size=13))
+    fig.update_annotations(font_size=12)
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -280,9 +344,9 @@ def render_prices() -> None:
             kpi_card("Species · years", f"{sel['species'].nunique()} · {n_years}", SLATE,
                      sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=3)
+        _latest_table(sel, "species", "exves_price_lb", "Latest price", unit="$", suffix="/lb")
         if n_years >= _MIN_FOR_CHART:
-            _series_chart(sel, "species", "exves_price_lb", "Ex-vessel price (US$/lb)", "$.2f",
-                          agg="mean", colors=cmap)
+            _price_small_multiples(sel, "species", "exves_price_lb", "$", cmap, suffix="/lb")
         else:
             _sparse_table(sel, "species", "exves_price_lb", "Price ($/lb)")
         callout(
