@@ -35,6 +35,17 @@ _CSS = """<style>
 .bs-footer { font-size:0.8rem; color:#7a8694; }
 .bs-guidebtn { display:inline-block; border:1px solid rgba(130,130,130,0.4); border-radius:0.5rem;
     padding:0.45rem 0.9rem; color:#1565c0; text-decoration:none; font-weight:600; }
+/* Hover tooltip (reliable + immediate, unlike the native title attribute). */
+.bs-tip { position:relative; display:inline-block; cursor:help; color:#5f6b7a; }
+.bs-tip .bs-tip-box { visibility:hidden; opacity:0; position:absolute; z-index:999;
+    top:150%; left:50%; transform:translateX(-50%); width:250px; text-align:left;
+    background:#1f2a36; color:#ffffff; padding:0.55rem 0.7rem; border-radius:0.45rem;
+    font-size:0.76rem; font-weight:400; line-height:1.4; text-transform:none; letter-spacing:0;
+    box-shadow:0 8px 22px rgba(0,0,0,0.28); pointer-events:none; white-space:normal;
+    transition:opacity .12s ease; }
+.bs-tip .bs-tip-box::after { content:""; position:absolute; bottom:100%; left:50%;
+    transform:translateX(-50%); border:6px solid transparent; border-bottom-color:#1f2a36; }
+.bs-tip:hover .bs-tip-box { visibility:visible; opacity:1; }
 </style>"""
 
 
@@ -65,12 +76,16 @@ def section_title(title: str, note: str = "") -> None:
 
 
 def kpi_card(label: str, value: str, value_color: str = "", sub: str = "",
-             label_note: str = "") -> str:
-    """Return the HTML for one KPI card (compose with :func:`kpi_grid`)."""
+             label_note: str = "", tip: str = "") -> str:
+    """Return the HTML for one KPI card (compose with :func:`kpi_grid`).
+
+    *tip* adds a native hover tooltip (title attribute) and a small ⓘ after the label.
+    """
     note = f" <small>{label_note}</small>" if label_note else ""
     style = f" style='color:{value_color}'" if value_color else ""
     sub_html = f"<div class='bs-kpi-sub'>{sub}</div>" if sub else "<div class='bs-kpi-sub'>&nbsp;</div>"
-    return (f"<div class='bs-kpi'><div class='bs-kpi-label'>{label}{note}</div>"
+    info = (f" <span class='bs-tip'>ⓘ<span class='bs-tip-box'>{tip}</span></span>") if tip else ""
+    return (f"<div class='bs-kpi'><div class='bs-kpi-label'>{label}{note}{info}</div>"
             f"<div class='bs-kpi-val'{style}>{value}</div>{sub_html}</div>")
 
 

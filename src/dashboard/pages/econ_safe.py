@@ -432,13 +432,20 @@ def render_wholesale() -> None:
     cmap = category_colors(by_total(sub[sub["species"] != "All Groundfish"],
                                     "species", "wholesale_value"))
 
+    lb = tot_t * _LBS_PER_TONNE
+    lb_str = f"{lb / 1e9:.2f} billion" if lb >= 1e9 else f"{lb / 1e6:.0f} million"
     with st.container(border=True):
         section_title("Wholesale production & value", note=f"{product.lower()}, selected species")
         kpi_grid([
-            kpi_card(f"Product weight ({latest})", _fmt_t(tot_t), GREEN, sub="processed weight"),
+            kpi_card(f"Product weight ({latest})", _fmt_t(tot_t), GREEN, sub="processed weight",
+                     tip=(f"≈ {lb_str} pounds (1 metric ton = 2,204.62 lb). Fishery volumes "
+                          "are reported in metric tons; in pounds they run to billions.")),
             kpi_card(f"Wholesale value ({latest})", _fmt_usd(tot_v), AMBER, sub="nominal $"),
             kpi_card(f"Wholesale price ({latest})", f"${price:.2f}/lb" if tot_t else "—", BLUE,
-                     sub="value ÷ weight"),
+                     sub="per lb of product",
+                     tip=("Per lb of PRODUCT — the processed output (fillets, headed-and-gutted, "
+                          "meal…), a fraction of the whole-fish (round) weight. The unit-value "
+                          "panel below is per lb of ROUND (whole) fish.")),
             kpi_card("Species · years", f"{sel['species'].nunique()} · {n_years}", SLATE,
                      sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=4)
@@ -473,36 +480,48 @@ def _wholesale_unit_value_panel(area: str, yr: tuple[int, int]) -> None:
     d = d[d["species_group"] != "All Groundfish"]
     if d.empty or d["wslprice_perroundmt"].dropna().empty:
         return
-    # Unit value ($/round t) is a per-unit measure spanning ~10× across species groups (premium
-    # sablefish vs pollock), so small multiples + a snapshot table read far better than one axis.
-    cmap = category_colors(by_total(d, "species_group", "wslprice_perroundmt"))
+    # Report in $/lb (the fisheries standard, as everywhere else) rather than $/round-metric-ton.
+    # Basis is ROUND (whole) weight, distinct from the product-weight price above — kept in the label.
+    d = d.copy()
+    d["unit_value_lb"] = d["wslprice_perroundmt"] / _LBS_PER_TONNE
+    # Per-unit measure spanning ~10× across species groups → small multiples + a snapshot table.
+    cmap = category_colors(by_total(d, "species_group", "unit_value_lb"))
+    _tip = ("Round (whole) weight = the fish as caught, before processing. Product weight = the "
+            "processed output (fillets, H&amp;G, meal…), a fraction of round weight. So $/lb round "
+            "is value per lb of fish landed; $/lb product is the finished-product price.")
     with st.container(border=True):
-        section_title("Wholesale unit value", note="US$ per round metric ton, sector-mean (GFSAFE013)")
-        _latest_table(d, "species_group", "wslprice_perroundmt", "Latest unit value",
-                      unit="$", suffix="/round t", valfmt=",.0f")
+        section_title("Wholesale unit value",
+                      note=("US$ per lb of round (whole) fish, sector-mean (GFSAFE013) "
+                            f"<span class='bs-tip'>ⓘ<span class='bs-tip-box'>{_tip}</span></span>"))
+        _latest_table(d, "species_group", "unit_value_lb", "Latest unit value",
+                      unit="$", suffix="/lb round", valfmt=".2f")
         if d["year"].nunique() >= _MIN_FOR_CHART:
-            _small_multiples(d, "species_group", "wslprice_perroundmt", "$", cmap,
-                             suffix="/round t", valfmt=",.0f")
+            _small_multiples(d, "species_group", "unit_value_lb", "$", cmap,
+                             suffix="/lb round", valfmt=".2f")
         else:
-            _sparse_table(d, "species_group", "wslprice_perroundmt", "Unit value ($/round t)")
+            _sparse_table(d, "species_group", "unit_value_lb", "Unit value ($/lb round)")
 
 
 def _wholesale_processor_panel(area: str, yr: tuple[int, int]) -> None:
     df = load_safe_report("gfsafe014")
     if df is None or df.empty:
         return
-    d = df[(df["area_code"] == area) & (df["year"] >= yr[0]) & (df["year"] <= yr[1])]
+    d = df[(df["area_code"] == area) & (df["year"] >= yr[0]) & (df["year"] <= yr[1])].copy()
     if d.empty or d["wsval_m"].dropna().empty:
         return
-    top = _top_by(d, "fleet_port", "wsval_m", 8)
+    # Millions → raw US$ so the value axis matches every other economics page.
+    d["wsval"] = d["wsval_m"] * 1e6
+    top = _top_by(d, "fleet_port", "wsval", 8)
     d = d[d["fleet_port"].isin(top)]
+    port_cmap = category_colors(by_total(d, "fleet_port", "wsval"))
     with st.container(border=True):
         section_title("First-wholesale value by processor group",
-                      note="US$ millions, top processor groups (GFSAFE014, 2012–)")
+                      note="current (nominal) US$, top processor groups (GFSAFE014, 2012–)")
         if d["year"].nunique() >= _MIN_FOR_CHART:
-            stacked_bar(d, "fleet_port", "wsval_m", "First-wholesale value (US$ millions)", "$,.1f")
+            stacked_bar(d, "fleet_port", "wsval", "First-wholesale value (US$)", "$,.0f",
+                        colors=port_cmap)
         else:
-            _sparse_table(d, "fleet_port", "wsval_m", "Value ($M)")
+            _sparse_table(d, "fleet_port", "wsval", "Value (US$)")
 
 
 # ---------------------------------------------------------------------------
@@ -512,18 +531,22 @@ _MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
-def _month_chart(df: pd.DataFrame, cat_col: str, val_col: str, y_title: str) -> None:
+def _month_chart(df: pd.DataFrame, cat_col: str, val_col: str, y_title: str,
+                 colors: dict[str, str] | None = None) -> None:
     """One line per category across the calendar year (mean over the selected years)."""
     fig = go.Figure()
     for i, (cat, g) in enumerate(df.groupby(cat_col)):
         s = g.groupby("month_number")[val_col].mean().reindex(range(1, 13))
+        colr = (colors or {}).get(str(cat)) or ECON_PALETTE[i % len(ECON_PALETTE)]
         fig.add_trace(go.Scatter(
             x=_MONTH_ABBR, y=s.values, mode="lines+markers", name=str(cat),
-            line=dict(color=ECON_PALETTE[i % len(ECON_PALETTE)], width=2), marker=dict(size=5),
-            connectgaps=False, hovertemplate="%{x}: %{y:,.0f}<extra>" + str(cat) + "</extra>"))
+            line=dict(color=colr, width=2), marker=dict(size=5),
+            connectgaps=False,
+            hovertemplate="<b>%{fullData.name}</b><br>%{x}: %{y:,.0f}<extra></extra>"))
     fig.update_layout(
         template="plotly_white", height=360, margin=dict(l=10, r=10, t=30, b=10),
         yaxis_title=y_title, xaxis_title="Month", font=dict(size=13),
+        hovermode="closest", hoverlabel=dict(font_size=13, namelength=-1),
         legend=dict(orientation="h", y=1.16, font=dict(size=11)))
     st.plotly_chart(fig, use_container_width=True)
 
@@ -553,9 +576,14 @@ def render_effort_labor() -> None:
                          "effort, and crew (NOAA Economic SAFE, GFSAFE015–018)."))
     _econ_callout()
 
-    # A) Vessels by target fishery (015)
+    # A) Vessels by target fishery (015). One colour per target, kept consistent between this
+    # line chart and the vessel-weeks bars below (both are "by target fishery").
     va = sub[(sub["harvest_sector"] == sector) & (sub["year"] >= yr[0]) & (sub["year"] <= yr[1])
              & (sub["target"] != "All Target Species")]
+    # Colour every target from the full report (all years/sectors) so a target keeps its colour
+    # even when the current year/sector view omits it, and the vessels line matches the vessel-weeks bars.
+    target_cmap = category_colors(
+        by_total(sub[sub["target"] != "All Target Species"], "target", "vessels"))
     with st.container(border=True):
         section_title("Vessels by target fishery", note=f"{sector.lower()} (GFSAFE015)")
         allv = sub[(sub["harvest_sector"] == sector) & (sub["target"] == "All Target Species")]
@@ -567,7 +595,7 @@ def render_effort_labor() -> None:
                      sub=f"{yr[0]}–{yr[1]}"),
         ], cols=2)
         if not va.empty and va["year"].nunique() >= _MIN_FOR_CHART:
-            _series_chart(va, "target", "vessels", "Vessels", ",.0f")
+            _series_chart(va, "target", "vessels", "Vessels", ",.0f", colors=target_cmap)
         else:
             _sparse_table(va, "target", "vessels", "Vessels")
 
@@ -581,7 +609,8 @@ def render_effort_labor() -> None:
         if not m.empty:
             with st.container(border=True):
                 section_title("Seasonality of activity", note="mean vessels per month by gear (GFSAFE016)")
-                _month_chart(m, "gear", "vessels", "Vessels (monthly mean)")
+                gear_cmap = category_colors(by_total(m, "gear", "vessels"))
+                _month_chart(m, "gear", "vessels", "Vessels (monthly mean)", colors=gear_cmap)
 
     # C) Fishing effort — vessel-weeks (017)
     vw = load_safe_report("gfsafe017")
@@ -594,7 +623,8 @@ def render_effort_labor() -> None:
                 section_title("Fishing effort (vessel-weeks)",
                               note="all gear, summed across sectors, by target (GFSAFE017)")
                 if w["year"].nunique() >= _MIN_FOR_CHART:
-                    stacked_bar(w, "groundfish_target_species", "vessel_weeks", "Vessel-weeks", ",.0f")
+                    stacked_bar(w, "groundfish_target_species", "vessel_weeks", "Vessel-weeks",
+                                ",.0f", colors=target_cmap)
                 else:
                     _sparse_table(w, "groundfish_target_species", "vessel_weeks", "Vessel-weeks")
 
@@ -643,25 +673,28 @@ def render_fleet_ownership() -> None:
                          "how ex-vessel value splits between Alaska and out-of-state (Economic SAFE)."))
     _econ_callout()
 
-    # A) Ex-vessel value by fleet (011)
-    d = sub[(sub["year"] >= yr[0]) & (sub["year"] <= yr[1])]
-    top = _top_by(d, "fleet", "exves_val_m", 8)
+    # A) Ex-vessel value by fleet (011). Convert millions → raw US$ so the value axis matches the
+    # other economics pages (landings, catch-value, wholesale all read in plain dollars).
+    d = sub[(sub["year"] >= yr[0]) & (sub["year"] <= yr[1])].copy()
+    d["exves_val"] = d["exves_val_m"] * 1e6
+    top = _top_by(d, "fleet", "exves_val", 8)
     dd = d[d["fleet"].isin(top)]
+    fleet_cmap = category_colors(by_total(d, "fleet", "exves_val"))
     latest = int(d["year"].max())
     lr = d[d["year"] == latest]
     with st.container(border=True):
-        section_title("Ex-vessel value by fleet", note="US$ millions, top fleets (GFSAFE011, 2009–)")
+        section_title("Ex-vessel value by fleet", note="current (nominal) US$, top fleets (GFSAFE011, 2009–)")
         kpi_grid([
-            kpi_card(f"Fleet value ({latest})", _fmt_usd(float(lr["exves_val_m"].sum()) * 1e6), AMBER,
+            kpi_card(f"Fleet value ({latest})", _fmt_usd(float(lr["exves_val"].sum())), AMBER,
                      sub="all fleets, nominal"),
             kpi_card(f"Vessels ({latest})", f"{int(lr['vessels'].sum()):,}", BLUE, sub="all fleets"),
             kpi_card("Fleets · years", f"{d['fleet'].nunique()} · {d['year'].nunique()}", SLATE,
                      sub=f"{yr[0]}–{yr[1]}"),
         ], cols=3)
         if dd["year"].nunique() >= _MIN_FOR_CHART:
-            stacked_bar(dd, "fleet", "exves_val_m", "Ex-vessel value (US$ millions)", "$,.1f")
+            stacked_bar(dd, "fleet", "exves_val", "Ex-vessel value (US$)", "$,.0f", colors=fleet_cmap)
         else:
-            _sparse_table(dd, "fleet", "exves_val_m", "Value ($M)")
+            _sparse_table(dd, "fleet", "exves_val", "Value (US$)")
 
     # B) Fleet characteristics (019)
     fc = load_safe_report("gfsafe019")
@@ -693,8 +726,10 @@ def render_fleet_ownership() -> None:
                               note="% of ex-vessel value to Alaska-resident harvesters (GFSAFE010)")
                 callout("Share of each species group's ex-vessel value paid to <b>Alaska-resident</b> "
                         "vessels (the remainder goes to out-of-state harvesters).", icon="🏠", tint=SLATE)
+                res_cmap = category_colors(by_total(r, "species_group", "ak_pct"))
                 if r["year"].nunique() >= _MIN_FOR_CHART:
-                    _series_chart(r, "species_group", "ak_pct", "Alaska-resident value share (%)", ".0f", agg="mean")
+                    _series_chart(r, "species_group", "ak_pct", "Alaska-resident value share (%)",
+                                  ".0f", agg="mean", colors=res_cmap)
                 else:
                     _sparse_table(r, "species_group", "ak_pct", "AK share (%)")
 
@@ -750,7 +785,7 @@ def render_crab() -> None:
     inject_css()
     d = load_safe_report("crsafeexec01")
     if d is None or d.empty:
-        st.title("🦀 BSAI Crab Economics")
+        st.title("🦀 Crabonomics")
         st.info("Crab Economic SAFE data not built yet. Run `mhw-ingest-econ-safe`.")
         return
 
@@ -765,7 +800,7 @@ def render_crab() -> None:
     picked = st.sidebar.multiselect("Crab fishery", all_stocks, default=default or all_stocks,
                                     key="crab_stocks")
 
-    page_header("🦀", "BSAI Crab Economics", "Bering Sea & Aleutian Islands",
+    page_header("🦀", "Crabonomics", "Bering Sea & Aleutian Islands",
                 "Bering Sea & Aleutian Islands crab",
                 caption=("Commercial crab harvest, ex-vessel value, and price by fishery/stock — "
                          "NOAA BSAI Crab Economic SAFE (CRSAFEEXEC01)."))
@@ -817,8 +852,11 @@ def render_crab() -> None:
 
     with st.container(border=True):
         section_title("Ex-vessel price", note="US$ per pound, by crab fishery")
+        # Price is a per-unit (intensive) measure — self-scaled small multiples + a snapshot table,
+        # matching the groundfish ex-vessel prices page, rather than one squeezed overlaid line chart.
+        _latest_table(sel, "stock", "hpy_exvpr_nom", "Latest price", unit="$", suffix="/lb")
         if n_years >= _MIN_FOR_CHART:
-            _series_chart(sel, "stock", "hpy_exvpr_nom", "Ex-vessel price (US$/lb)", "$.2f", agg="mean")
+            _small_multiples(sel, "stock", "hpy_exvpr_nom", "$", cmap, suffix="/lb")
         else:
             _sparse_table(sel, "stock", "hpy_exvpr_nom", "Price ($/lb)")
 
