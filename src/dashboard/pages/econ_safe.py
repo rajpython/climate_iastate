@@ -96,16 +96,20 @@ def _fmp_selector(df: pd.DataFrame, key: str) -> str | None:
     opts = available_areas(df)
     if not opts:
         return None
-    return st.sidebar.selectbox("FMP area", opts, format_func=fmp_label, key=key)
+    return st.sidebar.selectbox(
+        "FMP area", opts, format_func=fmp_label, key=key,
+        help=("FMP = Fishery Management Plan. BSAI (Bering Sea & Aleutian Islands) and GOA "
+              "(Gulf of Alaska) are the two North Pacific groundfish management areas defined "
+              "under NPFMC's Fishery Management Plans."))
 
 
 def _econ_callout() -> None:
     callout(
         "Commercial groundfish economics from NOAA/AFSC's <b>Economic SAFE</b> (via AKFIN), at "
-        "<b>FMP-area</b> resolution — <b>BSAI</b> (Bering Sea & Aleutian Islands) and <b>GOA</b> "
-        "(Gulf of Alaska). These are management areas, <b>not</b> the survey ecosystem regions: "
-        "BSAI bundles the Bering Sea and Aleutians and cannot be split. Values are "
-        "<b>nominal</b> (not inflation-adjusted).",
+        "<b>FMP</b> (Fishery Management Plan) area resolution — <b>BSAI</b> (Bering Sea & Aleutian "
+        "Islands) and <b>GOA</b> (Gulf of Alaska). These are management areas, <b>not</b> the "
+        "survey ecosystem regions: BSAI bundles the Bering Sea and Aleutians and cannot be split. "
+        "Values are <b>nominal</b> (not inflation-adjusted).",
         icon="⚓", tint=BLUE)
 
 
@@ -131,11 +135,19 @@ def render_catch_value() -> None:
     y0, y1 = int(sub["year"].min()), int(sub["year"].max())
     yr = st.sidebar.slider("Year range", y0, y1, (y0, y1), key="cv_years")
 
-    all_sp = [s for s in sorted(sub["species_group"].unique()) if s != "All Groundfish"]
-    default_sp = (sub[sub["species_group"] != "All Groundfish"]
-                  .groupby("species_group")["exvessel_value"].sum()
+    ir = sub[(sub["year"] >= yr[0]) & (sub["year"] <= yr[1]) & (sub["species_group"] != "All Groundfish")]
+    catch_by_sp = ir.groupby("species_group")["retained_catch_mt"].sum().sort_values(ascending=False)
+    all_sp = catch_by_sp.index.tolist()
+    default_sp = (ir.groupby("species_group")["exvessel_value"].sum()
                   .sort_values(ascending=False).head(5).index.tolist())
-    picked = st.sidebar.multiselect("Species group", all_sp, default=default_sp, key="cv_species")
+
+    def _sp_label(sp: str) -> str:
+        return f"{sp} — {_fmt_t(float(catch_by_sp.get(sp, 0.0)))}"
+
+    picked = st.sidebar.multiselect("Species group (by catch)", all_sp, default=default_sp,
+                                    format_func=_sp_label, key="cv_species")
+    st.sidebar.caption(f"Each figure is total retained catch over {yr[0]}–{yr[1]} "
+                       f"({sector.lower()}); the list re-ranks as you move the slider.")
 
     page_header("💵", "Groundfish Catch & Ex-Vessel Value", fmp_label(area),
                 f"{fmp_label(area)} · {sector}",
