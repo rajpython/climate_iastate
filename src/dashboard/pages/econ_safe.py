@@ -438,7 +438,7 @@ def render_wholesale() -> None:
             kpi_card(f"Product weight ({latest})", _fmt_t(tot_t), GREEN, sub="processed weight"),
             kpi_card(f"Wholesale value ({latest})", _fmt_usd(tot_v), AMBER, sub="nominal $"),
             kpi_card(f"Wholesale price ({latest})", f"${price:.2f}/lb" if tot_t else "—", BLUE,
-                     sub="value ÷ weight"),
+                     sub="per lb of product"),
             kpi_card("Species · years", f"{sel['species'].nunique()} · {n_years}", SLATE,
                      sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=4)
@@ -473,18 +473,22 @@ def _wholesale_unit_value_panel(area: str, yr: tuple[int, int]) -> None:
     d = d[d["species_group"] != "All Groundfish"]
     if d.empty or d["wslprice_perroundmt"].dropna().empty:
         return
-    # Unit value ($/round t) is a per-unit measure spanning ~10× across species groups (premium
-    # sablefish vs pollock), so small multiples + a snapshot table read far better than one axis.
-    cmap = category_colors(by_total(d, "species_group", "wslprice_perroundmt"))
+    # Report in $/lb (the fisheries standard, as everywhere else) rather than $/round-metric-ton.
+    # Basis is ROUND (whole) weight, distinct from the product-weight price above — kept in the label.
+    d = d.copy()
+    d["unit_value_lb"] = d["wslprice_perroundmt"] / _LBS_PER_TONNE
+    # Per-unit measure spanning ~10× across species groups → small multiples + a snapshot table.
+    cmap = category_colors(by_total(d, "species_group", "unit_value_lb"))
     with st.container(border=True):
-        section_title("Wholesale unit value", note="US$ per round metric ton, sector-mean (GFSAFE013)")
-        _latest_table(d, "species_group", "wslprice_perroundmt", "Latest unit value",
-                      unit="$", suffix="/round t", valfmt=",.0f")
+        section_title("Wholesale unit value",
+                      note="US$ per lb of round (whole) fish, sector-mean (GFSAFE013)")
+        _latest_table(d, "species_group", "unit_value_lb", "Latest unit value",
+                      unit="$", suffix="/lb round", valfmt=".2f")
         if d["year"].nunique() >= _MIN_FOR_CHART:
-            _small_multiples(d, "species_group", "wslprice_perroundmt", "$", cmap,
-                             suffix="/round t", valfmt=",.0f")
+            _small_multiples(d, "species_group", "unit_value_lb", "$", cmap,
+                             suffix="/lb round", valfmt=".2f")
         else:
-            _sparse_table(d, "species_group", "wslprice_perroundmt", "Unit value ($/round t)")
+            _sparse_table(d, "species_group", "unit_value_lb", "Unit value ($/lb round)")
 
 
 def _wholesale_processor_panel(area: str, yr: tuple[int, int]) -> None:
