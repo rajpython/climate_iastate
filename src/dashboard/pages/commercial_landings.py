@@ -127,7 +127,7 @@ def render() -> None:
         "Species (by landings)", available, default=_top_species_by_value(in_range, 5),
         format_func=_option_label, key="cl_species")
     st.sidebar.caption(f"Each species' figure is its **total landings over {yr[0]}–{yr[1]}** "
-                       "(the selected years); the list re-ranks as you move the slider.")
+                       "(the selected years); the list re-ranks as you move the year-range slider.")
 
     page_header("💰", "Commercial Landings", "Statewide Alaska",
                 "Alaska — statewide",

@@ -148,7 +148,7 @@ def render_catch_value() -> None:
     picked = st.sidebar.multiselect("Species group (by catch)", all_sp, default=default_sp,
                                     format_func=_sp_label, key="cv_species")
     st.sidebar.caption(f"Each figure is total retained catch over {yr[0]}–{yr[1]} "
-                       f"({sector.lower()}); the list re-ranks as you move the slider.")
+                       f"({sector.lower()}); the list re-ranks as you move the year-range slider.")
 
     page_header("💵", "Groundfish Catch & Ex-Vessel Value", fmp_label(area),
                 f"{fmp_label(area)} · {sector}",
