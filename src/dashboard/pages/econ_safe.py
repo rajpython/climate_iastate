@@ -35,6 +35,7 @@ from dashboard.components.bottom_ui import (
 from dashboard.components.econ_data import (
     ECON_PALETTE,
     available_areas,
+    by_total,
     category_colors,
     fmp_label,
     load_safe_report,
@@ -155,7 +156,8 @@ def render_catch_value() -> None:
     tot_t, tot_v = float(lr["retained_catch_mt"].sum()), float(lr["exvessel_value"].sum())
     price = tot_v / (tot_t * _LBS_PER_TONNE) if tot_t else float("nan")
     n_years = sel["year"].nunique()
-    cmap = category_colors(all_sp)
+    cmap = category_colors(by_total(sub[sub["species_group"] != "All Groundfish"],
+                                    "species_group", "exvessel_value"))
 
     with st.container(border=True):
         section_title("Retained catch & ex-vessel value", note=f"{sector.lower()}, selected species")
@@ -314,7 +316,8 @@ def render_wholesale() -> None:
     tot_t, tot_v = float(lr["product_weight_mt"].sum()), float(lr["wholesale_value"].sum())
     price = tot_v / (tot_t * _LBS_PER_TONNE) if tot_t else float("nan")
     n_years = sel["year"].nunique()
-    cmap = category_colors(all_sp)
+    cmap = category_colors(by_total(sub[sub["species"] != "All Groundfish"],
+                                    "species", "wholesale_value"))
 
     with st.container(border=True):
         section_title("Wholesale production & value", note=f"{product.lower()}, selected species")
@@ -668,7 +671,7 @@ def render_crab() -> None:
     latest = int(sel.dropna(subset=["hpy_soldmt"])["year"].max())
     lr = sel[sel["year"] == latest]
     n_years = sel["year"].nunique()
-    cmap = category_colors(all_stocks)
+    cmap = category_colors(by_total(d, "stock", "hpy_soldmt"))
 
     with st.container(border=True):
         section_title("Harvest & ex-vessel value", note="by crab fishery (CRSAFEEXEC01)")
