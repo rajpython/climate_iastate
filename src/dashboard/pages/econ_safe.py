@@ -432,13 +432,20 @@ def render_wholesale() -> None:
     cmap = category_colors(by_total(sub[sub["species"] != "All Groundfish"],
                                     "species", "wholesale_value"))
 
+    lb = tot_t * _LBS_PER_TONNE
+    lb_str = f"{lb / 1e9:.2f} billion" if lb >= 1e9 else f"{lb / 1e6:.0f} million"
     with st.container(border=True):
         section_title("Wholesale production & value", note=f"{product.lower()}, selected species")
         kpi_grid([
-            kpi_card(f"Product weight ({latest})", _fmt_t(tot_t), GREEN, sub="processed weight"),
+            kpi_card(f"Product weight ({latest})", _fmt_t(tot_t), GREEN, sub="processed weight",
+                     tip=(f"≈ {lb_str} pounds (1 metric ton = 2,204.62 lb). Fishery volumes "
+                          "are reported in metric tons; in pounds they run to billions.")),
             kpi_card(f"Wholesale value ({latest})", _fmt_usd(tot_v), AMBER, sub="nominal $"),
             kpi_card(f"Wholesale price ({latest})", f"${price:.2f}/lb" if tot_t else "—", BLUE,
-                     sub="per lb of product"),
+                     sub="per lb of product",
+                     tip=("Per lb of PRODUCT — the processed output (fillets, headed-and-gutted, "
+                          "meal…), a fraction of the whole-fish (round) weight. The unit-value "
+                          "panel below is per lb of ROUND (whole) fish.")),
             kpi_card("Species · years", f"{sel['species'].nunique()} · {n_years}", SLATE,
                      sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=4)
@@ -479,9 +486,13 @@ def _wholesale_unit_value_panel(area: str, yr: tuple[int, int]) -> None:
     d["unit_value_lb"] = d["wslprice_perroundmt"] / _LBS_PER_TONNE
     # Per-unit measure spanning ~10× across species groups → small multiples + a snapshot table.
     cmap = category_colors(by_total(d, "species_group", "unit_value_lb"))
+    _tip = ("Round (whole) weight = the fish as caught, before processing. Product weight = the "
+            "processed output (fillets, H&amp;G, meal…), a fraction of round weight. So $/lb round "
+            "is value per lb of fish landed; $/lb product is the finished-product price.")
     with st.container(border=True):
         section_title("Wholesale unit value",
-                      note="US$ per lb of round (whole) fish, sector-mean (GFSAFE013)")
+                      note=("US$ per lb of round (whole) fish, sector-mean (GFSAFE013) "
+                            f"<span class='bs-tip'>ⓘ<span class='bs-tip-box'>{_tip}</span></span>"))
         _latest_table(d, "species_group", "unit_value_lb", "Latest unit value",
                       unit="$", suffix="/lb round", valfmt=".2f")
         if d["year"].nunique() >= _MIN_FOR_CHART:
