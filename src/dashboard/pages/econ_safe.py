@@ -74,20 +74,26 @@ def _fmt_t(v: float) -> str:
 
 
 def _series_chart(df: pd.DataFrame, cat_col: str, val_col: str, y_title: str,
-                  hover_fmt: str, agg: str = "sum") -> None:
-    """One line per category over the year axis (gaps broken; duplicate years aggregated)."""
+                  hover_fmt: str, agg: str = "sum", colors: dict[str, str] | None = None) -> None:
+    """One line per category over the year axis (gaps broken; duplicate years aggregated).
+
+    Pass *colors* (a {category → colour} map from :func:`category_colors`) so a line keeps its
+    category's own colour — never "always blue for the first one". Hover shows the category name
+    (bold) + year + value in a readable font.
+    """
     fig = go.Figure()
     years = list(range(int(df["year"].min()), int(df["year"].max()) + 1))
     for i, (cat, g) in enumerate(df.groupby(cat_col)):
         s = g.groupby("year")[val_col].agg(agg).reindex(years)
+        color = (colors or {}).get(str(cat)) or ECON_PALETTE[i % len(ECON_PALETTE)]
         fig.add_trace(go.Scatter(
             x=years, y=s.values, mode="lines+markers", name=str(cat),
-            line=dict(color=ECON_PALETTE[i % len(ECON_PALETTE)], width=2), marker=dict(size=5),
-            connectgaps=False,
-            hovertemplate="%{x}: %{y:" + hover_fmt + "}<extra>" + str(cat) + "</extra>"))
+            line=dict(color=color, width=2), marker=dict(size=5), connectgaps=False,
+            hovertemplate="<b>%{fullData.name}</b><br>%{x}: %{y:" + hover_fmt + "}<extra></extra>"))
     fig.update_layout(
         template="plotly_white", height=400, margin=dict(l=10, r=10, t=30, b=10),
         yaxis_title=y_title, xaxis_title="Year", font=dict(size=13),
+        hovermode="closest", hoverlabel=dict(font_size=14, namelength=-1),
         legend=dict(orientation="h", y=1.14, font=dict(size=11)))
     fig.update_xaxes(dtick=5, tickformat="d")
     st.plotly_chart(fig, use_container_width=True)
@@ -235,8 +241,17 @@ def render_prices() -> None:
     y0, y1 = int(sub["year"].min()), int(sub["year"].max())
     yr = year_slider("Years", y0, y1, "pr_years")
     all_sp = [s for s in sorted(sub["species"].unique()) if s != "All Groundfish"]
-    default_sp = all_sp[:5]
+    # Default to the headline groundfish (present in this area) rather than the arbitrary first-5
+    # alphabetically. GFSAFE009 carries no volume, so we can't rank by tonnage here.
+    _headline = ["Pollock", "Pacific Cod", "Sablefish", "Atka Mackerel", "Pacific Ocean Perch",
+                 "Yellowfin Sole", "Arrowtooth Flounder", "Rock Sole"]
+    default_sp = []
+    for h in _headline:
+        default_sp += [s for s in all_sp if s.startswith(h) and s not in default_sp]
+    default_sp = (default_sp or all_sp)[:5]
     picked = st.sidebar.multiselect("Species", all_sp, default=default_sp, key="pr_species")
+    # Colour by identity, default species first so the initial view is collision-free.
+    cmap = category_colors(default_sp + [s for s in all_sp if s not in default_sp])
 
     page_header("🏷️", "Groundfish Ex-Vessel Prices", fmp_label(area),
                 f"{fmp_label(area)} · {gear} · {psector}",
@@ -266,9 +281,19 @@ def render_prices() -> None:
                      sub=f"{int(sel['year'].min())}–{latest}"),
         ], cols=3)
         if n_years >= _MIN_FOR_CHART:
-            _series_chart(sel, "species", "exves_price_lb", "Ex-vessel price (US$/lb)", "$.2f", agg="mean")
+            _series_chart(sel, "species", "exves_price_lb", "Ex-vessel price (US$/lb)", "$.2f",
+                          agg="mean", colors=cmap)
         else:
             _sparse_table(sel, "species", "exves_price_lb", "Price ($/lb)")
+        callout(
+            "Ex-vessel price varies with <b>gear</b> and <b>processing sector</b> because they "
+            "change the fish's quality and end market. <b>Fixed</b> gear (hook-and-line, pot) "
+            "catches fish individually with less damage and often bleeds them, so it grades higher "
+            "and sells for more than <b>trawl</b>-caught fish — a small gap for commodity species "
+            "like Pacific cod, but a large one for premium species: BSAI sablefish recently fetched "
+            "~$1.23/lb fixed-gear vs ~$0.71/lb trawl. Use the Gear / Processing-sector selectors to "
+            "compare.",
+            icon="🎣", tint=SLATE)
 
     footer("Source: NOAA/AFSC Groundfish Economic SAFE via AKFIN (GFSAFE009); FMP-area, annual, "
            "nominal ex-vessel price.", guide_url="/econ_safe_guide")
