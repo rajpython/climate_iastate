@@ -46,6 +46,10 @@ _ECO = {
 }
 
 # Economic series: (kind, key, column, axis title, hover fmt). kind drives the loader.
+# Crab only, by design: these are Bering-shelf, cold-pool-associated stocks, so pairing them with
+# the SEBS cold-pool/temperature index is ecologically coherent. Whole-BSAI groundfish value was
+# deliberately dropped — it aggregates the Aleutians (outside the cold pool) and species whose
+# economics are driven by quota management, so that pairing is a spatial/ecological mismatch.
 _ECON = {
     "Snow crab — ex-vessel value": ("crab", "BERING SEA SNOW CRAB", "hpy_exv_nom",
                                     "Ex-vessel value (US$)", "$,.0f"),
@@ -53,8 +57,6 @@ _ECON = {
                             "Harvest (metric tons)", ",.0f"),
     "Bristol Bay red king crab — ex-vessel value": ("crab", "BRISTOL BAY RED KING CRAB",
                                                     "hpy_exv_nom", "Ex-vessel value (US$)", "$,.0f"),
-    "BSAI groundfish — ex-vessel value": ("gf", "All Groundfish", "exvessel_value",
-                                          "Ex-vessel value (US$)", "$,.0f"),
 }
 
 
@@ -71,18 +73,11 @@ def _eco_series(col: str) -> pd.DataFrame:
 
 
 def _econ_series(label: str) -> pd.DataFrame:
-    kind, key, col, _, _ = _ECON[label]
-    if kind == "crab":
-        d = load_safe_report("crsafeexec01")
-        if d is None:
-            return pd.DataFrame(columns=["year", "value"])
-        d = d[d["fishery_name"] == key][["year", col]].rename(columns={col: "value"})
-    else:  # groundfish GFSAFE002 — BSAI, all sectors
-        d = load_safe_report("gfsafe002")
-        if d is None:
-            return pd.DataFrame(columns=["year", "value"])
-        d = d[(d["area_code"] == "bsai") & (d["harvest_sector"] == "All Sectors")
-              & (d["species_group"] == key)][["year", col]].rename(columns={col: "value"})
+    _kind, key, col, _, _ = _ECON[label]
+    d = load_safe_report("crsafeexec01")
+    if d is None:
+        return pd.DataFrame(columns=["year", "value"])
+    d = d[d["fishery_name"] == key][["year", col]].rename(columns={col: "value"})
     return d.dropna().sort_values("year").reset_index(drop=True)
 
 
