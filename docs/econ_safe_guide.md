@@ -62,13 +62,34 @@ Alongside the groundfish reports, the board ingests the **BSAI Crab Economic SAF
 series — a parallel product for the Bering Sea and Aleutian Islands crab fisheries. Unlike the
 groundfish reports, crab is keyed by **fishery/stock** (Bering Sea snow crab, Bristol Bay red king
 crab, Bering Sea Tanner, Aleutian Islands golden king, etc.), not by FMP area, and is BSAI-only.
-The **Crab Economics** page shows harvest (t), ex-vessel value ($), and ex-vessel price ($/lb) by
-fishery (CRSAFEEXEC01, 1998–2023).
+The **Crabonomics** page shows harvest (metric tons), ex-vessel value ($), and ex-vessel price
+($/lb) by fishery (CRSAFEEXEC01, 1998–2023).
 
 This is where the cold pool meets the dock: the page's **snow-crab spotlight** documents the
 2022 collapse of Bering Sea snow crab — the fishery was closed for the 2022/23 and 2023/24 seasons
 after the stock crashed, coinciding with the record-warm Bering Sea of 2018–2019 and the loss of
 the cold pool. The page cross-links to the Bering cold-pool and Catch × Bottom State pages.
+
+## Cold Pool × Crabonomics (ecosystem × economics)
+
+A dedicated page pairs the board's two halves — the observed ecosystem state and the commercial
+economics — for the Eastern Bering Sea. It sets a crab economic series (snow crab ex-vessel value
+or harvest, Bristol Bay red king value) against an ecosystem indicator (**cold-pool area ≤ 2 °C**
+or **mean bottom temperature** — two views of the same thermal signal), with a year-colored
+scatter and a snow-crab **harvest-vs-survey** panel.
+
+Read these as **exploratory, descriptive associations — not causal**: ex-vessel value is driven by
+quota management, markets, and stock dynamics far beyond any single indicator. Two honesty rules
+are baked in:
+
+- **Crab only, by design.** The ecosystem indicator is a Bering-shelf (EBS/NBS) product, so the
+  page pairs it only with Bering-shelf, cold-pool-associated crab stocks. Whole-BSAI groundfish is
+  deliberately excluded — it aggregates the Aleutians (outside the cold pool) and quota-driven
+  species, a spatial and ecological mismatch.
+- **Overlap-only correlations.** Each Pearson *r* is computed on the **years where both series
+  exist** (inner join); the longer ecosystem record is not correlated against years with no SAFE
+  data. The card reports the overlapping-year count *n* (e.g. snow crab × cold pool: 1998–2022,
+  n = 24).
 
 ## Currency and refresh
 
@@ -80,4 +101,5 @@ the cold pool. The page cross-links to the Bering cold-pool and Catch × Bottom 
 ## Not included
 
 Confidential vessel/processor-level records, and any inflation adjustment, are out of scope.
-Crab economics (ADF&G) and joins to survey biomass / bottom temperature are separate, later layers.
+Deeper joins to survey biomass and forecasting remain separate, later layers — the Cold Pool ×
+Crabonomics page above is a first, deliberately descriptive (non-causal) step, not an effect model.
