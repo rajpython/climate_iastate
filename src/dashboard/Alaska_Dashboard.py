@@ -114,7 +114,7 @@ _COVERAGE = [
       ("Fishing Effort & Labor", "econ_effort"),
       ("Fleet & Ownership", "econ_fleet"),
       ("Crabonomics", "econ_crab"),
-      ("Ecosystem × Economics", "eco_econ")]),
+      ("Cold Pool × Crabonomics", "eco_econ")]),
     ("Research", "Research Resources",
      "Literature summaries, technical notes, forecast development, and project research.", False,
      [("Overview", "research"),
@@ -292,7 +292,7 @@ nav = {
         st.Page(econ_effort_render, title="Fishing Effort & Labor", url_path="econ_effort"),
         st.Page(econ_fleet_render, title="Fleet & Ownership", url_path="econ_fleet"),
         st.Page(econ_crab_render, title="Crabonomics", url_path="econ_crab"),
-        st.Page(eco_econ_render, title="Ecosystem × Economics", url_path="eco_econ"),
+        st.Page(eco_econ_render, title="Cold Pool × Crabonomics", url_path="eco_econ"),
     ],
     "Research": [
         st.Page(research_render, title="Overview", url_path="research"),

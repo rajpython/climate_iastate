@@ -1,4 +1,4 @@
-"""Ecosystem × Economics — exploratory joins between ecosystem state and commercial value.
+"""Cold Pool × Crabonomics — exploratory joins between ecosystem state and commercial value.
 
 The board's two halves meet here: the **ecosystem indicators** (cold-pool area, bottom
 temperature, survey abundance) and the **commercial economics** (ex-vessel value, harvest). This
@@ -146,7 +146,7 @@ def render() -> None:
     econ_label = st.sidebar.selectbox("Economic series", list(_ECON), index=0, key="ee_econ")
     eco_label = st.sidebar.selectbox("Ecosystem indicator", list(_ECO), index=0, key="ee_eco")
 
-    page_header("🔗", "Ecosystem × Economics", "Eastern Bering Sea",
+    page_header("🔗", "Cold Pool × Crabonomics", "Eastern Bering Sea",
                 "Eastern Bering Sea",
                 caption=("Where the board's two halves meet — commercial value set against the "
                          "ecosystem indicators that describe the shelf it comes from."))
