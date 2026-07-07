@@ -58,7 +58,7 @@ fetch (OISST, AO/PDO)  →  static artifacts (masks, weights, climatology)
 
 CLI ↔ module map: `mhw-fetch-sst`/`mhw-fetch-indices` (`mhw.fetch.*`) → `mhw-build-masks` (`mhw.regions.masks`) + `mhw-build-climatology` (`mhw.climatology.build_mu_theta`) → `mhw-run-states`/`mhw-backfill` (`mhw.states.update_states`) → `mhw-aggregate` (`mhw.states.aggregates`) → `mhw-compute-risk` (`mhw.states.risk`).
 
-Key data artifacts: `data/derived/masks/region_masks.zarr`, `data/derived/weights/weights.zarr`, `data/derived/climatology/`, `data/derived/states_grid/*.zarr`, `data/derived/aggregates_region/region_daily_*.parquet`, `data/derived/risk/`. Region polygons are `config/regions.geojson`; tuning is in `config/*.yml`. Full methodology is in `mhw_README.md`; runtime/data-flow detail is in `docs/architecture_runtime.md`.
+Key data artifacts: `data/derived/masks/region_masks.zarr`, `data/derived/weights/weights.zarr`, `data/derived/climatology/`, `data/derived/states_grid/*.zarr`, `data/derived/aggregates_region/region_daily_*.parquet`, `data/derived/risk/`. Region polygons are `config/regions.geojson`; tuning is in `config/*.yml`. Full methodology is in `mhw_README.md`; runtime/data-flow detail is in `docs/technical/architecture_runtime.md`.
 
 ### Bottom ocean state / cold pool (`src/mhw/bottom/`)
 

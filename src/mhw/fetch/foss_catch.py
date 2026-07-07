@@ -1,7 +1,7 @@
 """FOSS catch × bottom-state adapter — survey catch joined to its haul bottom temp.
 
 Phase 0 foundation for the Alaska-shelf board's *biological* layer (see
-``docs/alaska_shelf_expansion_plan.md`` §4). Every AFSC summer bottom-trawl tow records
+``docs/plans/alaska_shelf_expansion_plan.md`` §4). Every AFSC summer bottom-trawl tow records
 **both** its bottom temperature *and* what it caught, joined by one key (``hauljoin``).
 This module pulls NOAA's public **FOSS** REST API and returns a tidy **per-haul** frame —
 ``(year, region, lat, lon, depth, bottom_temperature_c, species_code, common_name,

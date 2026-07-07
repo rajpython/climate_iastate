@@ -160,7 +160,7 @@ class BathySource:
     The shelf mask (depth ≤ region.shelf_max_depth_m) was originally derived from Bering10K's
     own ``z_w`` bathymetry, which only exists in the Bering. A standalone bathymetry lets the
     same mask be built for ANY region (GOA, AI, Arctic) and gives every model an identical,
-    model-neutral footprint. See docs/bathymetry_mask_plan.md.
+    model-neutral footprint. See docs/plans/bathymetry_mask_plan.md.
     """
 
     id: str

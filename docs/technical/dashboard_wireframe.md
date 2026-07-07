@@ -1,4 +1,4 @@
-<!-- docs/dashboard_wireframe.md -->
+<!-- docs/technical/dashboard_wireframe.md -->
 # Dashboard Wireframe — MHW State Dashboard (Two Pages, Four Panels Each)
 
 ## Scope Guardrail
