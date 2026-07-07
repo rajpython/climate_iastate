@@ -563,7 +563,7 @@ All three sources are public and free. Brief attributions:
   Northeast Pacific (Baja to the Chukchi), 1993–2025 hindcast.
 
 Server endpoints, file formats, and the build/refresh commands are documented in the technical
-companion (`docs/cold_pool_README.md`).
+companion (`docs/technical/cold_pool_README.md`).
 
 ---
 
@@ -576,7 +576,7 @@ additionally carries ocean acidification / carbonate chemistry — including sea
 saturation, the crab-shell indicator. The survey adds surface temperature and, in recent
 years, bottom salinity. The dashboard currently shows temperature only; dissolved oxygen and
 aragonite are the highest-value additions for a fisheries audience and are planned (see
-`docs/alaska_shelf_expansion_plan.md`).
+`docs/plans/alaska_shelf_expansion_plan.md`).
 
 ---
 
@@ -831,7 +831,7 @@ Regions run south to north. Key: **✓** available · **~** partial or sporadic 
 available.
 
 The full regional availability matrix — other ocean-health indicators, catch/stock layers, and
-the expansion roadmap — is maintained in **`docs/alaska_shelf_expansion_plan.md`**, which is the
+the expansion roadmap — is maintained in **`docs/plans/alaska_shelf_expansion_plan.md`**, which is the
 authoritative source for current coverage and planned work.
 
 ### Table A.1 — Subsurface (bottom) temperature

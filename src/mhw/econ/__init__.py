@@ -8,5 +8,5 @@ survey. Source config lives in :mod:`mhw.econ.sources` (a descriptor per source)
 source is data, not code (mirrors :mod:`mhw.bottom.sources`).
 
 Scope boundary (firm): aggregated, non-confidential area × species × year only; no forecasting;
-no confidential (vessel/processor-level) ingest. See ``docs/commercial_economics_plan.md``.
+no confidential (vessel/processor-level) ingest. See ``docs/plans/commercial_economics_plan.md``.
 """

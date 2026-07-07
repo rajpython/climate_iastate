@@ -35,6 +35,7 @@ docs/wakefield_presentation/
 docs/tmp/
 # Email correspondence / outreach drafts (private)
 docs/forecast_extension/outreach/
+docs/outreach/
 .claude/
 plan/
 

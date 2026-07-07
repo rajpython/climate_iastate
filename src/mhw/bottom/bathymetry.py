@@ -6,7 +6,7 @@ Bering10K covers (the Bering). This module derives the same per-cell depth from 
 global bathymetry (ETOPO 2022, NOAA NCEI) so the mask can be built for ANY region — GOA, AI,
 the Arctic — and so every model shares an identical, model-neutral footprint.
 
-Method (see docs/bathymetry_mask_plan.md): fetch ETOPO over the region's bounds (longitude on
+Method (see docs/plans/bathymetry_mask_plan.md): fetch ETOPO over the region's bounds (longitude on
 ETOPO's native 0–360°), then **bin to the region's 0.25° analysis grid as the mean ocean depth
 per cell** (a 0.25° cell is "shelf" if its mean ETOPO depth ≤ the threshold). Land (elevation
 ≥ 0) is excluded; the result is positive metres below sea level, NaN where a cell has no ocean.
