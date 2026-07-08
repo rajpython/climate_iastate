@@ -17,8 +17,10 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.routes_assistant import router as assistant_router
 from api.routes_coldpool import router as coldpool_router
 from api.routes_econ_safe import router as econ_safe_router
+from api.routes_forecast import router as forecast_router
 from api.routes_landings import router as landings_router
 from api.routes_oceanhealth import router as oceanhealth_router
 from api.routes_indices import router as indices_router
@@ -58,7 +60,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],   # POST for the assistant chat endpoint
     allow_headers=["*"],
 )
 
@@ -72,6 +74,8 @@ app.include_router(coldpool_router, prefix="/v1", tags=["Cold Pool"])
 app.include_router(oceanhealth_router, prefix="/v1", tags=["Ocean Health"])
 app.include_router(landings_router, prefix="/v1", tags=["Landings"])
 app.include_router(econ_safe_router, prefix="/v1", tags=["Economic SAFE"])
+app.include_router(forecast_router, prefix="/v1", tags=["Forecast"])
+app.include_router(assistant_router, prefix="/v1", tags=["Assistant"])
 
 
 # ---------------------------------------------------------------------------

@@ -49,6 +49,14 @@ api = [
     "uvicorn>=0.27.0",
     "pydantic>=2.5.0",
 ]
+# Assistant: the data chatbot service (agent + tools + chart specs + PowerPoint export).
+# kaleido is PINNED to 0.2.1: 1.x needs a system Chrome the slim image lacks; 0.2.x bundles its
+# own, so headless Plotly→PNG rasterization for the .pptx export works. (Satisfies geo's >=0.2.1.)
+assistant = [
+    "anthropic>=0.40.0",
+    "python-pptx>=0.6.23",
+    "kaleido==0.2.1",
+]
 # Dev: testing + linting
 dev = [
     "pytest>=7.4.0",

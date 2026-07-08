@@ -241,3 +241,57 @@ class SurveyReplicatePayload(BaseModel):
     corr:    float | None = None   # overall haul-level correlation
     n_hauls: int = 0
     records: list[SurveyReplicateRecord]
+
+
+# ---------------------------------------------------------------------------
+# Short-term MHW forecast (LOFRA damped-persistence module, run on our area_frac)
+# ---------------------------------------------------------------------------
+
+class ForecastRole(str, Enum):
+    PERSISTENCE = "persistence"   # point + AR(1) band + L1 occurrence probability
+    CLIMATOLOGY = "climatology"   # magnitude/area shown as climatology only (ice-limited)
+
+
+class OnsetState(str, Enum):
+    ELEVATED = "elevated"
+    NORMAL   = "normal"
+
+
+class ForecastLeadRecord(BaseModel):
+    lead:        str              # honesty-ladder id: L1 / L2 / L3
+    lead_months: int
+    confidence:  str              # headline / banded / watch
+    method:      str              # damped_persistence / climatology
+    point:       float | None     # forecast area_frac at this lead
+    ar1_var:     float | None     # h-step AR(1) predictive variance (source of the band)
+    band_lo:     float | None
+    band_hi:     float | None
+    l1_prob:     float | None     # occurrence probability — L1 only (None otherwise)
+
+
+class ForecastPayload(BaseModel):
+    zone:           str
+    role:           ForecastRole
+    ice_caveat:     bool = False  # NBS + Arctic: satellite SST ice-contaminated
+    lim_reading:    bool = True   # False where the broad-field/LIM interpretation is unavailable
+    module_version: str | None = None   # pinned, paper-validated module (null before v1 delivery)
+    fit_vintage:    str | None = None    # coefficient-manifest fit-vintage (provenance)
+    note:           str = ""
+    records:        list[ForecastLeadRecord]
+
+
+class OnsetRecord(BaseModel):
+    date:      date_type
+    state:     OnsetState
+    threshold: float              # tunable decision threshold (paper operating point default)
+
+
+class OnsetWatchPayload(BaseModel):
+    zone:           str = "sebs"
+    module_version: str | None = None
+    fit_vintage:    str | None = None
+    note:           str = (
+        "Experimental two-state early-warning WATCH (elevated/normal) — a discrimination "
+        "indicator, NOT a calibrated probability and NOT a triggered alarm. SEBS only."
+    )
+    records:        list[OnsetRecord]

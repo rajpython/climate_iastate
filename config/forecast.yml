@@ -1,0 +1,42 @@
+# Forecast display configuration — the single source of truth for how forecast tiles are wired.
+#
+# The deployed product is LOFRA's damped-persistence module run in-process on our own monthly
+# per-zone `area_frac` (parity contract `area_frac = Σ(w·A)/Σ(w)`, predictand snapshot
+# `snap-obl028-predictand-20260701`). Division of labor settled 2026-07-08
+# (docs/handoffs, Thread: forecast-transfer). See docs/forecast_extension/.
+#
+# Zone roles are product-dependent (per LOFRA's correction):
+#   - persistence : point + AR(1) band + L1 occurrence probability, on the honesty ladder.
+#   - climatology : magnitude/area falls below persistence by L2; show climatology only.
+#   - onset       : SEBS-only two-state watch indicator (elevated/normal) — NEVER a probability.
+# NBS is a persistence zone but carries an ice-contamination caveat and gets NO broad-field/LIM
+# reading (the ice limit is about the LIM field interpretation, not NBS's own area_frac).
+
+# Pin to a delivered, paper-validated module version. null until LOFRA ships v1 (frozen
+# coefficients applied forward; re-fits are LOFRA re-validation events — we only bump this pin).
+module_version: null
+fit_vintage: null            # coefficient-manifest fit-vintage tag shown on the panel for provenance
+
+# Forecast horizons (the honesty ladder). Leads are calendar months on our OISST cadence.
+leads:
+  - id: L1
+    months: 1
+    confidence: headline          # MSSS-vs-clim ~0.48–0.68 — show with confidence
+  - id: L2
+    months: 2
+    confidence: banded            # MSSS ~0.15–0.40 — show, band honestly
+  - id: L3
+    months: 3
+    confidence: watch             # MSSS ~0.09–0.27 — low-confidence "watch"
+
+# Zone role map. Ids are leaves of the sealed 9-leaf partition (config/regions.geojson).
+zones:
+  sebs:       { role: persistence, ice_caveat: false, lim_reading: true,  onset: true  }
+  wgoa:       { role: persistence, ice_caveat: false, lim_reading: true,  onset: false }
+  egoa:       { role: persistence, ice_caveat: false, lim_reading: true,  onset: false }
+  nbs:        { role: persistence, ice_caveat: true,  lim_reading: false, onset: false }
+  ai_west:    { role: persistence, ice_caveat: false, lim_reading: true,  onset: false }
+  ai_central: { role: persistence, ice_caveat: false, lim_reading: true,  onset: false }
+  ai_east:    { role: persistence, ice_caveat: false, lim_reading: true,  onset: false }
+  chukchi:    { role: climatology, ice_caveat: true,  lim_reading: false, onset: false }
+  beaufort:   { role: climatology, ice_caveat: true,  lim_reading: false, onset: false }

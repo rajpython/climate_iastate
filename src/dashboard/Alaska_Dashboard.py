@@ -229,6 +229,9 @@ nav = {
     "Overview": [
         st.Page(home, title="Overview", default=True),
     ],
+    "Ask the Data": [
+        st.Page("pages/assistant.py", title="Ask the Data", url_path="assistant"),
+    ],
     # Two-level nav limit: the third level (Marine Heatwaves → Operational / Historical) lives
     # inside the hub page. Future climate indicators (SST anomalies, climate modes, outlooks)
     # become sibling pages here.
