@@ -147,12 +147,12 @@ _ANALYTICS_TOOLS = {
 
 
 def dispatch(name: str, tool_input: dict[str, Any], data_root: Path | None = None,
-             chart_registry: dict | None = None) -> tuple[dict, dict | None]:
+             chart_store: dict | None = None) -> tuple[dict, dict | None]:
     """Execute a tool. Returns ``(model_payload, client_event)``.
 
-    ``chart_registry`` (per-turn) holds charts by ``chart_id`` so ``build_report`` can embed a chart
-    made earlier in the same turn via ``chart_ref`` — the fix for compound "make charts then a deck"
-    requests without resending large specs.
+    ``chart_store`` (per-turn) holds charts by ``chart_id`` so ``build_report`` can embed a chart made
+    earlier in the same turn via ``chart_ref`` — the fix for compound "make charts then a deck"
+    requests without the model re-emitting large specs (which truncates against max_tokens).
     """
     ti = dict(tool_input or {})
     if data_root is not None:
@@ -173,9 +173,9 @@ def dispatch(name: str, tool_input: dict[str, Any], data_root: Path | None = Non
         except ChartError as exc:
             return {"error": str(exc)}, None
         chart_id = None
-        if chart_registry is not None:
-            chart_id = f"chart_{len(chart_registry) + 1}"
-            chart_registry[chart_id] = spec
+        if chart_store is not None:
+            chart_id = f"chart_{len(chart_store) + 1}"
+            chart_store[chart_id] = spec
         note = "Chart rendered for the user."
         if chart_id:
             note += f" Reference it in build_report as chart_ref={chart_id!r}."
@@ -188,8 +188,12 @@ def dispatch(name: str, tool_input: dict[str, Any], data_root: Path | None = Non
         for s in ti.get("slides", []):
             s = dict(s)
             ref = s.pop("chart_ref", None)
-            if ref and chart_registry and ref in chart_registry:
-                s["chart"] = chart_registry[ref]
+            if ref is not None:
+                if chart_store is None or ref not in chart_store:
+                    known = sorted(chart_store) if chart_store else []
+                    return ({"error": f"unknown chart_ref {ref!r}; make the chart first. "
+                             f"known chart_ids: {known}"}, None)
+                s["chart"] = chart_store[ref]
             slides.append(s)
         out = build_report(ti.get("title", ""), slides, ti.get("subtitle", ""))
         return ({"ok": True, "filename": out["filename"]},

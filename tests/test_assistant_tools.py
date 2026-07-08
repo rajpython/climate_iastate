@@ -74,30 +74,41 @@ def test_dispatch_unknown_tool():
 
 def test_make_chart_registers_chart_id():
     pytest.importorskip("plotly")
-    reg: dict = {}
+    store: dict = {}
     payload, ev = tools.dispatch(
         "make_chart",
         {"chart_type": "line", "title": "t", "series": [{"name": "a", "x": [1, 2], "y": [3, 4]}]},
-        chart_registry=reg)
+        chart_store=store)
     assert payload["chart_id"] == "chart_1"
     assert ev["chart_id"] == "chart_1"
-    assert "chart_1" in reg
+    assert "chart_1" in store
 
 
-def test_build_report_resolves_chart_ref(tmp_path):
+def test_build_report_resolves_two_chart_refs(tmp_path):
     pytest.importorskip("pptx")
     pytest.importorskip("plotly")
     pytest.importorskip("kaleido")
-    reg: dict = {}
-    tools.dispatch("make_chart",
-                   {"chart_type": "bar", "title": "t", "series": [{"name": "a", "x": ["x"], "y": [1.0]}]},
-                   chart_registry=reg)
+    store: dict = {}
+    for _ in range(2):
+        tools.dispatch("make_chart",
+                       {"chart_type": "bar", "title": "t", "series": [{"name": "a", "x": ["x"], "y": [1.0]}]},
+                       chart_store=store)
     payload, ev = tools.dispatch(
         "build_report",
-        {"title": "Deck", "slides": [{"heading": "H", "bullets": ["b"], "chart_ref": "chart_1"}]},
-        chart_registry=reg)
+        {"title": "Deck", "slides": [{"heading": "A", "chart_ref": "chart_1"},
+                                     {"heading": "B", "chart_ref": "chart_2"}]},
+        chart_store=store)
     assert payload["ok"] is True
     assert ev["type"] == "report"
+
+
+def test_build_report_unknown_chart_ref_errors():
+    payload, ev = tools.dispatch(
+        "build_report",
+        {"title": "Deck", "slides": [{"heading": "A", "chart_ref": "chart_99"}]},
+        chart_store={})
+    assert "error" in payload
+    assert ev is None
 
 
 def test_build_report_writes_pptx(tmp_path):

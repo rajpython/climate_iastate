@@ -13,8 +13,8 @@ from mhw.assistant.access import (
 
 
 def test_default_iteration_budget_raised_for_compound_requests():
-    assert AccessSettings().max_tool_iterations == 16
-    assert AccessSettings.from_env().max_tool_iterations >= 16
+    assert AccessSettings().max_tool_iterations == 24
+    assert AccessSettings.from_env().max_tool_iterations >= 24
 
 
 def test_rate_limiter_blocks_after_max_then_slides():
