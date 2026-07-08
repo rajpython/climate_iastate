@@ -113,7 +113,7 @@ TOOLS: list[dict] = [
          "dataset": _DS, "measure": {"type": "string"}, "filters": _FILTERS, "year": {"type": "integer"}},
          "required": ["dataset", "measure"]}},
     {"name": "make_chart",
-     "description": "Render a chart from data you retrieved. chart_type ∈ line|bar|scatter|histogram; series is a list of {name,x,y}. trendline adds an OLS fit; dual_axis puts the 2nd series on a right axis.",
+     "description": "Render a chart from data you retrieved. chart_type ∈ line|bar|scatter|histogram; series is a list of {name,x,y}. trendline adds an OLS fit; dual_axis puts the 2nd series on a right axis. Returns a chart_id you can pass to build_report as chart_ref (no need to resend the whole spec).",
      "input_schema": {"type": "object", "properties": {
          "chart_type": {"type": "string", "enum": ["line", "bar", "scatter", "histogram"]},
          "title": {"type": "string"}, "x_title": {"type": "string"}, "y_title": {"type": "string"},
@@ -122,11 +122,12 @@ TOOLS: list[dict] = [
              "name": {"type": "string"}, "x": {"type": "array"}, "y": {"type": "array"}}}}},
          "required": ["chart_type", "title", "series"]}},
     {"name": "build_report",
-     "description": "Build a downloadable PowerPoint. slides is a list of {heading, bullets:[...], chart:<a make_chart-style spec or omit>}.",
+     "description": "Build a downloadable PowerPoint. slides is a list of {heading, bullets:[...], chart_ref:<a chart_id from make_chart> OR chart:<a full spec>}. Prefer chart_ref to reuse a chart you already made.",
      "input_schema": {"type": "object", "properties": {
          "title": {"type": "string"}, "subtitle": {"type": "string"},
          "slides": {"type": "array", "items": {"type": "object", "properties": {
              "heading": {"type": "string"}, "bullets": {"type": "array", "items": {"type": "string"}},
+             "chart_ref": {"type": "string", "description": "id returned by a prior make_chart"},
              "chart": {"type": "object"}}, "required": ["heading"]}}},
          "required": ["title", "slides"]}},
 ]
@@ -145,8 +146,14 @@ _ANALYTICS_TOOLS = {
 }
 
 
-def dispatch(name: str, tool_input: dict[str, Any], data_root: Path | None = None) -> tuple[dict, dict | None]:
-    """Execute a tool. Returns ``(model_payload, client_event)``."""
+def dispatch(name: str, tool_input: dict[str, Any], data_root: Path | None = None,
+             chart_registry: dict | None = None) -> tuple[dict, dict | None]:
+    """Execute a tool. Returns ``(model_payload, client_event)``.
+
+    ``chart_registry`` (per-turn) holds charts by ``chart_id`` so ``build_report`` can embed a chart
+    made earlier in the same turn via ``chart_ref`` — the fix for compound "make charts then a deck"
+    requests without resending large specs.
+    """
     ti = dict(tool_input or {})
     if data_root is not None:
         ti.setdefault("data_root", data_root)
@@ -165,11 +172,26 @@ def dispatch(name: str, tool_input: dict[str, Any], data_root: Path | None = Non
                 trendline=bool(ti.get("trendline", False)), dual_axis=bool(ti.get("dual_axis", False)))
         except ChartError as exc:
             return {"error": str(exc)}, None
-        return {"ok": True, "note": "Chart rendered for the user."}, {"type": "chart", "spec": spec}
+        chart_id = None
+        if chart_registry is not None:
+            chart_id = f"chart_{len(chart_registry) + 1}"
+            chart_registry[chart_id] = spec
+        note = "Chart rendered for the user."
+        if chart_id:
+            note += f" Reference it in build_report as chart_ref={chart_id!r}."
+        return ({"ok": True, "chart_id": chart_id, "note": note},
+                {"type": "chart", "spec": spec, "chart_id": chart_id})
 
     if name == "build_report":
         from mhw.assistant.report import build_report
-        out = build_report(ti.get("title", ""), ti.get("slides", []), ti.get("subtitle", ""))
+        slides = []
+        for s in ti.get("slides", []):
+            s = dict(s)
+            ref = s.pop("chart_ref", None)
+            if ref and chart_registry and ref in chart_registry:
+                s["chart"] = chart_registry[ref]
+            slides.append(s)
+        out = build_report(ti.get("title", ""), slides, ti.get("subtitle", ""))
         return ({"ok": True, "filename": out["filename"]},
                 {"type": "report", "token": out["token"], "filename": out["filename"]})
 

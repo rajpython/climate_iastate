@@ -32,7 +32,14 @@ WORKFLOW — always in this order:
 3. VISUALIZE: `make_chart` (line|bar|scatter|histogram; trendline; dual_axis). For a scatter with a
    correlation/regression line, call `correlate` first and plot its `points` (scatter) plus its
    `fit_line` (a line series) — do NOT compute correlations or fits yourself.
-4. EXPORT: `build_report` for a PowerPoint of the charts/findings.
+4. EXPORT: `build_report` for a PowerPoint of the charts/findings. To put charts you already made
+   into a deck, pass each chart's `chart_id` as the slide's `chart_ref` — do not resend the spec.
+
+COMPOUND REQUESTS: when a request has several parts ("plot A and B, correlate them, and make a
+deck"), decompose it into the discrete steps first, then work through them. Batch INDEPENDENT tool
+calls into a SINGLE turn (emit multiple tool calls at once) — e.g. query two datasets together —
+rather than one per turn; this is faster and stays within the step budget. Make each chart with
+make_chart (keep its chart_id), then assemble the deck with build_report using chart_ref.
 
 GROUNDING — non-negotiable:
 - Every number you state and every chart/deck you build MUST come from a tool result in THIS
@@ -66,7 +73,7 @@ def stream_chat(
     model: str | None = None,
     data_root: Path | None = None,
     settings: AccessSettings | None = None,
-    max_tokens: int = 2048,
+    max_tokens: int = 4096,
 ) -> Iterator[dict]:
     """Run the tool-use loop, yielding event dicts. ``messages`` is the running chat history."""
     import anthropic  # lazy — keeps the API importable without the SDK installed
@@ -75,6 +82,7 @@ def stream_chat(
     model = model or os.getenv("ASSISTANT_MODEL", DEFAULT_MODEL)
     client = anthropic.Anthropic()
     convo: list[dict] = list(messages)
+    chart_registry: dict = {}   # per-turn: chart_id -> spec, so build_report can reuse charts
 
     for _ in range(settings.max_tool_iterations + 1):
         with client.messages.stream(
@@ -94,7 +102,8 @@ def stream_chat(
         convo.append({"role": "assistant", "content": final.content})
         results = []
         for block in tool_uses:
-            payload, event = dispatch(block.name, block.input, data_root=data_root)
+            payload, event = dispatch(block.name, block.input, data_root=data_root,
+                                      chart_registry=chart_registry)
             if event is not None:
                 yield event
             results.append({
@@ -104,6 +113,19 @@ def stream_chat(
             })
         convo.append({"role": "user", "content": results})
 
-    # Exhausted the tool-iteration cap without a final answer.
-    yield {"type": "error", "detail": "Reached the tool-step limit for this turn."}
+    # Cap reached mid-task: degrade gracefully — one final NO-TOOLS turn so the model summarizes
+    # what it gathered instead of the user getting a bare error. (convo ends on a user tool_result
+    # turn, so a tool-less assistant turn is valid.)
+    yield {"type": "text",
+           "text": "\n\n_(Reached the step limit for one turn — summarizing what I found so far.)_\n\n"}
+    try:
+        with client.messages.stream(
+            model=model, system=SYSTEM, messages=convo, max_tokens=max_tokens,
+        ) as stream:
+            for text in stream.text_stream:
+                yield {"type": "text", "text": text}
+            final = stream.get_final_message()
+        _record_usage(getattr(final, "usage", None))
+    except Exception as exc:  # noqa: BLE001 — never fail the whole turn on the wrap-up call
+        yield {"type": "error", "detail": f"wrap-up failed: {exc}"}
     yield {"type": "done"}

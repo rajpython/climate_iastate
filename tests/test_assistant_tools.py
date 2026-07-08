@@ -72,6 +72,34 @@ def test_dispatch_unknown_tool():
     assert ev is None
 
 
+def test_make_chart_registers_chart_id():
+    pytest.importorskip("plotly")
+    reg: dict = {}
+    payload, ev = tools.dispatch(
+        "make_chart",
+        {"chart_type": "line", "title": "t", "series": [{"name": "a", "x": [1, 2], "y": [3, 4]}]},
+        chart_registry=reg)
+    assert payload["chart_id"] == "chart_1"
+    assert ev["chart_id"] == "chart_1"
+    assert "chart_1" in reg
+
+
+def test_build_report_resolves_chart_ref(tmp_path):
+    pytest.importorskip("pptx")
+    pytest.importorskip("plotly")
+    pytest.importorskip("kaleido")
+    reg: dict = {}
+    tools.dispatch("make_chart",
+                   {"chart_type": "bar", "title": "t", "series": [{"name": "a", "x": ["x"], "y": [1.0]}]},
+                   chart_registry=reg)
+    payload, ev = tools.dispatch(
+        "build_report",
+        {"title": "Deck", "slides": [{"heading": "H", "bullets": ["b"], "chart_ref": "chart_1"}]},
+        chart_registry=reg)
+    assert payload["ok"] is True
+    assert ev["type"] == "report"
+
+
 def test_build_report_writes_pptx(tmp_path):
     pytest.importorskip("pptx")
     pytest.importorskip("plotly")

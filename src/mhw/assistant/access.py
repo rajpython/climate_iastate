@@ -41,7 +41,7 @@ class AccessSettings:
     gate_password: str | None = None
     rate_per_min: int = 20
     monthly_token_budget: int = 5_000_000
-    max_tool_iterations: int = 8
+    max_tool_iterations: int = 16            # headroom for decomposed, multi-part (compound) requests
 
     @classmethod
     def from_env(cls) -> "AccessSettings":
@@ -50,7 +50,7 @@ class AccessSettings:
             gate_password=(os.getenv("ASSISTANT_GATE_PASSWORD") or None),
             rate_per_min=int(os.getenv("ASSISTANT_RATE_PER_MIN", "20")),
             monthly_token_budget=int(os.getenv("ASSISTANT_MONTHLY_TOKEN_BUDGET", "5000000")),
-            max_tool_iterations=int(os.getenv("ASSISTANT_MAX_TOOL_ITERS", "8")),
+            max_tool_iterations=int(os.getenv("ASSISTANT_MAX_TOOL_ITERS", "16")),
         )
 
 
