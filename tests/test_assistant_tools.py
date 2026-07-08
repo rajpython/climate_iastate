@@ -1,7 +1,5 @@
-"""Assistant tool wrappers — pure, network-free, exercised on small in-memory frames."""
+"""Tool dispatch tests — catalog-driven routing, chart events, grounding backstops."""
 from __future__ import annotations
-
-from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -9,53 +7,69 @@ import pytest
 from mhw.assistant import tools
 
 
-def _write_region(tmp_path: Path, zone: str = "sebs") -> Path:
-    d = tmp_path / "derived" / "aggregates_region"
-    d.mkdir(parents=True, exist_ok=True)
-    df = pd.DataFrame({
+def _mhw(tmp):
+    a = tmp / "derived" / "aggregates_region"
+    a.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame({
         "date": pd.date_range("2020-01-01", periods=5, freq="D"),
         "area_frac": [0.1, 0.2, 0.3, 0.4, 0.5],
         "Ibar": [1.0] * 5, "Dbar": [0.0] * 5, "Cbar": [0.0] * 5, "Obar": [0.0] * 5,
-    })
-    df.to_parquet(d / f"region_daily_{zone}.parquet")
-    return tmp_path
+    }).to_parquet(a / "region_daily_sebs.parquet")
+    return tmp
 
 
-def test_list_regions(tmp_path):
-    _write_region(tmp_path)
-    assert tools.list_regions(data_root=tmp_path)["regions"] == ["sebs"]
+def test_dispatch_query(tmp_path):
+    _mhw(tmp_path)
+    payload, ev = tools.dispatch("query", {"dataset": "mhw_daily", "filters": {"region": "sebs"}},
+                                 data_root=tmp_path)
+    assert ev is None
+    assert payload["n_total"] == 5
 
 
-def test_query_region_states(tmp_path):
-    _write_region(tmp_path)
-    out = tools.query_region_states("sebs", data_root=tmp_path)
-    assert len(out["records"]) == 5
-    assert out["records"][0]["date"] == "2020-01-01"
-    # date-range filter
-    out2 = tools.query_region_states("sebs", start="2020-01-03", data_root=tmp_path)
-    assert len(out2["records"]) == 3
+def test_dispatch_list_datasets():
+    payload, ev = tools.dispatch("list_datasets", {})
+    assert ev is None
+    assert any(d["id"] == "mhw_daily" for d in payload["datasets"])
 
 
-def test_query_region_states_missing(tmp_path):
-    out = tools.query_region_states("nope", data_root=tmp_path)
-    assert "error" in out
+def test_dispatch_aggregate(tmp_path):
+    _mhw(tmp_path)
+    payload, ev = tools.dispatch(
+        "aggregate", {"dataset": "mhw_daily", "group_by": "region", "measure": "area_frac", "agg": "mean"},
+        data_root=tmp_path)
+    assert ev is None and payload["n"] == 1
 
 
-def test_dispatch_make_chart_returns_spec():
+def test_dispatch_make_chart_event():
     pytest.importorskip("plotly")
-    payload, event = tools.dispatch(
+    payload, ev = tools.dispatch(
         "make_chart",
-        {"chart_type": "line", "title": "t", "series": [{"name": "a", "x": [1, 2], "y": [3, 4]}]},
-    )
+        {"chart_type": "line", "title": "t", "series": [{"name": "a", "x": [1, 2], "y": [3, 4]}]})
     assert payload["ok"] is True
-    assert event["type"] == "chart"
-    assert "data" in event["spec"] and "layout" in event["spec"]
+    assert ev["type"] == "chart" and "data" in ev["spec"]
+
+
+def test_dispatch_make_chart_empty_rejected():
+    pytest.importorskip("plotly")
+    payload, ev = tools.dispatch("make_chart", {"chart_type": "line", "title": "t", "series": []})
+    assert "error" in payload
+    assert ev is None
+
+
+def test_dispatch_scatter_trendline():
+    pytest.importorskip("plotly")
+    payload, ev = tools.dispatch("make_chart", {
+        "chart_type": "scatter", "title": "t", "trendline": True,
+        "series": [{"name": "a", "x": [1, 2, 3, 4], "y": [2, 4, 6, 8]}]})
+    assert ev["type"] == "chart"
+    # scatter + its OLS fit = 2 traces
+    assert len(ev["spec"]["data"]) == 2
 
 
 def test_dispatch_unknown_tool():
-    payload, event = tools.dispatch("bogus", {})
+    payload, ev = tools.dispatch("bogus", {})
     assert "error" in payload
-    assert event is None
+    assert ev is None
 
 
 def test_build_report_writes_pptx(tmp_path):
