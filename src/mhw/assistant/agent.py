@@ -59,6 +59,22 @@ is nominal. Forecast data (if present) is short-term damped persistence with an 
 oversell skill. Always state units and caveats. Be concise."""
 
 
+def _activity_label(tool_names: list[str]) -> str:
+    """A human 'what I'm doing now' label for a batch of tool calls (shown as a status ticker)."""
+    s = set(tool_names)
+    if "build_report" in s:
+        return "Assembling the PowerPoint…"
+    if "make_chart" in s:
+        return "Building the chart…"
+    if s & {"correlate", "join_series", "aggregate", "rank", "summary_stats", "descriptive_indicators"}:
+        return "Analyzing the data…"
+    if s & {"list_datasets", "describe_dataset", "list_dimension_values"}:
+        return "Looking up the data catalog…"
+    if "query" in s:
+        return "Querying the data…"
+    return "Working…"
+
+
 def _record_usage(usage) -> None:
     try:
         total = int(getattr(usage, "input_tokens", 0)) + int(getattr(usage, "output_tokens", 0))
@@ -107,6 +123,8 @@ def stream_chat(
             yield {"type": "done"}
             return
 
+        # Tell the client what's happening next — long tool loops otherwise look frozen.
+        yield {"type": "status", "label": _activity_label([b.name for b in tool_uses])}
         convo.append({"role": "assistant", "content": final.content})
         results = []
         for block in tool_uses:

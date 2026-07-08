@@ -51,3 +51,5 @@ def test_graceful_cap_yields_partial_progress_not_error():
     assert types[-1] == "done"
     assert "error" not in types
     assert any(e["type"] == "text" and "step limit" in e["text"] for e in events)
+    # activity ticker: a status event is emitted before running tools (so the UI isn't blank)
+    assert any(e["type"] == "status" for e in events)

@@ -66,52 +66,66 @@ def _render():
 
     charts: list[dict] = []
     reports: list[dict] = []
+    _PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
-    def _stream_text():
-        """Yield assistant text as it streams; stash chart/report artifacts as they arrive."""
+    def _events():
+        """Yield parsed NDJSON events from the assistant service (or a single error event)."""
         payload = {
             "messages": [{"role": m["role"], "content": m["content"]}
                          for m in st.session_state.as_messages],
             "client_id": st.session_state.as_client_id,
         }
         try:
-            with requests.post(CHAT_URL, json=payload, stream=True, timeout=120) as resp:
+            with requests.post(CHAT_URL, json=payload, stream=True, timeout=300) as resp:
                 if resp.status_code != 200:
-                    yield f"\n\n⚠️ {resp.status_code}: {resp.text[:300]}"
+                    yield {"type": "error", "detail": f"{resp.status_code}: {resp.text[:300]}"}
                     return
                 for line in resp.iter_lines():
-                    if not line:
-                        continue
-                    event = json.loads(line)
-                    etype = event.get("type")
-                    if etype == "text":
-                        yield event.get("text", "")
-                    elif etype == "chart":
-                        charts.append(event["spec"])
-                    elif etype == "report":
-                        try:
-                            r = requests.get(f"{REPORT_URL}/{event['token']}", timeout=60)
-                            if r.status_code == 200:
-                                reports.append({"token": event["token"],
-                                                "filename": event.get("filename", "report.pptx"),
-                                                "bytes": r.content})
-                        except requests.RequestException:
-                            pass
-                    elif etype == "error":
-                        yield f"\n\n⚠️ {event.get('detail', 'error')}"
+                    if line:
+                        yield json.loads(line)
         except requests.RequestException as exc:
-            yield f"\n\n⚠️ Could not reach the assistant service: {exc}"
+            yield {"type": "error", "detail": f"Could not reach the assistant service: {exc}"}
 
     with st.chat_message("assistant"):
-        text = st.write_stream(_stream_text())
-        for spec in charts:
-            st.plotly_chart(go.Figure(spec), use_container_width=True)
-        for rep in reports:
-            st.download_button(
-                f"⬇︎ {rep['filename']}", data=rep["bytes"], file_name=rep["filename"],
-                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                key=f"dl_new_{rep['token']}",
-            )
+        # A live status ticker so a long tool loop never looks frozen — it updates with the
+        # agent's activity labels ("Querying…", "Building the chart…") and collapses when done.
+        status = st.status("Thinking…", expanded=False)
+        text_ph = st.empty()
+        text = ""
+        for event in _events():
+            etype = event.get("type")
+            if etype == "text":
+                text += event.get("text", "")
+                text_ph.markdown(text + " ▌")          # trailing cursor while streaming
+            elif etype == "status":
+                status.update(label=event.get("label", "Working…"))
+            elif etype == "chart":
+                charts.append(event["spec"])
+                st.plotly_chart(go.Figure(event["spec"]), use_container_width=True)
+            elif etype == "report":
+                try:
+                    r = requests.get(f"{REPORT_URL}/{event['token']}", timeout=60)
+                    if r.status_code == 200:
+                        rep = {"token": event["token"],
+                               "filename": event.get("filename", "report.pptx"), "bytes": r.content}
+                        reports.append(rep)
+                        st.download_button(f"⬇︎ {rep['filename']}", data=rep["bytes"],
+                                           file_name=rep["filename"], mime=_PPTX,
+                                           key=f"dl_new_{rep['token']}")
+                except requests.RequestException:
+                    pass
+            elif etype == "error":
+                text += f"\n\n⚠️ {event.get('detail', 'error')}"
+                text_ph.markdown(text)
+
+        if text.strip():
+            text_ph.markdown(text)                      # drop the cursor
+        elif not charts and not reports:
+            text = "_(No response — please try rephrasing, or ask me to continue.)_"
+            text_ph.markdown(text)
+        else:
+            text_ph.empty()
+        status.update(label="Done", state="complete")
 
     st.session_state.as_messages.append({"role": "assistant", "content": text or ""})
     st.session_state.as_artifacts[len(st.session_state.as_messages) - 1] = {
