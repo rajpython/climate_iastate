@@ -13,22 +13,38 @@ from typing import Any
 import numpy as np
 
 _FONT = "Inter, -apple-system, Segoe UI, Roboto, sans-serif"
+_INK = "#2b3a4a"
+_TITLE_BLUE = "#16407a"
+_GRID = "#eef1f5"
+_FIT = "#d1495b"
 
 
 class ChartError(ValueError):
     """Raised when a chart cannot be built from the given series (empty / non-numeric)."""
 
 
+def _is_fit(name: str) -> bool:
+    n = (name or "").lower()
+    return "fit" in n or "trend" in n or "ols" in n
+
+
 def _style(fig, title: str, x_title: str, y_title: str) -> None:
+    # Legend BELOW the plot (never over the title), generous margins, and larger fonts so the chart
+    # stays legible when rasterised into a slide.
     fig.update_layout(
-        title={"text": title, "font": {"size": 18, "family": _FONT}},
-        font={"size": 15, "family": _FONT},
+        title={"text": title, "font": {"size": 20, "family": _FONT, "color": _TITLE_BLUE},
+               "x": 0.02, "xanchor": "left"},
+        font={"size": 15, "family": _FONT, "color": _INK},
         template="plotly_white",
-        margin={"l": 60, "r": 60, "t": 56, "b": 48},
-        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "left", "x": 0},
+        plot_bgcolor="white", paper_bgcolor="white",
+        margin={"l": 82, "r": 34, "t": 78, "b": 92},
+        legend={"orientation": "h", "yanchor": "top", "y": -0.24, "xanchor": "center", "x": 0.5,
+                "font": {"size": 14}},
     )
-    fig.update_xaxes(title_text=x_title, title_font={"size": 14}, tickfont={"size": 12})
-    fig.update_yaxes(title_text=y_title, title_font={"size": 14}, tickfont={"size": 12})
+    fig.update_xaxes(title_text=x_title, title_font={"size": 17}, tickfont={"size": 14},
+                     showgrid=True, gridcolor=_GRID, zeroline=False, linecolor="#c7d0da")
+    fig.update_yaxes(title_text=y_title, title_font={"size": 17}, tickfont={"size": 14},
+                     showgrid=True, gridcolor=_GRID, zeroline=False, linecolor="#c7d0da")
 
 
 def _numeric(vals) -> np.ndarray:
@@ -74,9 +90,14 @@ def build_chart(
         if ctype == "bar":
             fig.add_bar(x=x, y=y, name=name, **axis)
         elif ctype == "scatter":
-            fig.add_scatter(x=x, y=y, mode="markers", name=name, **axis)
+            if _is_fit(name):   # a fit/trend series is a LINE even on a scatter (not stray markers)
+                fig.add_scatter(x=x, y=y, mode="lines", name=name,
+                                line={"dash": "dash", "color": _FIT, "width": 2}, **axis)
+            else:
+                fig.add_scatter(x=x, y=y, mode="markers", name=name,
+                                marker={"size": 8, "opacity": 0.82}, **axis)
         else:
-            fig.add_scatter(x=x, y=y, mode="lines", name=name, **axis)
+            fig.add_scatter(x=x, y=y, mode="lines", name=name, line={"width": 2}, **axis)
         if trendline and ctype in ("scatter", "line"):
             xf = _numeric(x)
             yf = _numeric(y)
@@ -85,7 +106,7 @@ def build_chart(
                 xs = [float(xf.min()), float(xf.max())]
                 fig.add_scatter(x=xs, y=[slope * xs[0] + intercept, slope * xs[1] + intercept],
                                 mode="lines", name=f"{name} fit",
-                                line={"dash": "dash"}, **axis)
+                                line={"dash": "dash", "color": _FIT, "width": 2}, **axis)
 
     _style(fig, title, x_title, y_title)
     if dual_axis:
