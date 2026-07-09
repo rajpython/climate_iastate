@@ -23,7 +23,7 @@ WORKDIR /app
 # ── Python deps (own layer — rebuilt only when pyproject.toml changes) ───────
 COPY pyproject.toml ./
 COPY src/ ./src/
-RUN pip install -e ".[geo,dashboard,api]"
+RUN pip install -e ".[geo,dashboard,api,assistant]"
 
 # ── Config files baked into image (not data — that is bind-mounted) ──────────
 COPY config/ ./config/

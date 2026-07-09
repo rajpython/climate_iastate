@@ -173,6 +173,18 @@ _HOME_CSS = """<style>
 .amed-footer { font-size: 0.85rem; opacity: 0.6; }
 @media (max-width: 1000px) { .amed-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .amed-grid { grid-template-columns: 1fr; } }
+/* Featured Ask Deckhand banner — the assistant's front door. */
+.amed-featured { display:flex; align-items:center; gap:1rem; border:1px solid rgba(21,101,192,0.35);
+    border-radius:0.6rem; padding:1.05rem 1.3rem; margin:0.2rem 0 1.7rem;
+    background:linear-gradient(180deg, rgba(21,101,192,0.07), rgba(21,101,192,0.02)); }
+.amed-featured-icon { font-size:1.7rem; line-height:1; }
+.amed-featured-body { flex:1; min-width:0; }
+.amed-featured-title { font-size:1.2rem; font-weight:800; color:var(--primary-color,#1f77b4); }
+.amed-featured-sub { font-size:0.98rem; opacity:0.82; margin-top:0.15rem; }
+.amed-featured-cta a { display:inline-block; background:#1565c0; color:#fff !important; font-weight:700;
+    font-size:0.95rem; text-decoration:none; padding:0.5rem 1.15rem; border-radius:0.5rem;
+    white-space:nowrap; }
+.amed-featured-cta a:hover { background:#0f4c99; }
 </style>"""
 
 
@@ -203,6 +215,17 @@ def home() -> None:
         'Alaska marine ecosystems.</div>',
         unsafe_allow_html=True,
     )
+    st.markdown(
+        '<div class="amed-featured">'
+        '<div class="amed-featured-icon">💬</div>'
+        '<div class="amed-featured-body">'
+        '<div class="amed-featured-title">Ask Deckhand</div>'
+        '<div class="amed-featured-sub">Combine any indicators on this dashboard into charts, '
+        'tables, or a slide deck.</div></div>'
+        '<div class="amed-featured-cta"><a href="/assistant" target="_self">Try it →</a></div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
     st.markdown('<div class="amed-section">Current Coverage</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="amed-context">Current coverage emphasizes observed and modelled ecosystem '
@@ -228,6 +251,9 @@ def home() -> None:
 nav = {
     "Overview": [
         st.Page(home, title="Overview", default=True),
+    ],
+    "Ask Deckhand": [
+        st.Page("pages/assistant.py", title="Ask Deckhand", url_path="assistant"),
     ],
     # Two-level nav limit: the third level (Marine Heatwaves → Operational / Historical) lives
     # inside the hub page. Future climate indicators (SST anomalies, climate modes, outlooks)

@@ -23,6 +23,9 @@ services:
     restart: unless-stopped
     networks:
       - mhw_net
+    environment:
+      # The dashboard is a thin client of the assistant service on the internal network.
+      - ASSISTANT_API_BASE=http://api:8000
     command: >
       streamlit run src/dashboard/Alaska_Dashboard.py
       --server.port=8501
@@ -67,6 +70,14 @@ services:
       - mhw_net
     environment:
       - API_ROOT_PATH=/api
+      # Assistant service config. ANTHROPIC_API_KEY comes from the VM .env (not committed).
+      # Open + capped by default; flip ASSISTANT_ACCESS_MODE=gated (+ password) to gate later.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ASSISTANT_MODEL=${ASSISTANT_MODEL:-claude-sonnet-5}
+      - ASSISTANT_ACCESS_MODE=${ASSISTANT_ACCESS_MODE:-open}
+      - ASSISTANT_GATE_PASSWORD=${ASSISTANT_GATE_PASSWORD:-}
+      - ASSISTANT_RATE_PER_MIN=${ASSISTANT_RATE_PER_MIN:-20}
+      - ASSISTANT_MONTHLY_TOKEN_BUDGET=${ASSISTANT_MONTHLY_TOKEN_BUDGET:-5000000}
     command: >
       uvicorn api.main:app
       --host 0.0.0.0
