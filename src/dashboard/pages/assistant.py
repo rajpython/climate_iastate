@@ -42,6 +42,13 @@ def _render():
         "board's data.</div>",
         unsafe_allow_html=True,
     )
+    st.markdown(
+        "<div class='as-note'>💡 Please ask about data you can see on this dashboard — the marine "
+        "heatwave, cold-pool, survey-catch, and fishery-economics indicators in the sections above. "
+        "If a request is outside what the board holds, Deckhand will say so and point you to the "
+        "closest available data rather than guess.</div>",
+        unsafe_allow_html=True,
+    )
 
     if "as_messages" not in st.session_state:
         st.session_state.as_messages = []   # [{role, content}] plain-text turns for the model
