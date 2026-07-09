@@ -17,6 +17,9 @@ _INK = "#2b3a4a"
 _TITLE_BLUE = "#16407a"
 _GRID = "#eef1f5"
 _FIT = "#d1495b"
+# Dashboard-branded categorical palette (blue, green, amber, purple, slate, teal) so multi-series
+# charts share the board's look instead of Plotly defaults. Fit/trend lines stay _FIT (red).
+_PALETTE = ["#1565c0", "#2e8b57", "#b35900", "#6a4c93", "#5f6b7a", "#0f9d9d", "#c2185b"]
 
 
 class ChartError(ValueError):
@@ -36,6 +39,7 @@ def _style(fig, title: str, x_title: str, y_title: str) -> None:
                "x": 0.02, "xanchor": "left"},
         font={"size": 15, "family": _FONT, "color": _INK},
         template="plotly_white",
+        colorway=_PALETTE,
         plot_bgcolor="white", paper_bgcolor="white",
         margin={"l": 82, "r": 34, "t": 78, "b": 92},
         legend={"orientation": "h", "yanchor": "top", "y": -0.24, "xanchor": "center", "x": 0.5,

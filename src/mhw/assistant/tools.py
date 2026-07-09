@@ -128,8 +128,25 @@ TOOLS: list[dict] = [
          "slides": {"type": "array", "items": {"type": "object", "properties": {
              "heading": {"type": "string"}, "bullets": {"type": "array", "items": {"type": "string"}},
              "chart_ref": {"type": "string", "description": "id returned by a prior make_chart"},
-             "chart": {"type": "object"}}, "required": ["heading"]}}},
+             "chart": {"type": "object"},
+             "table": {"type": "object", "description": "{columns:[...], rows:[[...]]} for a table slide"}},
+             "required": ["heading"]}}},
          "required": ["title", "slides"]}},
+    {"name": "make_table",
+     "description": "Show a table to the user. columns is a list of header strings; rows is a list of row arrays (each the same length as columns). Use for rankings, summaries, and tabular answers.",
+     "input_schema": {"type": "object", "properties": {
+         "title": {"type": "string"},
+         "columns": {"type": "array", "items": {"type": "string"}},
+         "rows": {"type": "array", "items": {"type": "array"}}}, "required": ["columns", "rows"]}},
+    {"name": "export_data",
+     "description": "Give the user a downloadable CSV or Excel file. Either pass a dataset (+optional filters/columns) to export straight from the catalog, or a table {columns, rows} you assembled. format: csv | xlsx.",
+     "input_schema": {"type": "object", "properties": {
+         "format": {"type": "string", "enum": ["csv", "xlsx"]},
+         "dataset": _DS, "filters": _FILTERS, "columns": {"type": "array", "items": {"type": "string"}},
+         "table": {"type": "object", "properties": {
+             "columns": {"type": "array", "items": {"type": "string"}},
+             "rows": {"type": "array", "items": {"type": "array"}}}},
+         "filename": {"type": "string"}}}},
 ]
 
 _CATALOG_TOOLS = {
@@ -206,6 +223,37 @@ def dispatch(name: str, tool_input: dict[str, Any], data_root: Path | None = Non
             out = build_report(ti.get("title", ""), slides, ti.get("subtitle", ""))
             return ({"ok": True, "filename": out["filename"]},
                     {"type": "report", "token": out["token"], "filename": out["filename"]})
+
+        if name == "make_table":
+            cols, rows = ti.get("columns") or [], ti.get("rows") or []
+            if not cols or not rows:
+                return {"error": "make_table needs non-empty columns and rows"}, None
+            spec = {"title": ti.get("title", ""), "columns": cols, "rows": rows[:200]}
+            return {"ok": True, "note": "Table shown to the user."}, {"type": "table", "spec": spec}
+
+        if name == "export_data":
+            from mhw.assistant.exports import build_export
+            ds = ti.get("dataset")
+            if ds:
+                df = analytics._apply_filters(
+                    catalog.load_dataset(ds, data_root=ti.get("data_root")), ti.get("filters"))
+                cols = ti.get("columns")
+                if cols:
+                    keep = [c for c in cols if c in df.columns] or list(df.columns)
+                    df = df[keep]
+                name_ = ti.get("filename") or ds
+            elif ti.get("table") and ti["table"].get("rows"):
+                t = ti["table"]
+                df = pd.DataFrame(t["rows"], columns=t.get("columns"))
+                name_ = ti.get("filename") or "table"
+            else:
+                return {"error": "export_data needs a dataset or a table {columns, rows}"}, None
+            if df.empty:
+                return {"error": "no rows to export"}, None
+            out = build_export(df, fmt=ti.get("format", "csv"), name=name_)
+            return ({"ok": True, "filename": out["filename"]},
+                    {"type": "download", "token": out["token"], "filename": out["filename"],
+                     "mime": out["mime"]})
 
         return {"error": f"unknown tool {name!r}"}, None
     except Exception as exc:  # noqa: BLE001 — deliberate boundary: report, don't crash the turn

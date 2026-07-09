@@ -1,4 +1,4 @@
-"""Ask the Data — the chatbot page (a thin client over the assistant service).
+"""Ask Deckhand — the chatbot page (a thin client over the assistant service).
 
 This page holds **no data logic**: it POSTs the chat history to ``/v1/assistant/chat`` and renders the
 streamed events (text, inline Plotly charts, a PowerPoint download). All intelligence lives in the
@@ -11,6 +11,7 @@ import json
 import os
 import uuid
 
+import pandas as pd
 import plotly.graph_objects as go
 import requests
 import streamlit as st
@@ -18,6 +19,11 @@ import streamlit as st
 API_BASE = os.getenv("ASSISTANT_API_BASE", "http://localhost:8000").rstrip("/")
 CHAT_URL = f"{API_BASE}/v1/assistant/chat"
 REPORT_URL = f"{API_BASE}/v1/assistant/report"
+DOWNLOAD_URL = f"{API_BASE}/v1/assistant/download"
+
+
+def _table_df(spec: dict) -> pd.DataFrame:
+    return pd.DataFrame(spec.get("rows", []), columns=spec.get("columns") or None)
 
 _CSS = """<style>
 .as-title { font-size:2.0rem; font-weight:800; color:#16407a; margin:0; }
@@ -28,11 +34,12 @@ _CSS = """<style>
 
 def _render():
     st.markdown(_CSS, unsafe_allow_html=True)
-    st.markdown("<div class='as-title'>💬 Ask the Data</div>", unsafe_allow_html=True)
+    st.markdown("<div class='as-title'>💬 Ask Deckhand</div>", unsafe_allow_html=True)
     st.markdown(
-        "<div class='as-lead'>Ask questions about the Alaska shelf data on this board — marine "
-        "heatwaves, cold pool, survey catch, and fishery economics — and I can build charts and "
-        "export a PowerPoint deck. Answers are grounded in the board's data.</div>",
+        "<div class='as-lead'>Combine any indicators on this dashboard — marine heatwaves, cold "
+        "pool, survey catch, and fishery economics — into charts, tables, or a slide deck. I can "
+        "also hand you the underlying data as a CSV or Excel file. Answers are grounded in the "
+        "board's data.</div>",
         unsafe_allow_html=True,
     )
 
@@ -55,6 +62,13 @@ def _render():
                     mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                     key=f"dl_{i}_{rep['token']}",
                 )
+            for tbl in st.session_state.as_artifacts.get(i, {}).get("tables", []):
+                if tbl.get("title"):
+                    st.caption(tbl["title"])
+                st.dataframe(_table_df(tbl), use_container_width=True, hide_index=True)
+            for dl in st.session_state.as_artifacts.get(i, {}).get("downloads", []):
+                st.download_button(f"⬇︎ {dl['filename']}", data=dl["bytes"], file_name=dl["filename"],
+                                   mime=dl["mime"], key=f"dl_{i}_{dl['token']}")
 
     prompt = st.chat_input("Ask about the data, or ask for a chart / a deck…")
     if not prompt:
@@ -66,6 +80,8 @@ def _render():
 
     charts: list[dict] = []
     reports: list[dict] = []
+    tables: list[dict] = []
+    downloads: list[dict] = []
     _PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
     def _events():
@@ -114,13 +130,31 @@ def _render():
                                            key=f"dl_new_{rep['token']}")
                 except requests.RequestException:
                     pass
+            elif etype == "table":
+                spec = event.get("spec", {})
+                tables.append(spec)
+                if spec.get("title"):
+                    st.caption(spec["title"])
+                st.dataframe(_table_df(spec), use_container_width=True, hide_index=True)
+            elif etype == "download":
+                try:
+                    r = requests.get(f"{DOWNLOAD_URL}/{event['token']}", timeout=60)
+                    if r.status_code == 200:
+                        dl = {"token": event["token"], "filename": event.get("filename", "data.csv"),
+                              "mime": event.get("mime", "application/octet-stream"), "bytes": r.content}
+                        downloads.append(dl)
+                        st.download_button(f"⬇︎ {dl['filename']}", data=dl["bytes"],
+                                           file_name=dl["filename"], mime=dl["mime"],
+                                           key=f"dldata_new_{dl['token']}")
+                except requests.RequestException:
+                    pass
             elif etype == "error":
                 text += f"\n\n⚠️ {event.get('detail', 'error')}"
                 text_ph.markdown(text)
 
         if text.strip():
             text_ph.markdown(text)                      # drop the cursor
-        elif not charts and not reports:
+        elif not (charts or reports or tables or downloads):
             text = "_(No response — please try rephrasing, or ask me to continue.)_"
             text_ph.markdown(text)
         else:
@@ -129,7 +163,7 @@ def _render():
 
     st.session_state.as_messages.append({"role": "assistant", "content": text or ""})
     st.session_state.as_artifacts[len(st.session_state.as_messages) - 1] = {
-        "charts": charts, "reports": reports,
+        "charts": charts, "reports": reports, "tables": tables, "downloads": downloads,
     }
 
 

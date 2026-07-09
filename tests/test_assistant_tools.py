@@ -118,6 +118,45 @@ def test_dispatch_catches_tool_exception_as_payload():
     assert ev is None
 
 
+def test_make_table_event():
+    payload, ev = tools.dispatch(
+        "make_table", {"title": "Top", "columns": ["a", "b"], "rows": [[1, 2], [3, 4]]})
+    assert payload["ok"] is True
+    assert ev["type"] == "table"
+    assert ev["spec"]["columns"] == ["a", "b"]
+
+
+def test_export_data_from_table_csv():
+    from mhw.assistant.report import report_path
+    payload, ev = tools.dispatch(
+        "export_data",
+        {"format": "csv", "table": {"columns": ["x", "y"], "rows": [[1, 2]]}, "filename": "mine"})
+    assert ev["type"] == "download"
+    assert ev["filename"].endswith(".csv")
+    assert report_path(ev["token"]) is not None
+
+
+def test_export_data_from_dataset_xlsx(tmp_path):
+    pytest.importorskip("xlsxwriter")
+    d = tmp_path / "raw"
+    d.mkdir(parents=True)
+    pd.DataFrame({"year": [2000], "species": ["CRAB, SNOW"], "area_group": ["s"],
+                  "landings_t": [1.0], "value_usd": [2.0]}).to_parquet(d / "landings_foss_ak.parquet")
+    payload, ev = tools.dispatch("export_data", {"format": "xlsx", "dataset": "landings"},
+                                 data_root=tmp_path)
+    assert ev["type"] == "download"
+    assert ev["filename"].endswith(".xlsx")
+
+
+def test_build_report_table_slide(tmp_path):
+    pytest.importorskip("pptx")
+    from mhw.assistant.report import build_report
+    out = build_report("Deck", [{"heading": "T", "table": {"columns": ["a", "b"],
+                                                            "rows": [[1, 2], [3, 4]]}}],
+                       out_dir=tmp_path)
+    assert (tmp_path / out["token"]).exists()
+
+
 def test_build_report_writes_pptx(tmp_path):
     pytest.importorskip("pptx")
     pytest.importorskip("plotly")

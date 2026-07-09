@@ -54,3 +54,20 @@ def assistant_report(token: str):
     if p is None:
         raise HTTPException(status_code=404, detail="Report not found or expired.")
     return FileResponse(str(p), media_type=_PPTX_MIME, filename="alaska_marine_report.pptx")
+
+
+_DL_MIME = {
+    ".csv": "text/csv",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".pptx": _PPTX_MIME,
+}
+
+
+@router.get("/assistant/download/{token}", tags=["Assistant"])
+def assistant_download(token: str):
+    """Download a generated data file (CSV / Excel) by token."""
+    p = report_path(token)   # same sandboxed downloads dir, token-validated
+    if p is None:
+        raise HTTPException(status_code=404, detail="File not found or expired.")
+    return FileResponse(str(p), media_type=_DL_MIME.get(p.suffix.lower(), "application/octet-stream"),
+                        filename=p.name)
