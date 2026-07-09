@@ -126,6 +126,31 @@ def test_make_table_event():
     assert ev["spec"]["columns"] == ["a", "b"]
 
 
+def test_make_table_unescapes_entities():
+    _, ev = tools.dispatch(
+        "make_table", {"title": "Surveys &amp; Catch", "columns": ["A &amp; B"], "rows": [["x &amp; y"]]})
+    assert ev["spec"]["title"] == "Surveys & Catch"
+    assert ev["spec"]["columns"] == ["A & B"]
+    assert ev["spec"]["rows"] == [["x & y"]]
+
+
+def test_build_report_rejects_content_less_slides():
+    # No chart/table/bullets on any slide -> error (prevents a title-only deck), no event.
+    payload, ev = tools.dispatch(
+        "build_report", {"title": "Deck", "slides": [{"heading": "X"}]}, chart_store={})
+    assert "error" in payload
+    assert ev is None
+    payload2, ev2 = tools.dispatch("build_report", {"title": "Deck", "slides": []}, chart_store={})
+    assert "error" in payload2 and ev2 is None
+
+
+def test_report_txt_unescapes():
+    from mhw.assistant.report import _txt
+    assert _txt("Surveys &amp; Commercial") == "Surveys & Commercial"
+    assert _txt("plain & text") == "plain & text"
+    assert _txt(None) == ""
+
+
 def test_export_data_from_table_csv():
     from mhw.assistant.report import report_path
     payload, ev = tools.dispatch(

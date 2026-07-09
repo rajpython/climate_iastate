@@ -10,11 +10,17 @@ right, and a branded footer. The chart's own title is dropped (the slide heading
 """
 from __future__ import annotations
 
+import html
 import os
 import tempfile
 import uuid
 from pathlib import Path
 from typing import Any
+
+
+def _txt(v) -> str:
+    """Plain text for pptx: decode HTML entities the model sometimes emits (e.g. '&amp;' → '&')."""
+    return html.unescape("" if v is None else str(v))
 
 REPORTS_DIR = Path(
     os.getenv("ASSISTANT_REPORTS_DIR", str(Path(tempfile.gettempdir()) / "mhw_assistant_reports"))
@@ -79,7 +85,7 @@ def build_report(
         head = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.3), Inches(0.8))
         htf = head.text_frame
         htf.word_wrap = True
-        htf.text = str(text)
+        htf.text = _txt(text)
         hp = htf.paragraphs[0]
         hp.font.size = Pt(26)
         hp.font.bold = True
@@ -90,7 +96,7 @@ def build_report(
         btf.word_wrap = True
         for i, b in enumerate(items):
             p = btf.paragraphs[0] if i == 0 else btf.add_paragraph()
-            p.text = f"•  {b}"
+            p.text = f"•  {_txt(b)}"
             p.font.size = Pt(size_pt)
             p.font.color.rgb = RGBColor(*_BODY_RGB)
             p.space_after = Pt(9)
@@ -102,7 +108,7 @@ def build_report(
                                     Inches(0.35 * (len(rows) + 1))).table
         for c, col in enumerate(columns):
             cell = gt.cell(0, c)
-            cell.text = str(col)
+            cell.text = _txt(col)
             para = cell.text_frame.paragraphs[0]
             para.font.size = Pt(12)
             para.font.bold = True
@@ -112,14 +118,14 @@ def build_report(
         for r, row in enumerate(rows, start=1):
             for c in range(len(columns)):
                 cell = gt.cell(r, c)
-                cell.text = "" if c >= len(row) or row[c] is None else str(row[c])
+                cell.text = "" if c >= len(row) or row[c] is None else _txt(row[c])
                 cell.text_frame.paragraphs[0].font.size = Pt(11)
 
     # --- Title slide ---
     s0 = prs.slides.add_slide(prs.slide_layouts[0])
-    s0.shapes.title.text = title or "Alaska Marine Ecosystems — Data Report"
+    s0.shapes.title.text = _txt(title) or "Alaska Marine Ecosystems — Data Report"
     if s0.placeholders and len(s0.placeholders) > 1:
-        s0.placeholders[1].text = subtitle or "Generated from marine.iastate.ai"
+        s0.placeholders[1].text = _txt(subtitle) or "Generated from marine.iastate.ai"
 
     # --- Auto exec-summary (only when it adds value) ---
     if len([s for s in slides if isinstance(s, dict)]) >= 2:

@@ -9,12 +9,18 @@ self-corrects instead of fabricating.
 """
 from __future__ import annotations
 
+import html
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 from mhw.assistant import analytics, catalog
+
+
+def _unesc(v):
+    """Decode HTML entities the model sometimes emits in strings (e.g. '&amp;' → '&')."""
+    return html.unescape(v) if isinstance(v, str) else v
 
 _MAX_ROWS = 500
 _EMPTY_NOTE = ("0 rows for those filters — do NOT chart or state values. Use the valid_values below "
@@ -220,6 +226,12 @@ def dispatch(name: str, tool_input: dict[str, Any], data_root: Path | None = Non
                                  f"known chart_ids: {known}"}, None)
                     s["chart"] = chart_store[ref]
                 slides.append(s)
+            # Guard against a content-less (title-only) deck — the model must include the slides.
+            if not any(s.get("chart") or (s.get("table") or {}).get("rows") or s.get("bullets")
+                       for s in slides):
+                return ({"error": "build_report needs at least one slide with a chart (chart_ref), "
+                         "a table, or bullets. Build your charts/tables first, then assemble the "
+                         "deck with them — do not call build_report with empty slides."}, None)
             out = build_report(ti.get("title", ""), slides, ti.get("subtitle", ""))
             return ({"ok": True, "filename": out["filename"]},
                     {"type": "report", "token": out["token"], "filename": out["filename"]})
@@ -228,7 +240,9 @@ def dispatch(name: str, tool_input: dict[str, Any], data_root: Path | None = Non
             cols, rows = ti.get("columns") or [], ti.get("rows") or []
             if not cols or not rows:
                 return {"error": "make_table needs non-empty columns and rows"}, None
-            spec = {"title": ti.get("title", ""), "columns": cols, "rows": rows[:200]}
+            spec = {"title": _unesc(ti.get("title", "")),
+                    "columns": [_unesc(c) for c in cols],
+                    "rows": [[_unesc(v) for v in row] for row in rows[:200]]}
             return {"ok": True, "note": "Table shown to the user."}, {"type": "table", "spec": spec}
 
         if name == "export_data":

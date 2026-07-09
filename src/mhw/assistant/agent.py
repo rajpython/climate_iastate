@@ -35,9 +35,11 @@ WORKFLOW — always in this order:
    regression line, call `correlate` first and plot its `points` (scatter) plus its `fit_line` (a
    line series) — do NOT compute correlations or fits yourself.
 4. EXPORT: `build_report` for a PowerPoint (slides may hold a chart via `chart_ref`, a `table`, and
-   bullets — pass each chart's `chart_id` as `chart_ref`, don't resend the spec). Use `export_data`
-   to hand the user a CSV or Excel file (from a dataset+filters, or a table you assembled) — reach
-   for this whenever they just want the raw numbers.
+   bullets — pass each chart's `chart_id` as `chart_ref`, don't resend the spec). Make ALL the
+   charts/tables FIRST, then call `build_report` ONCE with every slide fully populated — never call
+   it with empty slides (that yields a useless title-only file) and don't call it twice. Use
+   `export_data` to hand the user a CSV or Excel file (from a dataset+filters, or a table you
+   assembled) — reach for this whenever they just want the raw numbers.
 
 COMPOUND REQUESTS: when a request has several parts ("plot A and B, correlate them, and make a
 deck"), FIRST restate it as an explicit checklist of deliverables, then complete EVERY item — drop
