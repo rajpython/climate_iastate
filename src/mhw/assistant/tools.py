@@ -158,45 +158,55 @@ def dispatch(name: str, tool_input: dict[str, Any], data_root: Path | None = Non
     if data_root is not None:
         ti.setdefault("data_root", data_root)
 
-    if name in _CATALOG_TOOLS:
-        return _CATALOG_TOOLS[name](**ti), None
-    if name in _ANALYTICS_TOOLS:
-        return _ANALYTICS_TOOLS[name](**ti), None
+    # Safety net: a tool error (often malformed model input) must degrade to an error PAYLOAD the
+    # model can see and retry against — never an uncaught exception that kills the whole turn.
+    try:
+        if name in _CATALOG_TOOLS:
+            return _CATALOG_TOOLS[name](**ti), None
+        if name in _ANALYTICS_TOOLS:
+            return _ANALYTICS_TOOLS[name](**ti), None
 
-    if name == "make_chart":
-        from mhw.assistant.charts import ChartError, build_chart
-        try:
-            spec = build_chart(
-                ti.get("chart_type", "line"), ti.get("title", ""), ti.get("series", []),
-                ti.get("x_title", ""), ti.get("y_title", ""),
-                trendline=bool(ti.get("trendline", False)), dual_axis=bool(ti.get("dual_axis", False)))
-        except ChartError as exc:
-            return {"error": str(exc)}, None
-        chart_id = None
-        if chart_store is not None:
-            chart_id = f"chart_{len(chart_store) + 1}"
-            chart_store[chart_id] = spec
-        note = "Chart rendered for the user."
-        if chart_id:
-            note += f" Reference it in build_report as chart_ref={chart_id!r}."
-        return ({"ok": True, "chart_id": chart_id, "note": note},
-                {"type": "chart", "spec": spec, "chart_id": chart_id})
+        if name == "make_chart":
+            from mhw.assistant.charts import ChartError, build_chart
+            try:
+                spec = build_chart(
+                    ti.get("chart_type", "line"), ti.get("title", ""), ti.get("series", []),
+                    ti.get("x_title", ""), ti.get("y_title", ""),
+                    trendline=bool(ti.get("trendline", False)), dual_axis=bool(ti.get("dual_axis", False)))
+            except ChartError as exc:
+                return {"error": str(exc)}, None
+            chart_id = None
+            if chart_store is not None:
+                chart_id = f"chart_{len(chart_store) + 1}"
+                chart_store[chart_id] = spec
+            note = "Chart rendered for the user."
+            if chart_id:
+                note += f" Reference it in build_report as chart_ref={chart_id!r}."
+            return ({"ok": True, "chart_id": chart_id, "note": note},
+                    {"type": "chart", "spec": spec, "chart_id": chart_id})
 
-    if name == "build_report":
-        from mhw.assistant.report import build_report
-        slides = []
-        for s in ti.get("slides", []):
-            s = dict(s)
-            ref = s.pop("chart_ref", None)
-            if ref is not None:
-                if chart_store is None or ref not in chart_store:
-                    known = sorted(chart_store) if chart_store else []
-                    return ({"error": f"unknown chart_ref {ref!r}; make the chart first. "
-                             f"known chart_ids: {known}"}, None)
-                s["chart"] = chart_store[ref]
-            slides.append(s)
-        out = build_report(ti.get("title", ""), slides, ti.get("subtitle", ""))
-        return ({"ok": True, "filename": out["filename"]},
-                {"type": "report", "token": out["token"], "filename": out["filename"]})
+        if name == "build_report":
+            from mhw.assistant.report import build_report
+            slides = []
+            for s in ti.get("slides", []):
+                if isinstance(s, str):
+                    s = {"heading": s}          # tolerate a slide passed as a bare string
+                elif isinstance(s, dict):
+                    s = dict(s)
+                else:
+                    continue                    # skip a malformed slide entry rather than crash
+                ref = s.pop("chart_ref", None)
+                if ref is not None:
+                    if chart_store is None or ref not in chart_store:
+                        known = sorted(chart_store) if chart_store else []
+                        return ({"error": f"unknown chart_ref {ref!r}; make the chart first. "
+                                 f"known chart_ids: {known}"}, None)
+                    s["chart"] = chart_store[ref]
+                slides.append(s)
+            out = build_report(ti.get("title", ""), slides, ti.get("subtitle", ""))
+            return ({"ok": True, "filename": out["filename"]},
+                    {"type": "report", "token": out["token"], "filename": out["filename"]})
 
-    return {"error": f"unknown tool {name!r}"}, None
+        return {"error": f"unknown tool {name!r}"}, None
+    except Exception as exc:  # noqa: BLE001 — deliberate boundary: report, don't crash the turn
+        return {"error": f"tool {name!r} failed: {exc}. Check the argument shape and retry."}, None

@@ -111,6 +111,13 @@ def test_build_report_unknown_chart_ref_errors():
     assert ev is None
 
 
+def test_dispatch_catches_tool_exception_as_payload():
+    # Missing required args (bad model input) must degrade to an error payload, not raise.
+    payload, ev = tools.dispatch("aggregate", {"dataset": "landings"})
+    assert "error" in payload
+    assert ev is None
+
+
 def test_build_report_writes_pptx(tmp_path):
     pytest.importorskip("pptx")
     pytest.importorskip("plotly")
