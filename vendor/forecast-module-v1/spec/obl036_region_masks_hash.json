@@ -1,0 +1,132 @@
+{
+  "zarr_path": "/Users/rajpython/dev/acfr/projects/sst-forecast-method-review/data/work/obl028-unpack/data/derived/masks/region_masks.zarr",
+  "n_files": 31,
+  "per_file_sha256": [
+    {
+      "relpath": "ai/c/1/0",
+      "sha256": "03afe93a290854cef237ca067da094caca0c5bcc521b8fd4016a8f8af83bf37b"
+    },
+    {
+      "relpath": "ai/c/1/1",
+      "sha256": "ee76b47d200d81c8233533ea59e116af5e9a55e5c9be4e4bdb1348f1c6f42093"
+    },
+    {
+      "relpath": "ai/zarr.json",
+      "sha256": "d6b866077f2d1120987846bdd4dd1bc6d3ad7297b72d520df6ea346908e7076c"
+    },
+    {
+      "relpath": "ai_central/c/1/0",
+      "sha256": "aa3dd70d51879dadf5c0585783a03d03afa0d383741b2793c1036d29be277e1e"
+    },
+    {
+      "relpath": "ai_central/c/1/1",
+      "sha256": "01d71e5d94a3aacd3d43863bb4c966a1f2d87cf0449de980d093c55c52718f89"
+    },
+    {
+      "relpath": "ai_central/zarr.json",
+      "sha256": "94744242629d0e0379c97f6456a021a2e49f0b82ed1446535fd31868197bca0b"
+    },
+    {
+      "relpath": "ai_east/c/1/0",
+      "sha256": "732acb9cc323e0906433a56e5833f39016d93885284b2099f6485be40bb48566"
+    },
+    {
+      "relpath": "ai_east/zarr.json",
+      "sha256": "303a7d6c8082b7dcf2053f2082013560c356379eba3c88c08f22a7379fd67d3e"
+    },
+    {
+      "relpath": "ai_west/c/1/1",
+      "sha256": "5a376f0fc21f9ed9f8a9c7c14ca5834fdf3248c14b5dd4946e309976fbc1963a"
+    },
+    {
+      "relpath": "ai_west/zarr.json",
+      "sha256": "d218ac8be0126773bed56911217da57f3f6d4a20e49734592a2f23bdc6b90b9e"
+    },
+    {
+      "relpath": "beaufort/c/1/0",
+      "sha256": "4ca2e5b70b8177a2576779435a94480a348f957f5c6ced688eb388f8daafb07d"
+    },
+    {
+      "relpath": "beaufort/zarr.json",
+      "sha256": "f366f636dc15e07b10cc94983a4cd0b98cbbfe2687012c2774780b4b5bf937fc"
+    },
+    {
+      "relpath": "chukchi/c/1/0",
+      "sha256": "cae0bd316422205dd2c38597c2bf1c61bf748915c76ad5e13b2b2933eb5b88a0"
+    },
+    {
+      "relpath": "chukchi/zarr.json",
+      "sha256": "a844d70e4aa0f02a106e4cbfcc45b9b046e48c62c249edebe0358211799c205d"
+    },
+    {
+      "relpath": "ebs/c/1/0",
+      "sha256": "00581ed3a4541fef02a5d2e23a8d1b187691287da68beb896898f50c912b1ba3"
+    },
+    {
+      "relpath": "ebs/zarr.json",
+      "sha256": "f61b0f9123063d252b293041c8507e60d5f3d965e28e8fcc5741f14df03c16dc"
+    },
+    {
+      "relpath": "egoa/c/1/0",
+      "sha256": "49f04767acc9170843d1ca80bfafcd39a9d17e2d2ea955bb34019b248011a6ce"
+    },
+    {
+      "relpath": "egoa/zarr.json",
+      "sha256": "5f42377c89d1e46f712bde30ee8ba203d5f9c727f422c77e83a7c265418d95ea"
+    },
+    {
+      "relpath": "goa/c/1/0",
+      "sha256": "f19578f7c42b46aae805f7c0246c89709701964efc0346d9d38e2cf6841615a1"
+    },
+    {
+      "relpath": "goa/zarr.json",
+      "sha256": "1c5e0dbd8735c9bacf915919f153c08f8195aa154f4f115f3e404d8b47629c0a"
+    },
+    {
+      "relpath": "lat/c/0",
+      "sha256": "3b7ddf650092ff04123053b288849f35e58a7b185680d67c1a0d91ddc37b12d3"
+    },
+    {
+      "relpath": "lat/zarr.json",
+      "sha256": "3bc78b7386c80451d0d4a68786dbf1a2878e59634055199cfe05e7062cf73682"
+    },
+    {
+      "relpath": "lon/c/0",
+      "sha256": "3c67e317e6f7b493ebe16ddd827c7ea4df07b73b73be5750ca3c4775026c6f11"
+    },
+    {
+      "relpath": "lon/zarr.json",
+      "sha256": "ad7d5e1cf2eb87bed9b93b2c2bd3add349e5e303db2d4d406a041d2c2b6f03e1"
+    },
+    {
+      "relpath": "nbs/c/1/0",
+      "sha256": "f87ed97fa9ce44aa9eebb320f558b41f05e22b36f24520b88926588d0164536e"
+    },
+    {
+      "relpath": "nbs/zarr.json",
+      "sha256": "bc7b01a853023cac7e7d2ea9b1cd5a11e7e59eb8dab29de49284d19977e6c21b"
+    },
+    {
+      "relpath": "sebs/c/1/0",
+      "sha256": "e3efef39ad04d429f0b009feae281fbd2df0a285e5b955fdef3c10719c88b277"
+    },
+    {
+      "relpath": "sebs/zarr.json",
+      "sha256": "53e6d3026c35d9fec8a68129aa3eb037e9dbb3ac5c8fde030d746f769f86be9c"
+    },
+    {
+      "relpath": "wgoa/c/1/0",
+      "sha256": "9e532e29b0cbbf63c9a6c7d981963a4f90ad76a7e01c5d7ddd424778856cd792"
+    },
+    {
+      "relpath": "wgoa/zarr.json",
+      "sha256": "a5228085110ef77526daac5e394f7d0be8e8a438047856c8866d9155ca34564d"
+    },
+    {
+      "relpath": "zarr.json",
+      "sha256": "36615682d5be9646729635067a75185212eb0c48d708ef06ad34c1f58dd587d2"
+    }
+  ],
+  "combined_sha256": "a04e789885ae600775e3ce569214a3e2fb916587b469c8f24d32c5cd8dc26011",
+  "method": "sorted relpath, per-file SHA-256, concatenated 'relpath\\nsha256\\n' records, SHA-256 of concatenation"
+}

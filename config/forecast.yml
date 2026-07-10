@@ -14,8 +14,10 @@
 
 # Pin to a delivered, paper-validated module version. null until LOFRA ships v1 (frozen
 # coefficients applied forward; re-fits are LOFRA re-validation events — we only bump this pin).
-module_version: null
-fit_vintage: null            # coefficient-manifest fit-vintage tag shown on the panel for provenance
+# Vendored verbatim at vendor/forecast-module-v1/ (SHA-256 verified against its DELIVERY-MANIFEST).
+module_version: v1.1.0
+fit_vintage: "2026-04-01"     # persistence/climatology coefficient vintage (shown on every tile).
+                              # SEBS onset's own 2026-05 vintage surfaces with the onset watch later.
 
 # Forecast horizons (the honesty ladder). Leads are calendar months on our OISST cadence.
 leads:
