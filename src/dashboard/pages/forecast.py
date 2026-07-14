@@ -47,8 +47,8 @@ from mhw.forecast.deploy import (
 # Standard-normal half-width multipliers for the two nested predictive bands (two-sided).
 _Z50 = 0.6744897501960817   # 50% interval  → ppf(0.75)
 _Z90 = 1.6448536269514722   # 90% interval  → ppf(0.95)
-_HIST_MONTHS = 24          # default months of actuals/hindcast shown before the forecast origin
-_LOOKBACK = {"1 yr": 12, "2 yr": 24, "3 yr": 36, "All": 10_000}   # history-window selector
+_HIST_MONTHS = 12          # default months of actuals/hindcast shown before the forecast origin
+_LOOKBACK = {"3 mo": 3, "6 mo": 6, "1 yr": 12}                    # history-window selector
 
 # Full zone names + the geography-first render order (mirrors the board's section layout).
 _ZONE_NAMES = {
@@ -63,7 +63,24 @@ _GROUPS = [
     ("Aleutian Islands", ["ai_west", "ai_central", "ai_east"]),
     ("Arctic", ["chukchi", "beaufort"]),
 ]
-_ROLE_LABEL = {"persistence": "Damped persistence", "climatology": "Climatology only"}
+_ROLE_LABEL = {"persistence": "Short-term outlook", "climatology": "Typical-year estimate"}
+
+# Map an Operational-tab region code → the forecast zone(s) it contains. Combined ESR regions
+# expand to their forecast sub-zones (ebs = SEBS+NBS shelf; goa = W+E; ai = the three strata);
+# single-zone regions map to themselves. Regions absent here (e.g. the slope) have no forecast.
+REGION_TO_ZONES = {
+    "ebs": ["sebs", "nbs"], "sebs": ["sebs"], "nbs": ["nbs"],
+    "goa": ["wgoa", "egoa"], "wgoa": ["wgoa"], "egoa": ["egoa"],
+    "ai": ["ai_west", "ai_central", "ai_east"],
+    "ai_west": ["ai_west"], "ai_central": ["ai_central"], "ai_east": ["ai_east"],
+    "chukchi": ["chukchi"], "beaufort": ["beaufort"],
+}
+
+
+def zones_for_region(region: str, cfg: dict) -> list[str]:
+    """Forecast zones belonging to an Operational region, in board render order."""
+    wanted = set(REGION_TO_ZONES.get(region, [region]))
+    return [z for _, zs in _GROUPS for z in zs if z in wanted and z in cfg["zones"]]
 
 
 def _pct(x) -> str:
@@ -82,9 +99,9 @@ def _lead_card(row) -> str:
     return kpi_card(
         label=f"{months}-month", value=_pct(row["point"]), value_color=RED,
         sub=sub, label_note=f"({conf})",
-        tip="Point forecast of the monthly heatwave area fraction. The band is a 90% predictive "
-            "interval from the AR(1) forecast-error variance (display-clipped to 0–100%). "
-            "P(>q90) is the chance the area exceeds the zone's 90th-percentile threshold.",
+        tip="Best-estimate forecast of the share of the zone under a marine heatwave that month. "
+            "The band is the plausible range around it (a 90% interval), shown between 0% and 100%. "
+            "P(>q90) is the chance the area is larger than in all but the warmest 10% of past months.",
     )
 
 
@@ -94,7 +111,7 @@ def _zone_card(zone: str, cfg: dict) -> None:
     name = _ZONE_NAMES.get(zone, zone)
     note = _ROLE_LABEL.get(role, role)
     if meta_role.get("ice_caveat") and role == "persistence":
-        note += " · Arctic ice caveat"
+        note += " · sea-ice caveat"
     with st.container(border=True):
         section_title(f"{name}", note=note)
         try:
@@ -106,15 +123,15 @@ def _zone_card(zone: str, cfg: dict) -> None:
         kpi_grid([_lead_card(r) for _, r in df.iterrows()], cols=len(df))
         if role == "climatology":
             callout(
-                f"<b>{name}:</b> the satellite SST record here is ice-contaminated, so damped "
-                "persistence falls below climatology by two months — magnitude/area is shown as "
-                "<b>climatology only</b> (a data limitation, not a skill result). No occurrence "
-                "probability is issued.", icon="🧊", tint=SLATE)
+                f"<b>{name}:</b> sea ice disturbs the satellite temperature record here, so carrying "
+                "recent conditions forward stops working beyond a month or two. We show a "
+                "<b>typical-year estimate</b> instead — a data limitation, not a forecast result — "
+                "and no heatwave-chance is issued.", icon="🧊", tint=SLATE)
         elif meta_role.get("ice_caveat"):
             callout(
-                f"<b>{name}:</b> carries genuine one-month persistence skill and gets a forecast, "
-                "but the satellite SST is ice-contaminated — read the outlook with the ice caveat "
-                "and note there is no broad-field/LIM reading for this zone.", icon="🧊", tint=AMBER)
+                f"<b>{name}:</b> has genuine one-month forecast skill and gets an outlook, but sea "
+                "ice affects the satellite temperatures — read it with that caveat in mind.",
+                icon="🧊", tint=AMBER)
 
 
 def _clip01_arr(a: np.ndarray) -> np.ndarray:
@@ -166,9 +183,9 @@ def _outlook_figure(zone: str, cfg: dict, hist_months: int = _HIST_MONTHS, hc=No
                            f"rgba(179,89,0,{op})", "", False):
                 fig.add_trace(tr)
         fig.add_trace(go.Scatter(
-            x=hx, y=_clip01_arr(hpt) * 100, mode="lines+markers", name="Hindcast (1-mo)",
+            x=hx, y=_clip01_arr(hpt) * 100, mode="lines+markers", name="Past forecasts (1-mo)",
             line=dict(color=AMBER, width=2, dash="dash"), marker=dict(size=5, color=AMBER),
-            hovertemplate="%{x|%b %Y}: %{y:.1f}%<extra>hindcast</extra>"))
+            hovertemplate="%{x|%b %Y}: %{y:.1f}%<extra>past forecast</extra>"))
 
     # --- Forecast: 1–3 month fan from the July origin (blue) ---
     for z, rgba, nm in ((_Z90, "rgba(21,101,192,0.12)", "90% interval"),
@@ -177,7 +194,7 @@ def _outlook_figure(zone: str, cfg: dict, hist_months: int = _HIST_MONTHS, hc=No
                        _clip01_arr(np.concatenate([[origin_val], pt - z * sd])), rgba, nm, True):
             fig.add_trace(tr)
     fig.add_trace(go.Scatter(
-        x=x, y=mid * 100, mode="lines+markers", name="Forecast (point)",
+        x=x, y=mid * 100, mode="lines+markers", name="Forecast",
         line=dict(color=BLUE, width=2.5, dash="dot"), marker=dict(size=7, color=BLUE),
         hovertemplate="%{x|%b %Y}: %{y:.1f}%<extra>point</extra>"))
 
@@ -195,7 +212,7 @@ def _outlook_figure(zone: str, cfg: dict, hist_months: int = _HIST_MONTHS, hc=No
     if vdate is not None and hist["date"].iloc[0] < vdate < origin_date:
         fig.add_vline(x=vdate, line=dict(color="#c9a26b", width=1, dash="dot"))
         fig.add_annotation(x=vdate, y=1.0, yref="paper", yanchor="bottom",
-                           text="coeff. vintage", showarrow=False,
+                           text="model built to here", showarrow=False,
                            font=dict(size=10, color="#b35900"))
     # Thin the x tick density for long lookbacks so month labels don't collide.
     n_pts = len(hist) + len(t)
@@ -241,39 +258,40 @@ def _skill_scatter(hc):
     return fig
 
 
-def _zone_outlook(cfg: dict) -> None:
-    """Zone-selectable fan chart below the tiles (recent actuals + fanned 1–3 month forecast)."""
+def _zone_outlook(cfg: dict, zones: list[str]) -> None:
+    """Zone-selectable fan chart below the tiles (recent actuals + fanned 1–3 month forecast).
+
+    ``zones`` scopes the picker to the selected Operational region's forecast zone(s)."""
     with st.container(border=True):
-        section_title("Zone Outlook", note="actuals + one-month hindcast + fanned 1–3 month forecast")
-        zones = [z for _, zs in _GROUPS for z in zs if z in cfg["zones"]]
+        section_title("Zone Outlook", note="recent history, how past forecasts did, and the 1–3 month outlook")
+        # Key the zone picker on the current zone set so switching Operational region does not
+        # leave a stale (now out-of-options) selection in session state.
+        zkey = "fc_outlook_zone_" + "_".join(zones)
         c1, c2 = st.columns([2, 3])
         with c1:
-            zone = st.selectbox("Zone", zones, index=0, key="fc_outlook_zone",
+            zone = st.selectbox("Zone", zones, index=0, key=zkey,
                                 format_func=lambda z: _ZONE_NAMES.get(z, z))
         with c2:
-            span = st.segmented_control("History shown", list(_LOOKBACK), default="2 yr",
-                                        key="fc_outlook_span") or "2 yr"
+            span = st.segmented_control("History shown", list(_LOOKBACK), default="1 yr",
+                                        key="fc_outlook_span") or "1 yr"
         hc = hindcast_series(zone, _LOOKBACK[span], cfg)   # computed once, shared by chart + scatter
         built = _outlook_figure(zone, cfg, _LOOKBACK[span], hc=hc)
         if built is None:
             callout("No forecast artifact yet for this zone. Run <code>mhw-run-forecast</code>.",
                     icon="⚙️", tint=SLATE)
             return
-        fig, meta = built
+        fig, _ = built
         st.plotly_chart(fig, use_container_width=True,
                         config={"displayModeBar": False})
-        role = cfg["zones"][zone]["role"]
-        model = "damped persistence" if role == "persistence" else "climatology"
         callout(
-            f"<b>How to read:</b> the grey line is the observed monthly heatwave area. The amber "
-            "dashed line is the <b>hindcast</b> — the same frozen model run <b>one month ahead</b> "
-            "at each past month, with amber 50%/90% bands — so you can see how it tracked reality "
-            f"(where amber and grey diverge is the error). The dotted blue line is the <b>{model}</b> "
-            "point forecast for the next three months, with blue <b>50%</b> (likely) and <b>90%</b> "
-            "(plausible) bands that widen with lead time as skill fades. Lower edges floor at 0% "
-            f"(area can't be negative). Coefficient vintage {meta.get('coefficient_vintage')}; "
-            "hindcast months on/before that vintage are in-sample, so read it as illustrative of "
-            "tracking, not a clean skill score.", icon="📈", tint=SLATE)
+            "<b>How to read:</b> the grey line is what actually happened — the monthly heatwave "
+            "area. The amber dashed line shows how the forecast <b>would have done</b>: the same "
+            "method run <b>one month ahead</b> at each past month, with amber 50%/90% ranges, so "
+            "where amber and grey diverge is the miss. The dotted blue line is the <b>forecast</b> "
+            "for the next three months, with blue <b>50%</b> (likely) and <b>90%</b> (plausible) "
+            "ranges that widen further out as the forecast gets less certain. The lower edges stop "
+            "at 0% (area can't be negative). Earlier months were used to build the method, so treat "
+            "that part as an illustration of how it tracks, not a clean score.", icon="📈", tint=SLATE)
 
         # --- Predicted-vs-observed skill (same window; the shift-free diagnostic) ---
         if len(hc) > 2:
@@ -300,53 +318,78 @@ def _zone_outlook(cfg: dict) -> None:
                 "shows here as scatter around the line, widest at the extremes.", icon="🎯", tint=SLATE)
 
 
-def render() -> None:
-    inject_css()
-    cfg = load_forecast_config()
-    version = cfg.get("module_version") or "unpinned"
-    vintage = cfg.get("fit_vintage") or "—"
+def render_forecast_panel(zones: list[str], cfg: dict | None = None) -> None:
+    """Forecast body scoped to ``zones`` — the tiles, Zone Outlook, SEBS onset watch and footer.
 
-    page_header(
-        "🔮", "Marine Heatwave Forecast", subtitle="Short-term outlook · Alaska ESR zones",
-        region_label_text="Alaska ESR zones",
-        caption="Damped-persistence outlook of the monthly marine-heatwave area fraction for the "
-                "nine Alaska ESR (Ecosystem Status Report) zones, leads 1–3 months.")
+    Rendered inside the Operational tab (filtered to the selected region's forecast zones), so it
+    draws no page header of its own and assumes ``inject_css()`` was already called by the host.
+    """
+    cfg = cfg or load_forecast_config()
+
+    if not zones:
+        callout(
+            "No outlook is issued for this region — the forecast covers the nine Alaska ESR zones "
+            "(Bering shelf, Gulf of Alaska, Aleutians, Chukchi/Beaufort). Select one of those "
+            "regions to see its outlook.", icon="🧭", tint=SLATE)
+        return
 
     callout(
-        "This is a <b>consumed research-cell product</b>: the board pins the paper-validated "
-        f"forecast module ({version}, frozen coefficients, vintage {vintage}) and displays it — "
-        "it does not fit a forecast. <b>Damped persistence is the forecast</b> across the "
-        "productive zones; nothing tested resolvably beats it at these leads, and <b>skill fades "
-        "by ~2–3 months</b>. Honesty ladder: 1-month <i>headline</i>, 2-month <i>banded</i>, "
-        "3-month <i>low-confidence watch</i>.", icon="🧭")
+        "This short-term outlook comes from our <b>ongoing marine-heatwave forecasting research</b> "
+        "(described in the <a href='/forecast_development' style='text-decoration:underline'>working "
+        "paper</a>). It works by carrying recent conditions forward and easing them toward normal — a "
+        "simple approach that, so far, nothing else has reliably beaten this far out. Read it as "
+        "<b>most reliable one month ahead</b>, still useful at two months, and a <b>low-confidence "
+        "watch by three months</b>.", icon="🧭")
 
     callout(
         "<b>Reading the tiles:</b> each percentage is the forecast <b>share of the zone under an "
         "active marine heatwave</b> that month (0% = none, 100% = the whole zone). The <i>band</i> "
-        "beneath it is a <b>90% predictive interval</b> — the plausible range around the point — "
-        "and it widens with lead time. <b>P(&gt;q90)</b> on the 1-month tile is the chance the area "
-        "exceeds the zone's historical 90th-percentile month. See the <b>Zone Outlook</b> chart "
-        "below for the actuals-plus-forecast view with 50% and 90% bands.", icon="ℹ️", tint=BLUE)
+        "beneath it is the <b>plausible range</b> around that number, and it widens the further out "
+        "the forecast reaches. <b>P(&gt;q90)</b> on the 1-month tile is the chance the area is "
+        "larger than in all but the warmest 10% of past months. See the <b>Zone Outlook</b> chart "
+        "below for recent history alongside the outlook.", icon="ℹ️", tint=BLUE)
 
-    for group_name, zones in _GROUPS:
+    zone_set = set(zones)
+    for group_name, group_zones in _GROUPS:
+        shown = [z for z in group_zones if z in zone_set and z in cfg["zones"]]
+        if not shown:
+            continue
         section_title(group_name)
-        for zone in zones:
-            if zone in cfg["zones"]:
-                _zone_card(zone, cfg)
+        for zone in shown:
+            _zone_card(zone, cfg)
 
-    _zone_outlook(cfg)
+    _zone_outlook(cfg, zones)
 
     # SEBS onset watch — experimental, deferred until the broad-basin field is rebuilt locally.
-    with st.container(border=True):
-        section_title("SEBS Onset Watch", note="experimental")
-        callout(
-            "An <b>experimental</b> two-state early-warning discriminator (elevated / normal) for "
-            "Southeastern Bering heatwave <i>onset</i> — a discrimination indicator, <b>not</b> a "
-            "calibrated probability and <b>not</b> framed as beating persistence. It is deferred "
-            "until the broad-basin OISST field is rebuilt locally, so no state is issued yet.",
-            icon="🧪", tint=AMBER)
+    # Only relevant when the Southeastern Bering is in view.
+    if "sebs" in zone_set:
+        with st.container(border=True):
+            section_title("SEBS Onset Watch", note="experimental")
+            callout(
+                "An <b>experimental</b> early-warning signal for the <i>start</i> of a Southeastern "
+                "Bering heatwave — a simple elevated-vs-normal flag, <b>not</b> a calibrated "
+                "probability. It is still in development, so no reading is issued yet.",
+                icon="🧪", tint=AMBER)
 
     footer(
-        f"Source: LOFRA frozen forecast module {version} (damped persistence / climatology), "
-        f"coefficient vintage {vintage}; run forward over our monthly area_frac. Leads 1–3 months.",
+        "Source: our ongoing marine-heatwave forecasting research "
+        "(<a href='/forecast_development' style='text-decoration:underline'>working paper</a>). "
+        "Short-term outlook of the monthly heatwave area for each zone, 1–3 months ahead.",
         guide_url="/marine_heatwave_guide")
+
+
+def render() -> None:
+    """Standalone all-zones forecast view (page header + full panel).
+
+    Retained for direct use / testing; the board now renders the forecast region-scoped inside the
+    Operational tab via :func:`render_forecast_panel`.
+    """
+    inject_css()
+    cfg = load_forecast_config()
+    page_header(
+        "🔮", "Marine Heatwave Forecast", subtitle="Short-term outlook · Alaska ESR zones",
+        region_label_text="Alaska ESR zones",
+        caption="Short-term outlook (1–3 months ahead) of the share of each Alaska ESR (Ecosystem "
+                "Status Report) zone under a marine heatwave.")
+    all_zones = [z for _, zs in _GROUPS for z in zs if z in cfg["zones"]]
+    render_forecast_panel(all_zones, cfg)

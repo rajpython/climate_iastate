@@ -263,6 +263,8 @@ nav = {
     # become sibling pages here.
     "Alaska-wide Climate": [
         st.Page(marine_heatwaves_render, title="Marine Heatwaves", url_path="marine_heatwaves"),
+        st.Page("pages/driver_correlations.py", title="Climate Driver Links",
+                url_path="driver_correlations"),
     ],
     "Bering Sea": [
         st.Page(lambda: bottom_observed_render(group="bering"),
