@@ -19,6 +19,17 @@ climatology:
     half_window: 5
     wrap_around_year: true
     notes: "For each DOY d, compute stats using DOY in [d-5..d+5] across baseline years."
+    # Canonical Hobday et al. (2016) two-step recipe: after the 11-day-window
+    # percentile above, smooth mu(d) and theta90(d) with a 31-day centered DOY
+    # moving average (wrap-around) to remove per-DOY sampling noise. This is a
+    # prescribed step of the standard definition, not an add-on. (Prior builds
+    # omitted it — an oversight corrected 2026-07-15; see git history / handoff
+    # thread obl064-theta90.)
+    post_smoothing:
+      apply: true
+      method: "rolling_mean_doy"
+      window_days: 31
+      wrap_around_year: true
 
   threshold:
     percentile: 0.90

@@ -23,7 +23,7 @@ import numpy as np
 import xarray as xr
 import yaml
 
-from mhw.climatology.smooth_doy import compute_mu_theta, doy_window
+from mhw.climatology.smooth_doy import compute_mu_theta, doy_window, smooth_doy_field
 from mhw.climatology.storage import save_climatology
 
 # ---------------------------------------------------------------------------
@@ -286,6 +286,17 @@ def build_climatology(
         if d % 60 == 0 or d == 1 or d == 366:
             n_valid = int(np.sum(np.isfinite(mu[d - 1])))
             print(f"  DOY {d:3d}/366 — {stack.shape[0]:4d} samples, {n_valid:,} valid cells")
+
+    # -----------------------------------------------------------------------
+    # Phase 3.5: canonical Hobday 31-day DOY smoothing of mu and theta90
+    # -----------------------------------------------------------------------
+    post = smoothing.get("post_smoothing", {})
+    if post.get("apply", False):
+        w = int(post.get("window_days", 31))
+        print(f"\nSmoothing mu and theta90 with a {w}-day DOY moving average "
+              f"(canonical Hobday 2016) …")
+        mu      = smooth_doy_field(mu, window_days=w)
+        theta90 = smooth_doy_field(theta90, window_days=w)
 
     return mu, theta90, lats, lons
 
