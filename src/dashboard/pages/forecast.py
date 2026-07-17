@@ -27,6 +27,7 @@ import streamlit as st
 from dashboard.components.bottom_ui import (
     AMBER,
     BLUE,
+    PURPLE,
     RED,
     SLATE,
     callout,
@@ -42,11 +43,14 @@ from mhw.forecast.deploy import (
     load_forecast_config,
     read_area_frac_monthly,
     read_forecast_artifact,
+    read_onset_artifact,
 )
 from mhw.forecast.scorings import (
     OCCURRENCE_CAPTION,
+    ONSET_CAPTION,
     occurrence_reliability,
     occurrence_skill,
+    onset_discrimination,
 )
 
 # Standard-normal half-width multipliers for the two nested predictive bands (two-sided).
@@ -231,6 +235,73 @@ def _occurrence_section(zones: list[str], cfg: dict) -> None:
                             config={"displayModeBar": False}, key=f"relia_{zsel}")
             st.caption("Points on the dashed line mean forecasts are well-calibrated — when it says "
                        "20%, it happens about 20% of the time. Bigger dots = more months in that bin.")
+
+
+def _sebs_onset_card() -> None:
+    """SEBS onset watch — the experimental LIM-k12 two-state (elevated/normal) discriminator.
+
+    Shows the live watch state per lead + the discrimination skill (AUC/SEDI/POD/FAR) with the
+    persistence AUC alongside as the honesty anchor. Never a probability; SEBS only.
+    """
+    with st.container(border=True):
+        section_title("SEBS Onset Watch", note="experimental · early-warning · never a probability")
+        callout(ONSET_CAPTION, icon="🧪", tint=AMBER)
+        try:
+            odf, ometa = read_onset_artifact()
+        except FileNotFoundError:
+            callout("The onset watch needs the broad-basin OISST field built locally "
+                    "(<code>mhw-run-forecast --onset</code>); no reading is issued yet.",
+                    icon="⚙️", tint=SLATE)
+            return
+
+        # Live watch state per lead (elevated = alert, normal = calm) — the two-state flag, no probability.
+        state_cards = []
+        for _, r in odf.sort_values("lead_months").iterrows():
+            elevated = str(r["state"]).lower() == "elevated"
+            months = int(r["lead_months"])
+            target = pd.to_datetime(r["date"]).strftime("%b %Y")
+            state_cards.append(kpi_card(
+                label=f"{months}-month watch", value=str(r["state"]).capitalize(),
+                value_color=RED if elevated else SLATE, sub=f"for {target}",
+                tip="A two-state early-warning flag for the START of a Southeastern Bering heatwave. "
+                    "'Elevated' means the LIM signal is above its warn threshold — it is a watch, not "
+                    "a probability or a validated forecast advantage."))
+        kpi_grid(state_cards, cols=len(state_cards))
+
+        # Discrimination skill (L1) with the persistence anchor — the honesty story.
+        watch = onset_discrimination(lead=1)                       # deployed lim_k12
+        anchor = onset_discrimination(lead=1, forecaster="persistence")
+        if watch is not None:
+            skill = [
+                kpi_card(label="Discrimination", value=f"{watch['onset_auc']:.2f}", value_color=PURPLE,
+                         sub="AUC · 1 month", label_note=f"(n={int(watch['n_onset'])} onsets)",
+                         tip="Area under the ROC curve — the chance the watch ranks a true onset month "
+                             "above a non-onset one. 0.5 = no skill."),
+                kpi_card(label="Discrimination (SEDI)", value=f"{watch['sedi']:.2f}", value_color=PURPLE,
+                         sub="1 month",
+                         tip="Symmetric Extremal Dependence Index — a rare-event discrimination score "
+                             "robust to how uncommon onsets are. Higher = better separation."),
+                kpi_card(label="Hit / false-alarm", value=f"{watch['pod']*100:.0f}% / {watch['far']*100:.0f}%",
+                         value_color=AMBER, sub="POD / FAR at threshold",
+                         tip="Of true onsets, the share the watch flags (hit rate); and of its flags, the "
+                             "share that were false alarms."),
+            ]
+            anchor_auc = f"{anchor['onset_auc']:.2f}" if anchor is not None else "—"
+            if anchor is not None:
+                skill.append(kpi_card(
+                    label="vs simple persistence", value=anchor_auc, value_color=SLATE,
+                    sub="persistence AUC · anchor",
+                    tip="Plain persistence's own onset AUC. The watch sits just above it — it "
+                        "discriminates onset but does not resolvably beat persistence."))
+            kpi_grid(skill, cols=len(skill))
+            callout(
+                f"The watch discriminates onset (AUC {watch['onset_auc']:.2f}) but sits just above "
+                f"simple persistence ({anchor_auc}) — it is an early-warning signal, <b>not</b> a "
+                "resolvable gain over persistence.",
+                icon="⚖️", tint=SLATE)
+        if ometa.get("coefficient_vintage"):
+            st.caption(f"LIM-k12 onset calibration vintage {ometa['coefficient_vintage']} · "
+                       f"origin {ometa.get('origin_date', '—')}.")
 
 
 def _clip01_arr(a: np.ndarray) -> np.ndarray:
@@ -461,16 +532,9 @@ def render_forecast_panel(zones: list[str], cfg: dict | None = None) -> None:
 
     _zone_outlook(cfg, zones)
 
-    # SEBS onset watch — experimental, deferred until the broad-basin field is rebuilt locally.
-    # Only relevant when the Southeastern Bering is in view.
+    # SEBS onset watch — experimental LIM-k12 discriminator; only when the Southeastern Bering is in view.
     if "sebs" in zone_set:
-        with st.container(border=True):
-            section_title("SEBS Onset Watch", note="experimental")
-            callout(
-                "An <b>experimental</b> early-warning signal for the <i>start</i> of a Southeastern "
-                "Bering heatwave — a simple elevated-vs-normal flag, <b>not</b> a calibrated "
-                "probability. It is still in development, so no reading is issued yet.",
-                icon="🧪", tint=AMBER)
+        _sebs_onset_card()
 
     footer(
         "Source: our ongoing marine-heatwave forecasting research "

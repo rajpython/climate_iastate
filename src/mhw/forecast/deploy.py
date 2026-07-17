@@ -18,7 +18,7 @@ Artifacts (schema fixed now so the API/panel can be built against it):
     forecast_{zone}.parquet : lead, lead_months, confidence, method, point, ar1_var,
                               band_lo, band_hi, l1_prob, target_date   (+ provenance metadata:
                               module_version, fit_vintage, coefficient_vintage, origin_date)
-    onset_sebs.parquet      : date, state, threshold      (deferred — see run_onset_watch)
+    onset_sebs.parquet      : date, state, threshold      (SEBS onset watch — run_onset_watch)
 
 CLI: mhw-run-forecast [--zones ...] [--out-dir DIR]  → writes forecast_{zone}.parquet for all zones.
 """
@@ -283,18 +283,79 @@ def run_forecast(zone: str, cfg: dict | None = None) -> Path:
     return path
 
 
-def run_onset_watch(cfg: dict | None = None) -> Path:
-    """SEBS onset watch — **deferred**. Needs the obl029 broad-basin OISST field rebuilt locally.
+def _onset_field_path(cfg: dict) -> Path:
+    """Absolute path to the local broad-basin OISST-anomaly field (obl029) the onset watch reads."""
+    rel = cfg.get("onset_field", "data/derived/forecast/onset_field/broadbasin_oisst_monthly.nc")
+    p = Path(rel)
+    return p if p.is_absolute() else PROJECT_ROOT / rel
 
-    The frozen onset path (``forecast.sebs_onset_watch_frozen``) requires a monthly broad-basin
-    OISST anomaly NetCDF on the fit-vintage grid/baseline, built via the vendored obl029 chain.
-    Until that field exists the onset artifact is not produced and ``/v1/forecast/onset/sebs``
-    stays live-safe at 503. See the plan's "Out of scope" follow-up.
+
+def run_onset_watch(cfg: dict | None = None) -> Path:
+    """Run the FROZEN SEBS onset watch and write ``onset_sebs.parquet``.
+
+    Loads the locally-held broad-basin OISST anomaly field (obl029), aligns the SEBS ``area_frac``
+    origin to the field's latest month (the field can lag our area_frac by a month), and applies
+    LOFRA's PINNED LIM-k12 onset path (``forecast.sebs_onset_watch_frozen``). Nothing is re-fit — the
+    field supplies only the origin state x0. Output is a two-state **elevated/normal** watch per lead
+    (never a probability). Raises ``FileNotFoundError`` when the field is absent, so the API stays
+    live-safe at 503 until the field is built.
     """
-    raise NotImplementedError(
-        "SEBS onset watch needs the obl029 broad-basin field rebuild "
-        "(vendor/forecast-module-v1/scripts/obl029_*) — deferred follow-up."
-    )
+    cfg = cfg or load_forecast_config()
+    if cfg.get("module_version") is None:
+        raise RuntimeError(
+            "config/forecast.yml has module_version: null — pin the vendored module version first."
+        )
+    field_path = _onset_field_path(cfg)
+    if not field_path.exists():
+        raise FileNotFoundError(
+            f"onset field missing at {field_path} — build the obl029 broad-basin OISST anomaly "
+            "NetCDF (see docs/forecast_extension) before running the onset watch."
+        )
+    mod, mani = _forecast_module(), _manifest()
+    field = mod.load_live_field(str(field_path))
+
+    # Align the onset origin to the field's latest month; the frozen path requires the field to
+    # contain the area_frac origin month, and the field can trail our area_frac series.
+    field_last = pd.Timestamp(field.dates[-1]).to_period("M")
+    monthly = read_area_frac_monthly("sebs")
+    monthly = monthly[monthly["date"].dt.to_period("M") <= field_last]
+
+    leads = tuple(int(h) for h in cfg.get("onset", {}).get("leads", (1, 2)))
+    out = mod.sebs_onset_watch_frozen(monthly, field, mani, leads=leads)
+
+    rows = [
+        {
+            "date": pd.Timestamp(e["target_date"]),
+            "lead_months": int(h),
+            "state": e["watch"],                        # 'elevated' | 'normal' — the two-state watch
+            "threshold": float(e["decision_threshold"]),
+            "onset_prob": float(e["onset_prob_q90"]),   # internal (drives the state) — not displayed
+        }
+        for h, e in out["leads"].items()
+    ]
+    df = pd.DataFrame(rows).sort_values("lead_months").reset_index(drop=True)
+    meta = {
+        "module_version": cfg.get("module_version"),
+        "fit_vintage": cfg.get("fit_vintage"),
+        "coefficient_vintage": out.get("coefficient_vintage"),
+        "origin_date": out.get("origin_date"),
+    }
+    path = onset_artifact_path()
+    _write_with_meta(df, path, meta)
+    return path
+
+
+def read_onset_artifact() -> tuple[pd.DataFrame, dict]:
+    """Load the SEBS onset watch artifact as ``(frame, provenance_metadata)``.
+
+    Raises ``FileNotFoundError`` if the watch has not been produced (``mhw-run-forecast --onset``).
+    """
+    p = onset_artifact_path()
+    if not p.exists():
+        raise FileNotFoundError(f"no onset artifact: {p} — run `mhw-run-forecast --onset`")
+    schema_meta = pq.read_schema(p).metadata or {}
+    meta = {k: schema_meta.get(k.encode(), b"").decode() or None for k in _META_KEYS}
+    return pd.read_parquet(p), meta
 
 
 # ---------------------------------------------------------------------------
@@ -311,6 +372,8 @@ def parse_args(argv=None) -> argparse.Namespace:
                    help="zones to run (default: every zone in config/forecast.yml)")
     p.add_argument("--out-dir", type=Path, default=None,
                    help="override output dir (default: data/derived/forecast/)")
+    p.add_argument("--onset", action="store_true",
+                   help="also run the SEBS onset watch (needs the obl029 broad-basin field)")
     return p.parse_args(argv)
 
 
@@ -327,6 +390,11 @@ def main(argv=None) -> int:
         print(f"[mhw-run-forecast] {zone:<11} -> {path}  "
               f"(coef {meta['coefficient_vintage']}, origin {meta['origin_date']})")
     print(f"[mhw-run-forecast] wrote {len(zones)} artifact(s) to {FORECAST_DIR}")
+    if args.onset:
+        opath = run_onset_watch(cfg)
+        _, ometa = read_onset_artifact()
+        print(f"[mhw-run-forecast] onset_sebs -> {opath}  "
+              f"(coef {ometa['coefficient_vintage']}, origin {ometa['origin_date']})")
     return 0
 
 

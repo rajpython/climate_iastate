@@ -105,6 +105,22 @@ def test_run_forecast_writes_pinned_artifact(tmp_path, monkeypatch):
     assert meta["coefficient_vintage"]  # provenance embedded
 
 
+def test_run_onset_watch_writes_two_state_artifact(tmp_path, monkeypatch):
+    from mhw.forecast.deploy import _onset_field_path
+    cfg = load_forecast_config()
+    if not (VENDOR_DIR.exists() and _onset_field_path(cfg).exists()
+            and (AGG_DIR / "region_daily_sebs.parquet").exists()):
+        pytest.skip("vendored module, obl029 onset field, or sebs inputs not generated")
+    monkeypatch.setattr(deploy, "FORECAST_DIR", tmp_path)
+    path = deploy.run_onset_watch(cfg)
+    assert path.parent == tmp_path
+    df, meta = deploy.read_onset_artifact()
+    # a two-state elevated/normal watch (never a probability) with a numeric decision threshold
+    assert set(df["state"]).issubset({"elevated", "normal"})
+    assert df["threshold"].notna().all()
+    assert meta["coefficient_vintage"]  # SEBS onset vintage embedded
+
+
 # --- API live-safety -------------------------------------------------------
 
 _client = None
@@ -152,5 +168,11 @@ def test_forecast_served_when_present(tmp_path, monkeypatch):
     assert len(body["records"]) == 3
 
 
-def test_onset_missing_artifact_503():
-    assert _get_client().get("/v1/forecast/onset/sebs").status_code == 503
+def test_onset_route_live_safe():
+    # Live-safe both ways: 503 when the onset artifact has not been produced, 200 (two-state
+    # elevated/normal records) once it has. The artifact is gitignored, so either is valid here.
+    r = _get_client().get("/v1/forecast/onset/sebs")
+    assert r.status_code in (200, 503)
+    if r.status_code == 200:
+        recs = r.json()["records"]
+        assert recs and all(x["state"] in ("elevated", "normal") for x in recs)

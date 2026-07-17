@@ -36,6 +36,13 @@ OCCURRENCE_CAPTION = (
     "seasonal climatology; it is resolvable at one month in the productive zones and decays toward "
     "climatology beyond, where it is shown as “watch” rather than a number."
 )
+ONSET_CAPTION = (
+    "EXPERIMENTAL — a two-state elevated/normal onset watch. It genuinely discriminates SEBS "
+    "marine-heatwave onset but is not a resolvable skill gain over persistence and is never shown "
+    "as beating persistence; on the corrected predictand its selection-adjusted improvement is not "
+    "statistically resolvable on the available onsets. Read it as an early-warning signal, not a "
+    "validated forecast advantage."
+)
 
 
 @lru_cache(maxsize=None)
