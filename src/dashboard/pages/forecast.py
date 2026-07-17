@@ -43,6 +43,11 @@ from mhw.forecast.deploy import (
     read_area_frac_monthly,
     read_forecast_artifact,
 )
+from mhw.forecast.scorings import (
+    OCCURRENCE_CAPTION,
+    occurrence_reliability,
+    occurrence_skill,
+)
 
 # Standard-normal half-width multipliers for the two nested predictive bands (two-sided).
 _Z50 = 0.6744897501960817   # 50% interval  → ppf(0.75)
@@ -132,6 +137,100 @@ def _zone_card(zone: str, cfg: dict) -> None:
                 f"<b>{name}:</b> has genuine one-month forecast skill and gets an outlook, but sea "
                 "ice affects the satellite temperatures — read it with that caveat in mind.",
                 icon="🧊", tint=AMBER)
+
+
+def _occurrence_zone_row(zone: str, cfg: dict) -> None:
+    """One damped zone's occurrence read-out: live P(>q90) + its skill (BSS-vs-clim, AUC).
+
+    Live probability is this month's forecast (``l1_prob`` in the artifact); the skill numbers are
+    LOFRA's certified v2 validation of that same damped-persistence forecast — never re-derived.
+    """
+    name = _ZONE_NAMES.get(zone, zone)
+    skill = occurrence_skill(zone, lead=1)
+    try:
+        fdf, _ = read_forecast_artifact(zone)
+        l1 = fdf.loc[fdf["lead"] == "L1", "l1_prob"]
+        prob = float(l1.iloc[0]) if len(l1) and not pd.isna(l1.iloc[0]) else None
+    except FileNotFoundError:
+        prob = None
+    if skill is None and prob is None:
+        return
+    cards = [
+        kpi_card(
+            label=f"{name} · P(&gt;q90)", value=_pct(prob) if prob is not None else "—",
+            value_color=BLUE, sub="next month",
+            tip="This month's forecast chance that the heatwave area is larger than in all but the "
+                "warmest 10% of past months — read off the same damped-persistence forecast as the "
+                "magnitude tile."),
+    ]
+    if skill is not None:
+        cards.append(kpi_card(
+            label="Skill vs climatology", value=f"{skill['bss_clim']:.2f}", value_color=BLUE,
+            sub="BSS · 1 month", label_note=f"(n={int(skill['n'])})",
+            tip="Brier Skill Score against the seasonal average: 0 = no better than climatology, 1 = "
+                "perfect. This measures skill over climatology — it is not a gain over persistence."))
+        cards.append(kpi_card(
+            label="Discrimination", value=f"{skill['auc']:.2f}", value_color=BLUE, sub="AUC · 1 month",
+            tip="Area under the ROC curve: the chance the forecast ranks a true high-area month above "
+                "a low-area one. 0.5 = no skill, 1.0 = perfect separation."))
+    kpi_grid(cards, cols=len(cards))
+    if cfg["zones"].get(zone, {}).get("ice_caveat"):
+        callout(f"<b>{name}:</b> sea ice affects the satellite temperatures here — read the "
+                "occurrence chance with that caveat.", icon="🧊", tint=AMBER)
+
+
+def _reliability_figure(zone: str):
+    """Reliability diagram for a zone's occurrence forecast: mean forecast prob vs observed
+    frequency per bin, against the 1:1 perfect-reliability line. Marker size ∝ months in the bin.
+    Returns a Plotly figure, or None when no reliability bins exist."""
+    rb = occurrence_reliability(zone, lead=1)
+    if rb.empty:
+        return None
+    x = rb["p_mean"].to_numpy(float) * 100
+    y = rb["o_freq"].to_numpy(float) * 100
+    n = rb["n"].to_numpy(float)
+    hi = max(1.0, float(np.nanmax([x.max(), y.max()]))) * 1.08
+    sizes = 8 + 22 * np.sqrt(n / max(n.max(), 1.0))   # ≥8px, area-encodes bin count
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[0, hi], y=[0, hi], mode="lines", name="perfect",
+                             line=dict(color="#9aa5b1", width=1, dash="dash"), hoverinfo="skip"))
+    fig.add_trace(go.Scatter(
+        x=x, y=y, mode="lines+markers", name="observed",
+        line=dict(color=BLUE, width=2),
+        marker=dict(size=sizes, color="rgba(30,102,166,0.55)", line=dict(width=1, color=BLUE)),
+        customdata=n,
+        hovertemplate="forecast %{x:.0f}%<br>observed %{y:.0f}%<br>%{customdata:.0f} months<extra></extra>"))
+    fig.update_layout(
+        height=340, margin=dict(l=10, r=10, t=10, b=10), showlegend=False, plot_bgcolor="white",
+        xaxis=dict(title="Forecast probability (%)", range=[0, hi], gridcolor="#eef1f5", zeroline=False),
+        yaxis=dict(title="Observed frequency (%)", range=[0, hi], gridcolor="#eef1f5", zeroline=False,
+                   scaleanchor="x", scaleratio=1))
+    return fig
+
+
+def _occurrence_section(zones: list[str], cfg: dict) -> None:
+    """Occurrence-probability report card — the deployed damped-persistence forecast's P(>q90) and
+    its skill, for the damped zones in view (climatology zones have no occurrence product)."""
+    damped = [z for _, zs in _GROUPS for z in zs
+              if z in set(zones) and cfg["zones"].get(z, {}).get("role") == "persistence"]
+    if not damped:
+        return
+    with st.container(border=True):
+        section_title("Occurrence Probability",
+                      note="chance of an unusually large heatwave · one month ahead")
+        callout(OCCURRENCE_CAPTION, icon="📈", tint=BLUE)
+        for zone in damped:
+            _occurrence_zone_row(zone, cfg)
+        # Reliability curve for one zone at a time (keeps the card compact for multi-zone regions).
+        zkey = "fc_occ_relia_" + "_".join(damped)
+        zsel = st.selectbox("Reliability check — zone", damped, index=0, key=zkey,
+                            format_func=lambda z: _ZONE_NAMES.get(z, z))
+        fig = _reliability_figure(zsel)
+        if fig is not None:
+            st.plotly_chart(fig, use_container_width=True,
+                            config={"displayModeBar": False}, key=f"relia_{zsel}")
+            st.caption("Points on the dashed line mean forecasts are well-calibrated — when it says "
+                       "20%, it happens about 20% of the time. Bigger dots = more months in that bin.")
 
 
 def _clip01_arr(a: np.ndarray) -> np.ndarray:
@@ -357,6 +456,8 @@ def render_forecast_panel(zones: list[str], cfg: dict | None = None) -> None:
         section_title(group_name)
         for zone in shown:
             _zone_card(zone, cfg)
+
+    _occurrence_section(zones, cfg)
 
     _zone_outlook(cfg, zones)
 
