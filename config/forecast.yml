@@ -1,9 +1,8 @@
 # Forecast display configuration — the single source of truth for how forecast tiles are wired.
 #
 # The deployed product is LOFRA's damped-persistence module run in-process on our own monthly
-# per-zone `area_frac` (parity contract `area_frac = Σ(w·A)/Σ(w)`, predictand snapshot
-# `snap-obl028-predictand-20260701`). Division of labor settled 2026-07-08
-# (docs/handoffs, Thread: forecast-transfer). See docs/forecast_extension/.
+# per-zone `area_frac` (parity contract `area_frac = Σ(w·A)/Σ(w)`). Division of labor settled
+# 2026-07-08 (docs/handoffs, Thread: forecast-transfer). See docs/forecast_extension/.
 #
 # Zone roles are product-dependent (per LOFRA's correction):
 #   - persistence : point + AR(1) band + L1 occurrence probability, on the honesty ladder.
@@ -15,8 +14,20 @@
 # Pin to a delivered, paper-validated module version. null until LOFRA ships v1 (frozen
 # coefficients applied forward; re-fits are LOFRA re-validation events — we only bump this pin).
 # Vendored verbatim at vendor/forecast-module-v1/ (SHA-256 verified against its DELIVERY-MANIFEST).
+#
+# The MODULE code stays v1 (byte-identical); LOFRA re-fits arrive as versioned COEFFICIENT-MANIFEST
+# releases. `coefficient_manifest` names the pinned manifest inside vendor/forecast-module-v1/forecast/;
+# bumping a re-fit is this one line, not a code change.
 module_version: v1.1.0
-fit_vintage: "2026-04-01"     # persistence/climatology coefficient vintage (shown on every tile).
+coefficient_manifest: coefficient_manifest_v2.json   # v2: re-fit on the corrected (θ90-smoothed) predictand
+coefficient_manifest_version: v2
+# v2 provenance (SHA-256 verified vs DELIVERY-MANIFEST-coefficient-v2.md; delivered 2026-07-16):
+#   predictand_snapshot        snap-obl064-predictand-corrected-v2-20260716
+#   predictand_manifest_sha256 6efcb272c52ceaa7cdf8c43686791624a4d0c61b576e80e3c91f7262e6ebf7ad
+#   json  052c88d838ea3b5f4e8bda358a707765d6dd909abab8d39e3b8042e696608cd8
+#   npz   cee7a21f31e252225c890433b6eb5f12a4c405fd0d6b03b7a6b83c68f3d6d74c
+# LOFRA-confirmed: DEPLOY_MAP + coefficient vintages UNCHANGED vs v1; only predictand-space couplings move.
+fit_vintage: "2026-04-01"     # persistence/climatology coefficient vintage (shown on every tile; unchanged).
                               # SEBS onset's own 2026-05 vintage surfaces with the onset watch later.
 
 # Forecast horizons (the honesty ladder). Leads are calendar months on our OISST cadence.

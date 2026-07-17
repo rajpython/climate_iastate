@@ -142,10 +142,18 @@ def _forecast_module():
 
 
 def _manifest():
-    """Return the pinned coefficient manifest (loaded once)."""
+    """Return the pinned coefficient manifest (loaded once).
+
+    The coefficient-manifest filename is pinned in ``config/forecast.yml``
+    (``coefficient_manifest``) and resolved inside the vendored ``forecast/`` dir, so a
+    versioned re-fit (v1 → v2 → …) is a config bump, not a code edit. Defaults to the v1
+    file when unset (back-compat with the vendored module's own ``DEFAULT_MANIFEST``).
+    """
     global _MANIFEST
     if _MANIFEST is None:
-        _MANIFEST = _forecast_module().load_manifest()
+        name = load_forecast_config().get("coefficient_manifest")
+        json_path = (VENDOR_DIR / "forecast" / name) if name else None
+        _MANIFEST = _forecast_module().load_manifest(json_path)
     return _MANIFEST
 
 
