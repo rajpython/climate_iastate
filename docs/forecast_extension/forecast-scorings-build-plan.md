@@ -127,6 +127,12 @@ users, drawn from LOFRA's plain-English briefing. Two surfaces:
    where it comes from, what "persistence is the forecast to beat" means, the zone→product routing, the honest
    labels, the occurrence/onset scorings, and the ceiling. Rendered via the existing `guides.py` markdown path.
 
+**Phase 2.5 status (DONE 2026-07-16, commit aae2b6e):** added the "The Alaska-Shelf MHW Forecast (Damped
+Persistence)" section to `docs/marine_heatwave_guide.md` (provenance, one-target/three-report-cards, forecast-
+to-beat, ceiling, zone routing, per-card honesty rails) + enriched the forecast panel's intro callout with the
+three-report-cards framing and a guide link. Authored from the briefing; skill claims anchored on the verbatim
+captions. Renders clean (plain markdown; guide uses unsafe_allow_html=False).
+
 **Source & sign-off (DECIDED 2026-07-16):** author it ourselves from LOFRA's `raj-briefings/
 briefing-predictand-correction-and-rerun-2026-07-16.md` (rev-2; plain-English, Section 2 explains the methods in
 lay terms) — **no separate LOFRA/ZEBRA ask.** Col. Raj confirmed the briefing is sufficient. We adapt its
