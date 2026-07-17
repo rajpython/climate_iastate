@@ -101,6 +101,15 @@ locally-rebuilt broad-basin OISST field.
    onsets). Onset stays **SEBS-only**. Render the **verbatim caption** from `SCORINGS-MANIFEST.md` §B.
 5. **UI:** its own bordered card under the SEBS view; PURPLE/AMBER accents (watch/caution), never a probability.
 
+**Phase 2 status (DONE 2026-07-16, commit abb6fcc):** onset watch un-deferred and live. Wired
+`run_onset_watch()` → frozen LIM-k12 path; `mhw-run-forecast --onset`; `/v1/forecast/onset/sebs` serves it;
+UI card shows the two-state watch + AUC/SEDI/POD-FAR with the persistence anchor + verbatim caption. Both
+leads currently "normal." **Field-source decision:** used LOFRA's obl029 build (public-OISST-derived, 362 MB;
+`load_live_field` validated all 86,522 frozen EOF cells align), gitignored under `data/derived/`. **Remaining
+follow-up (not blocking):** an **in-repo local field rebuild + monthly cron** — the vendored `obl029_*` fetch
+scripts are ACFR-path-hardcoded, so production needs a house fetcher (or a path-parameterized wrapper) so the
+board regenerates the field itself. Tracked as the Phase-3 refresh-cadence item.
+
 ---
 
 ## Phase 2.5 — Provenance & user-facing explanation (cross-cutting)
