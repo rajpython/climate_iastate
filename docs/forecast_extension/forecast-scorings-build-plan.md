@@ -118,15 +118,14 @@ users, drawn from LOFRA's plain-English briefing. Two surfaces:
    where it comes from, what "persistence is the forecast to beat" means, the zone→product routing, the honest
    labels, the occurrence/onset scorings, and the ceiling. Rendered via the existing `guides.py` markdown path.
 
-**Source & sign-off (important):** the natural source is LOFRA's `raj-briefings/
-briefing-predictand-correction-and-rerun-2026-07-16.md` (plain-English, Section 2 explains the methods in lay
-terms). But that briefing is an **internal document "written for Rajesh"** in first-person research-cell voice
-("we tested", "our persistence model"). Two reasons not to lift it verbatim into a public guide: voice, and the
-fact that **LOFRA's own OBL-065 already tasks ZEBRA with authoring plain-English public-facing URL explanations
-under LOFRA direction.** → **Recommended:** request a board-voice, public-appropriate excerpt/passage from LOFRA
-(coordinated with ZEBRA's work), rather than excerpting the internal briefing ourselves. We adapt to board voice
-and place it; LOFRA signs off the public wording (same discipline as the honest labels). Candidate excerpts are
-listed for Col. Raj in the session notes.
+**Source & sign-off (DECIDED 2026-07-16):** author it ourselves from LOFRA's `raj-briefings/
+briefing-predictand-correction-and-rerun-2026-07-16.md` (rev-2; plain-English, Section 2 explains the methods in
+lay terms) — **no separate LOFRA/ZEBRA ask.** Col. Raj confirmed the briefing is sufficient. We adapt its
+first-person research-cell voice ("we tested", "our model") into board/third-person and condense to match the
+existing guide's "NOAA PSL Marine Heatwave Forecast" section. The load-bearing skill claims are anchored on
+LOFRA's **already-signed-off verbatim panel captions** (from `SCORINGS-MANIFEST.md`), so the honesty-sensitive
+statements carry LOFRA's imprimatur without a new request. (LOFRA's OBL-065 ZEBRA public-explanation task is
+LOFRA's own initiative for their outputs; we can cross-reference their page later if it lands.)
 
 ## Phase 3 — Placement, design system, deploy
 
@@ -147,9 +146,11 @@ listed for Col. Raj in the session notes.
    verbatim label supplied.
 3. ✅ **RESOLVED** — CSVs delivered + pinned (`forecast-scorings-v2-20260716.tar.gz`, SHAs verified).
 4. ✅ **RESOLVED** — obl029: no v2 gotchas.
-5. ⏳ **OPEN (Col. Raj's decision, not a LOFRA blocker yet):** user-facing provenance text — request a board-voice,
-   public-appropriate passage from LOFRA/ZEBRA (OBL-065 public-explanation task), **or** adapt excerpts from the
-   existing plain-English briefing directly. Not yet sent to LOFRA pending Col. Raj's call on sourcing.
+5. ✅ **RESOLVED (Col. Raj, 2026-07-16): adapt from the briefing — no LOFRA ask.** The rev-2 briefing is
+   sufficient (method definitions, "one target / three report cards" framing, forecast-to-beat logic, ceiling,
+   numeric intuition, provenance). We author the guide section + inline callouts by adapting it to board voice,
+   anchored on LOFRA's already-signed-off verbatim panel captions for the load-bearing skill claims. No separate
+   board-voice passage requested from LOFRA/ZEBRA.
 
 ## Suggested sequencing
 
