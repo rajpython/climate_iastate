@@ -1,9 +1,12 @@
 # Build plan — v2 pin + occurrence-probability & SEBS-onset scoring pages
 
-**Status:** DRAFT for Col. Raj's approval (2026-07-16). Do not implement until approved.
-**Inputs in hand:** verified `coefficient-manifest-v2` (SHAs PASS); LOFRA rerun-v2 scoring tables inspected.
-**Still pending (does not block drafting):** LOFRA reply on `forecast-scorings` (handoff 04) — needed to
-finalize the starred (★) items below before those steps are coded.
+**Status:** READY for Col. Raj's approval (2026-07-16). Do not implement until approved.
+**Inputs in hand — all LOFRA info received + verified:**
+- `coefficient-manifest-v2-20260716.tar.gz` (SHAs PASS) — the v2 coefficient manifest.
+- `forecast-scorings-v2-20260716.tar.gz` (SHA `37f6e377…`, all 3 CSVs + manifest PASS) — pinned occurrence
+  + onset reference scorings, with LOFRA's display rules and **verbatim captions/labels** (handoff
+  `lofra-to-dashboard-20260716-05-forecast-scorings-guidance.md`, `Status: resolved`).
+- All previously-starred (★) items are now **resolved** inline below.
 
 ---
 
@@ -53,20 +56,23 @@ purely mechanical; no UI change.
 
 Occurrence (`l1_prob`) is already produced into `forecast_<zone>.parquet` and shown as a small sub-line. Promote it.
 
-- **Where:** a scored element beside the magnitude tiles, damped-persistence zones only (7 productive zones;
-  `chukchi`/`beaufort` excluded per routing; `nbs` shows it with the ice caveat).
-- **★ Metrics to surface (my proposal, pending LOFRA):** per zone×lead — **BSS vs climatology** (`bss_clim`) as the
-  headline skill number, a **reliability curve** (`reliability_bins.csv`: `p_mean` vs `o_freq`), and **AUC** as a
-  discrimination read-out. The v2 numbers are strong at L1 (BSS-clim 0.51 sebs / 0.58 egoa / 0.59 wgoa; AUC ~0.88–0.93),
-  decay through L2, and go **negative** at L3/L6 for several zones.
-- **Honesty ladder:** reuse the existing L1-headline / L2-banded / L3-watch treatment; **grey any cell with
-  non-resolvable / negative BSS** rather than printing a skill number (mirrors the magnitude ladder).
-- **★ Data source:** LOFRA's `results/obl064-rerun-v2/stage-3-baselines/probabilistic_skill.csv` +
-  `reliability_bins.csv` (v2, `forecaster=damped_persistence`, `stratum=all`). These are fixed-per-vintage
-  validation numbers → **pin them as a sealed reference artifact** (same pattern as the PSL SEDI artifact), not
-  recomputed board-side. Ask LOFRA to deliver them (or bless our vendoring from rerun-v2).
-- **UI:** `bottom_ui` chrome — a bordered card with `section_title("Occurrence Probability")`, `kpi_card`s
-  (BLUE accent = probability/stats) for P(>q90) + BSS, and a small reliability chart (per `dataviz`).
+- **Where:** a scored element beside the magnitude tiles, **seven damped zones only** (`sebs, wgoa, egoa, nbs,
+  ai_west, ai_central, ai_east`); `chukchi`/`beaufort` have no occurrence panel (climatology-routed); `nbs` shows
+  it with the Arctic ice caveat. *(LOFRA-confirmed.)*
+- **Metrics (confirmed):** per zone — **BSS vs climatology** (`bss_clim`, headline) + **AUC** + a **reliability
+  curve** (`p_mean` vs `o_freq`) + `n`/`base_rate` for context. Occurrence is an **L1 product**; L1 is resolvable
+  and positive in all seven zones (`bss_clim`: egoa 0.58, wgoa 0.59, sebs 0.51, nbs 0.39, ai_east 0.37, ai_west
+  0.27, ai_central 0.23).
+- **Honesty rail (LOFRA, load-bearing):** the occurrence forecast **is** the damped-persistence model (P(area_frac
+  > train-q90) read off the same forecast that drives the magnitude tile). `bss_clim` is genuine skill **over
+  climatology** — but the panel must **not imply it beats persistence**.
+- **Greying:** if L2/L3 are surfaced as context, **grey any cell with `bss_clim ≤ 0` as "watch"** (several zones
+  cross ≤0 by L3) — mirrors the magnitude ladder.
+- **Data source (delivered + pinned):** `data/incoming/forecast-scorings-v2/occurrence_probabilistic_skill_v2.csv`
+  (rows `forecaster=='damped_persistence'`, `stratum=='all'`) + `occurrence_reliability_bins_v2.csv`. Pin as a
+  sealed reference artifact (PSL-SEDI pattern). **Verbatim caption** to render is in `SCORINGS-MANIFEST.md` §A.
+- **UI:** `bottom_ui` chrome — bordered card, `section_title("Occurrence Probability")`, `kpi_card`s (BLUE accent)
+  for P(>q90) + BSS, small reliability chart (per `dataviz`), the verbatim caption in a `callout`.
 
 ---
 
@@ -77,20 +83,22 @@ locally-rebuilt broad-basin OISST field.
 
 1. **Build the obl029 field.** Run the vendored chain (network fetch): `obl029_01_fetch_oisst_broadbasin.py` →
    `obl029_02_monthly_aggregate.py` → `obl029_04_zone_sst_anomaly.py`, producing the monthly broad-basin anomaly
-   NetCDF on the frozen EOF grid / 1991–2020 baseline. `load_live_field` validates it against `spec/obl036_*` and
-   **refuses a mismatched grid/baseline** — verify before wiring. (LOFRA confirmed the EOF basis / `field_snapshot`
-   are byte-identical under v2, so the v1 rebuild recipe still applies. ★ confirm no v2 gotchas.)
+   NetCDF on the frozen EOF grid / 1991–2020 baseline. `load_live_field` validates against `spec/obl036_*` and
+   **refuses a mismatched grid/baseline**. *(LOFRA-confirmed: no v2 gotchas — EOF basis / `field_snapshot`
+   byte-identical to v1, so the v1 rebuild recipe applies unchanged.)*
 2. **Wire** `run_onset_watch()` → `forecast.sebs_onset_watch_frozen(df, field, manifest, leads)`; remove the stub;
    write `onset_sebs.parquet` (date, state, threshold). Add a `mhw-run-forecast --onset` path + API route
    `/v1/forecast/onset/sebs` (currently 503).
 3. **Refresh cadence.** The field must rebuild monthly. Given the 4 GB VM, follow the established split — heavy
    rebuild local + rsync, light steps VM-cron (see deployment-infra memory). New cron row.
-4. **★ Scoring + label.** Display the SEBS onset watch as **elevated/normal** state + threshold, plus a
-   discrimination read-out. **★ Metrics (pending LOFRA):** onset **AUC** + **SEDI** (+ optionally POD/FAR) from
-   `onset_discrimination.csv` (v2). The numbers are modest by construction (damped AUC ~0.60 at L1, n_onset=15).
-   **★ Label wording — verbatim from LOFRA:** "EXPERIMENTAL — a two-state elevated/normal discriminator; genuinely
-   discriminates onset but **not** a resolvable skill gain over persistence; never shown as beating persistence,"
-   with the v2-tightened significance. Onset stays **SEBS-only**.
+4. **Scoring + label (confirmed — one correction from my draft):** the deployed watch is the **LIM `k=12`** path
+   (not damped persistence). Display **elevated/normal** state + threshold (straight from the frozen v2 onset
+   calibration), plus **AUC + SEDI + POD/FAR** from the pinned `onset_discrimination_v2.csv`
+   (rows `zone=='sebs'`, `forecaster=='lim_k12'`, `lead∈{1,2}`, `stratum=='all'`). **v2 values:** L1 AUC 0.759,
+   SEDI 0.583, POD 0.467, FAR 0.682; L2 AUC 0.685, SEDI 0.503. **Honesty anchor (mandatory):** show the
+   `persistence` row alongside — persistence onset AUC 0.665 (L1), just below the watch; that adjacency *is* the
+   story (discriminates, does not resolvably beat persistence; selection-adjusted improvement p≈0.075 on 16
+   onsets). Onset stays **SEBS-only**. Render the **verbatim caption** from `SCORINGS-MANIFEST.md` §B.
 5. **UI:** its own bordered card under the SEBS view; PURPLE/AMBER accents (watch/caution), never a probability.
 
 ---
@@ -132,16 +140,16 @@ listed for Col. Raj in the session notes.
 
 ---
 
-## Open questions for LOFRA (fold in when the `forecast-scorings` reply lands)
+## Open questions for LOFRA — status
 
-1. ★ Occurrence: confirm **BSS-vs-clim + reliability + AUC** is the set to surface (vs. adding/removing any).
-2. ★ Onset: confirm **AUC + SEDI** (± POD/FAR) and give the **verbatim honest-label sentence**.
-3. ★ Deliver `probabilistic_skill.csv` / `reliability_bins.csv` / `onset_discrimination.csv` (v2, stratum=all) as
-   pinned artifacts — or bless our vendoring them from `rerun-v2`.
-4. ★ Any obl029 field-rebuild gotchas under the v2 vintage (expected: none — EOF/field unchanged).
-5. ★ **User-facing provenance text** — supply a **board-voice, public-appropriate** passage on where the forecast
-   comes from + the methods (coordinated with ZEBRA's OBL-065 public-explanation task), for the guide section and
-   the inline callouts. We adapt/place; LOFRA signs off the public wording.
+1. ✅ **RESOLVED** — Occurrence: BSS-vs-clim (headline) + AUC + reliability + n/base_rate; L1 product; grey `bss_clim≤0`.
+2. ✅ **RESOLVED** — Onset: AUC + SEDI + POD/FAR; deployed watch = **LIM k=12**; show persistence row as anchor;
+   verbatim label supplied.
+3. ✅ **RESOLVED** — CSVs delivered + pinned (`forecast-scorings-v2-20260716.tar.gz`, SHAs verified).
+4. ✅ **RESOLVED** — obl029: no v2 gotchas.
+5. ⏳ **OPEN (Col. Raj's decision, not a LOFRA blocker yet):** user-facing provenance text — request a board-voice,
+   public-appropriate passage from LOFRA/ZEBRA (OBL-065 public-explanation task), **or** adapt excerpts from the
+   existing plain-English briefing directly. Not yet sent to LOFRA pending Col. Raj's call on sourcing.
 
 ## Suggested sequencing
 
