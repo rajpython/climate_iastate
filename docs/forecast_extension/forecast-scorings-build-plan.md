@@ -9,6 +9,12 @@ finalize the starred (★) items below before those steps are coded.
 
 ## Goal
 
+**Framing (from LOFRA's rev-2 briefing — adopt this on the pages and in the guide):** there is **ONE target —
+area fraction** (the share of a zone's cells in a marine heatwave). Occurrence and onset are **not separate
+forecasts**; they are two additional **"report cards" (scorings)** of that single area-fraction forecast. So the
+board shows *one forecast, three report cards*: (1) area/magnitude skill (already live), (2) occurrence
+probability, (3) onset discrimination. This is the honest, non-duplicative way to present them.
+
 Extend the Forecast view (today: area-fraction **magnitude** only) to also present the two other scorings the
 module already computes, each honestly labelled on the existing confidence ladder:
 1. **Occurrence probability** — P(area_frac > q90) per zone×lead, promoted from a tile sub-line to a scored panel.
@@ -89,6 +95,31 @@ locally-rebuilt broad-basin OISST field.
 
 ---
 
+## Phase 2.5 — Provenance & user-facing explanation (cross-cutting)
+
+Requirement (Col. Raj, 2026-07-16): the pages must make **how and where these forecasts come from** legible to
+users, drawn from LOFRA's plain-English briefing. Two surfaces:
+
+1. **Inline on the pages** — a short "How this forecast works / where it comes from" `callout` (bottom_ui) on the
+   Forecast panel, plus the standard `footer(... "Learn more in the guide")` link. One or two sentences each:
+   the forecast is a **consumed research-cell product** (LOFRA's `sst-forecast-method-review` study) — **damped
+   persistence** applied forward on our own OISST-derived `area_frac`, validated against LIM / SEAS5 / ocean-heat-
+   content / climatology, honest to a **2–3-month predictability ceiling**.
+2. **In the user guide** — a new section in `docs/marine_heatwave_guide.md` (it already has "## The NOAA PSL
+   Marine Heatwave Forecast"; add a sibling **"## The Alaska-Shelf MHW Forecast (damped persistence)"**) covering:
+   where it comes from, what "persistence is the forecast to beat" means, the zone→product routing, the honest
+   labels, the occurrence/onset scorings, and the ceiling. Rendered via the existing `guides.py` markdown path.
+
+**Source & sign-off (important):** the natural source is LOFRA's `raj-briefings/
+briefing-predictand-correction-and-rerun-2026-07-16.md` (plain-English, Section 2 explains the methods in lay
+terms). But that briefing is an **internal document "written for Rajesh"** in first-person research-cell voice
+("we tested", "our persistence model"). Two reasons not to lift it verbatim into a public guide: voice, and the
+fact that **LOFRA's own OBL-065 already tasks ZEBRA with authoring plain-English public-facing URL explanations
+under LOFRA direction.** → **Recommended:** request a board-voice, public-appropriate excerpt/passage from LOFRA
+(coordinated with ZEBRA's work), rather than excerpting the internal briefing ourselves. We adapt to board voice
+and place it; LOFRA signs off the public wording (same discipline as the honest labels). Candidate excerpts are
+listed for Col. Raj in the session notes.
+
 ## Phase 3 — Placement, design system, deploy
 
 - **Placement:** both new elements live inside `render_forecast_panel` (Operational tab, region-filtered) and the
@@ -108,6 +139,9 @@ locally-rebuilt broad-basin OISST field.
 3. ★ Deliver `probabilistic_skill.csv` / `reliability_bins.csv` / `onset_discrimination.csv` (v2, stratum=all) as
    pinned artifacts — or bless our vendoring them from `rerun-v2`.
 4. ★ Any obl029 field-rebuild gotchas under the v2 vintage (expected: none — EOF/field unchanged).
+5. ★ **User-facing provenance text** — supply a **board-voice, public-appropriate** passage on where the forecast
+   comes from + the methods (coordinated with ZEBRA's OBL-065 public-explanation task), for the guide section and
+   the inline callouts. We adapt/place; LOFRA signs off the public wording.
 
 ## Suggested sequencing
 
