@@ -81,6 +81,123 @@ The full record, in four panels:
 
 ---
 
+## The NOAA PSL Marine Heatwave Forecast
+
+Under **Alaska-wide Climate → MHW Forecast (NOAA PSL)** the board displays NOAA's *experimental* marine-heatwave forecast (Jacox et al. 2022), scoped to the nine Alaska ESR zones. This is a **replication of NOAA's published product**, not a forecast the board builds — it is a separate, more experimental thing from the short-term outlook shown under **Marine Heatwaves → Forecast** (that one is the LOFRA damped-persistence research product on our own monthly area fraction). Keep the two mentally separate.
+
+### What the forecast is
+
+For every ocean cell and lead time, NOAA runs the North American Multi-Model Ensemble (NMME) of seasonal climate models forward and reports the **fraction of ensemble members whose monthly sea-surface-temperature anomaly exceeds the local 90th-percentile marine-heatwave threshold**. That fraction *is* the probability shown on the map: 100% means every model says heatwave, 0% means none do, and about 10% is the long-run base rate (the threshold is the warmest 10% of months by construction, so with no forecast signal you expect ~10%).
+
+- **Anomalies** are versus the 1991–2020 monthly climatology.
+- **Threshold** is the 90th percentile of anomalies in a centred 3-month window (e.g. January uses Dec–Feb).
+- **Lead time** runs from +0.5 months (the current month) out to +11.5 months.
+- **Two flavours** via the *Remove long-term trend* toggle: **trend-retained** (raw) and **detrended** (the long-term warming trend removed before thresholding). Detrending isolates the month-to-month signal from background warming — useful for judging whether a high probability is genuinely unusual or just the new normal.
+
+### Controls
+
+The sidebar carries the page controls: **initialization year** and **month** (which model run to show), the **detrend** toggle, a **lead-time** slider (+0.5 … +11.5 months), the **ESR zone** selector, and a **Show only the selected zone** toggle. Selections persist as you move between the panels.
+
+### The three panels
+
+1. **Probability map** — the MHW probability for the chosen initialization and lead, on the 1° NMME grid. With *Show only the selected zone* on (the default), the map is **masked to the chosen zone's cells** — exactly the cells the zone average below is computed over — and recentres/zooms to it with the zone boundary outlined. Turn the toggle off to see the whole-Alaska field for spatial context (neighbouring hotspots, the open North Pacific). **Click any cell** to open a *Selected cell* panel with that single 1° cell's probability-by-lead curves (trend solid, detrended dashed, same 0–100% styling) — the same per-cell drill-down NOAA's global page offers.
+2. **Zone probability by lead** — the zone-averaged probability against lead time, with **trend-retained (solid) and detrended (dashed) on one axis** for easy comparison, styled like NOAA PSL: a fixed 0–100% scale, a red dashed "10% threshold" line, and a gold dot marking the lead you have selected on the slider (the lead the map is showing). Below it, KPI cards give the nearest-lead probability, the number of 1° cells in the zone, and the zone's seasonal-ice fraction (a caveat flag — see below).
+3. **Forecast skill (SEDI)** — a map of how trustworthy the forecast has been, cell by cell, at the selected lead (see *Reading the skill map*).
+
+### How a zone value is averaged
+
+The zone number is an **area-weighted mean of the forecast over the cells inside the ESR polygon**, computed NaN-aware:
+
+- each cell's weight is `cos(latitude) × coverage-fraction × (not land)`, where **coverage-fraction** is how much of that 1° cell falls inside the zone polygon (so partial edge cells count proportionally, not all-or-nothing), and `cos(latitude)` corrects for cells shrinking toward the pole;
+- cells with no data (land) are dropped and the remaining weights renormalized, so a half-land coastal cell is never counted as zero probability;
+- the zone value is `Σ(weight × probability) / Σ(weight)` over those cells.
+
+The per-cell curves you can click on the map are literally the building blocks; the zone curve is their weighted average. Zones hold between ~45 and ~110 of these 1° cells (see *How the data is organized*).
+
+### Reading the skill map (SEDI)
+
+**SEDI** is the **Symmetric Extremal Dependence Index** (Ferro & Stephenson, 2011), a verification score built for rare events: it weighs the forecast's hit rate against its false-alarm rate, so it stays meaningful even though heatwaves are, by definition, uncommon. **1 = a perfect forecast, 0 = no better than chance, negative = worse than chance.** It is computed by replaying the 1991–2020 NMME hindcast, flagging a forecast "heatwave" when the hindcast probability is ≥ 50%, comparing against whether a heatwave was actually observed (OISST anomaly above the month's 90th percentile), and scoring the resulting hits/misses/false-alarms.
+
+Two things to know when reading it:
+
+- **It is pooled over all initialization months, per lead.** Skill is a property of the forecast system at a given lead time, not of one particular calendar month, and per-month bins have only ~30 hindcast samples — far too few to be reliable at longer leads. Pooling gives a dense, stable "skill at lead N" map. As expected, skill is high at short leads (SEDI ≈ 0.8 in the Gulf and Southeastern Bering at +0.5 months) and fades with lead (≈ 0.2 by ~8 months).
+- **Blank cells are honest, not missing.** Where a cell never recorded a hit or never a false alarm over the hindcast, SEDI is mathematically undefined and left blank. Coverage naturally thins at longer leads because heatwaves become rarer to score against. The skill map is masked and framed to the selected zone the same way the probability map is.
+
+### Seasonal-ice caveat
+
+The Chukchi, Beaufort and Northern Bering zones sit under seasonal sea ice, flagged by the *Seasonal-ice fraction* KPI (≈ 100% for those zones). NOAA's product still defines a probability there, but read it knowing the underlying SST record is ice-affected for much of the year.
+
+### How the data is organized
+
+The raw PSL file is a **1° global grid — 181 latitudes × 360 longitudes = 65,160 cells** — with a probability for every cell × 12 leads × the monthly initializations back to 2021. The board slices this to an Alaska window (46–78°N, 166–236°E) of **33 × 71 = 2,343 cells**, of which about 1,729 are ocean. Only the **667 ocean cells that fall inside the nine ESR polygons** feed the zone averages (roughly: Central Aleutians 111, Western GoA 110, SE Bering 107, Chukchi 85, Eastern GoA 72, Northern Bering 71, Beaufort 69, Western Aleutians 66, Eastern Aleutians 45). At this resolution a 1° cell spans ~110 km north–south and ~50–75 km east–west, so the narrow Aleutian strips get only tens of cells — a limitation of the coarse seasonal-forecast grid, not of the slicing.
+
+### Data, updates and citation
+
+The forecast files (`NMME_prob90_latest.nc` and its detrended twin) are downloaded from NOAA PSL and refreshed on the production server daily, but only re-downloaded when PSL actually updates them (roughly monthly, occasionally mid-month as models land). The skill map is a heavier one-time build from the 1991–2020 hindcast, produced locally and shipped to the server. Required attribution, shown in the page footer: *"Image provided by the NOAA Physical Sciences Laboratory, Boulder, Colorado, from the website at https://psl.noaa.gov/."*
+
+---
+
+## The Alaska-Shelf MHW Forecast (Damped Persistence)
+
+Under **Marine Heatwaves → Operational** — beneath the current-conditions panels for a selected region — the board shows a **short-term marine-heatwave outlook** for that region's ESR zones, 1–3 months ahead. Unlike the NOAA PSL product above (a replicated seasonal-model forecast), this outlook is a **consumed research product**: it comes from an ongoing marine-heatwave forecasting study by a separate research cell, and the board *pins and displays* it — it does not build or re-fit it. Keep the two forecasts mentally separate: PSL is a physics-model probability; this is a statistical outlook run on the board's own observed area fraction.
+
+### Where it comes from
+
+The study asks a plain question — for the Alaska shelf, how far ahead can a marine heatwave actually be forecast, and does any method beat the simplest possible one? Its answer, after a rigorous rolling-origin evaluation, is that **simple "damped persistence" is the forecast to beat, and across the Alaska shelf nothing tested beats it at the lead times that matter for management**. The board displays that damped-persistence forecast, run forward on our own monthly per-zone area fraction, with the study's honesty limits carried onto every tile.
+
+The coefficients are **frozen at a fit vintage** (persistence/climatology 2026-04, the SEBS onset watch 2026-05) and applied forward — only the most recent observed month is live. They are re-fit on the corrected canonical-Hobday threshold (the same 31-day-smoothed θ90 the board's own MHW definition uses), so the forecast and the observations it is scored against share one target. Re-fits arrive from the research cell as versioned releases; the board never re-estimates them.
+
+### One target, three report cards
+
+There is only **one thing forecast — the area fraction**: the share of a zone's grid cells in a marine heatwave that month, between 0% and 100%. Occurrence and onset are **not separate forecasts**; they are two additional *report cards* on that single area-fraction forecast. So the panel shows one forecast read three ways:
+
+1. **Area / magnitude** — the headline tiles: the forecast area fraction 1, 2, and 3 months out, each with a plausible-range band that widens with lead. Read it as **most reliable one month ahead**, useful at two, and a **low-confidence watch by three**.
+2. **Occurrence probability** — the chance next month's area exceeds the zone's local 90th-percentile threshold (an unusually large heatwave), read off the same damped-persistence forecast.
+3. **SEBS onset watch** — an experimental early-warning flag for the *start* of a Southeastern Bering heatwave.
+
+### What "the forecast to beat" means
+
+Three simple baselines set the bar, and it matters which one:
+
+- **Climatology** — ignore today and predict the seasonal average for the calendar month. This is the floor: a model with no real skill cannot beat it.
+- **Persistence** — carry today's anomaly forward at full strength.
+- **Damped persistence** — carry today's anomaly forward but let it fade toward the seasonal average as the lead grows. This is the **null model — the forecast to beat** — because it interpolates between the other two (persistence at short leads, climatology at long ones), so beating it means beating both at once.
+
+The study raced damped persistence against genuinely sophisticated models — a **Linear Inverse Model** (a statistical model of the whole North Pacific temperature pattern), **SEAS5** (Europe's physics-based global seasonal model), and **ocean heat content** (a longer-memory predictor). At the operational 1–2 month leads, none of them resolvably beat damped persistence on heatwave magnitude or area, in any of the nine zones. The one exception is a genuine 3-month edge for SEAS5 on area in the Eastern Gulf of Alaska — reported openly, and useful precisely because it shows the evaluation *can* detect a real improvement when one exists.
+
+### The 2–3 month ceiling
+
+By about two to three months, all the forecasts — simple and sophisticated alike — collapse toward the seasonal average. Nothing extends useful skill past that horizon; even ocean heat content, which "remembers" far longer than the surface, does not push it out for the heatwave target. This is a genuine physical limit of predictability at this scale, not a shortcoming of the data or of any one method. It is why leads beyond three months are not shown.
+
+### Zone-by-zone routing
+
+The product shown depends on the zone, and the routing is enforced so a zone is never shown a forecast the study did not validate for it:
+
+- **Seven productive zones** (Southeastern & Northern Bering, Western & Eastern Gulf of Alaska, and the three Aleutian zones) get the damped-persistence outlook and, where applicable, the occurrence report card.
+- **Northern Bering** carries a **sea-ice caveat** — the satellite temperature record is ice-affected — but still gets a one-month outlook.
+- **Chukchi and Beaufort** are shown as a **typical-year (climatology) estimate only**: seasonal ice contaminates the SST record so far north that carrying recent conditions forward stops working. This is a data limitation, not a forecast result, and no heatwave chance is issued for them.
+
+### Reading the occurrence report card
+
+The occurrence panel shows, for each productive zone, the forecast **P(> q90)** — the chance next month's area exceeds the local 90th-percentile threshold — alongside two skill numbers from the study's evaluation:
+
+- **Skill vs climatology (BSS)** — a Brier Skill Score against the seasonal average: 0 means no better than climatology, 1 is perfect. It is strong at one month (roughly 0.5–0.6 in the Gulf and Southeastern Bering) and decays beyond, shown as "watch" rather than a number where it is no longer resolvable.
+- **Discrimination (AUC)** — how well the forecast separates true high-area months from low-area ones.
+
+The important honesty point, carried on the panel: this skill is measured **over climatology, which is real — but it is not the model beating persistence.** The occurrence forecast *is* the damped-persistence model, read a different way.
+
+### Reading the SEBS onset watch
+
+The onset watch is **experimental and Southeastern-Bering only**. It is a two-state **elevated / normal** flag — never a probability — for whether a heatwave is likely to *start*. It is driven by the Linear Inverse Model's read of the North Pacific temperature pattern, with the state coming straight from the study's frozen calibration.
+
+It genuinely discriminates onset (an AUC around 0.76 at one month), and the panel shows that skill alongside its SEDI score and hit / false-alarm rates. But it is shown with a firm caveat, and the panel makes the reason visible: **simple persistence achieves an onset AUC of about 0.67 on its own.** The watch sits just above that — it discriminates onset but does **not** resolvably beat persistence, and on the corrected threshold its selection-adjusted improvement is not statistically distinguishable on the small number of onsets available. **Read it as an early-warning signal, not a validated forecast advantage** — never as "beating persistence."
+
+### Updates and provenance
+
+The outlook re-runs when the board's monthly area fraction updates (the frozen coefficients applied to the new origin month). The onset watch additionally needs a broad-basin North Pacific SST-anomaly field, rebuilt from public OISST. Every tile shows the coefficient vintage so the frozen fit is never mistaken for a live re-estimate. The methodology and its evaluation live in the research cell's working paper, linked from the **Research → Forecast Development** page.
+
+---
+
 ## Data Sources
 
 | Dataset | Provider | Resolution | Coverage |
@@ -88,8 +205,9 @@ The full record, in four panels:
 | **OISST v2.1 (SST + sea ice)** | NOAA (NCEI / CoastWatch ERDDAP) | Daily, 0.25 deg | 1982--present |
 | **Arctic Oscillation** | NOAA CPC | Daily | 1983--present |
 | **Pacific Decadal Oscillation** | NOAA PSL | Monthly | 1983--present |
+| **Experimental MHW forecast (NMME)** | NOAA PSL (Jacox et al. 2022) | Monthly, 1 deg | 2021--present |
 
-All data comes from NOAA sources. SST and sea ice are fetched from the same OISST dataset via ERDDAP — cells with ice concentration above 15% are masked out of the MHW analysis. AO is retained from \~1950 and PDO from 1854 so the Regime Analysis tab covers both phases (PDO has been in a sustained negative phase since 2020, so the full record is essential for seeing PDO+ regimes).
+Most data comes from NOAA sources. SST and sea ice are fetched from the same OISST dataset via ERDDAP — cells with ice concentration above 15% are masked out of the MHW analysis. AO is retained from \~1950 and PDO from 1854 so the Regime Analysis tab covers both phases (PDO has been in a sustained negative phase since 2020, so the full record is essential for seeing PDO+ regimes). The experimental MHW forecast is a **published NOAA PSL product** displayed as-is for the Alaska ESR zones (the board does not recompute it); attribution appears in that page's footer.
 
 In production the dashboard refreshes automatically each day at 14:00 UTC, after OISST publishes new observations (typically by 12:30 UTC). Local development copies are extended via `bash scripts/monthly_refresh.sh` — see the project README.
 
@@ -158,6 +276,18 @@ Risk scores are percentile-based against each region's full 1982--present distri
 **Why are AO and PDO included on the Predictability tab?**
 The Arctic Oscillation and Pacific Decadal Oscillation are large-scale climate modes that influence North Pacific SST patterns. They are shown alongside MHW metrics for regime context — researchers can visually assess whether phase shifts in AO or PDO coincide with changes in heatwave coverage and intensity. They provide correlation context, not direct predictions.
 
+**What is the difference between the two forecasts on the board?**
+There are two, deliberately kept separate. **Marine Heatwaves → Forecast** is the board's own short-term outlook (the LOFRA damped-persistence research product, run 1–3 months ahead on our monthly area fraction). **MHW Forecast (NOAA PSL)** replicates NOAA PSL's experimental NMME probability forecast out to ~11 months, displayed for the Alaska ESR zones. The first is a research product we build; the second is a published NOAA product we mirror.
+
+**On the PSL forecast page, what exactly is the probability?**
+The fraction of the NMME climate-model ensemble whose monthly SST anomaly exceeds the local 90th-percentile heatwave threshold. ~10% is the no-signal base rate; higher means more models agree a heatwave is likely. Trend-retained keeps the long-term warming; detrended removes it before thresholding.
+
+**Why is part of the SEDI skill map blank?**
+SEDI is undefined for a cell that never recorded a hit or never a false alarm over the 1991–2020 hindcast, so those cells are left blank rather than guessed. Blank area grows at longer leads because heatwaves get rarer to score against. SEDI is pooled over all initialization months at each lead (per-month bins have too few samples to be reliable).
+
+**Can I see a single cell instead of the whole zone?**
+Yes — click any cell on the PSL forecast probability map to open its own probability-by-lead curve. The zone line elsewhere on the page is the area-weighted average of exactly those cells.
+
 ---
 
 ## Technical Details
@@ -168,6 +298,9 @@ The Arctic Oscillation and Pacific Decadal Oscillation are large-scale climate m
 - **Baseline period**: 1991--2020 (30-year climate normal)
 - **Intensity reference**: Anomaly above the 90th-percentile threshold
 - **Regional aggregation**: Area-weighted (cosine of latitude) averages across active cells
+- **PSL forecast grid**: 1 degree (NMME native); Alaska window 46--78N, 166--236E; 667 ocean cells across the 9 ESR zones
+- **PSL forecast probability**: fraction of the NMME ensemble exceeding the local 90th-percentile anomaly threshold, leads +0.5 to +11.5 months, trend-retained and detrended
+- **PSL skill score**: SEDI (Symmetric Extremal Dependence Index), 1991--2020 hindcast vs observed OISST heatwave flags, pooled over all initializations per lead
 
 ---
 
@@ -184,6 +317,11 @@ Source code: [github.com/rajpython/climate_iastate](https://github.com/rajpython
 Scientific methodology follows:
 Hobday, A.J. et al. (2016). A hierarchical approach to defining marine heatwaves.
 *Progress in Oceanography*, 141, 227--238.
+
+The experimental marine-heatwave forecast follows:
+Jacox, M.G. et al. (2022). Global seasonal forecasts of marine heatwaves.
+*Nature*, 604, 486--490. Skill scoring uses the Symmetric Extremal Dependence Index of
+Ferro, C.A.T. & Stephenson, D.B. (2011). *Weather and Forecasting*, 26, 699--713.
 
 ---
 

@@ -509,7 +509,10 @@ def render_forecast_panel(zones: list[str], cfg: dict | None = None) -> None:
         "paper</a>). It works by carrying recent conditions forward and easing them toward normal — a "
         "simple approach that, so far, nothing else has reliably beaten this far out. Read it as "
         "<b>most reliable one month ahead</b>, still useful at two months, and a <b>low-confidence "
-        "watch by three months</b>.", icon="🧭")
+        "watch by three months</b>. There is <b>one forecast — the heatwave area</b> — read three ways "
+        "below: the <b>area tiles</b>, the <b>occurrence probability</b>, and the <b>SEBS onset watch</b>. "
+        "Full method and provenance in the <a href='/marine_heatwave_guide' "
+        "style='text-decoration:underline'>guide</a>.", icon="🧭")
 
     callout(
         "<b>Reading the tiles:</b> each percentage is the forecast <b>share of the zone under an "
