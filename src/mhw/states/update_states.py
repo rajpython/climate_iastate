@@ -86,6 +86,177 @@ def _load_climatology(
 
 
 # ---------------------------------------------------------------------------
+# Hobday-faithful qualification (heatwaveR / marineHeatWaves reference rule)
+# ---------------------------------------------------------------------------
+# Hobday et al. (2016) — and its canonical software (Schlegel & Smit's heatwaveR,
+# Oliver's marineHeatWaves) — define a MHW in TWO ordered steps:
+#   1. an event is a run of >= `min_duration` (5) *consecutive* exceedance days;
+#   2. two such events separated by a gap of <= `max_gap` (2) days are then merged
+#      into one continuous event, absorbing the gap days.
+# The 5-day test is applied to CONSECUTIVE exceedance BEFORE any gap-bridging.
+# This is a per-cell operation over the time axis (two passes: detect runs, then
+# merge) — it is not expressible as the older single-counter streaming rule, which
+# let bridged gap days count toward the 5 and so confirmed events with <5
+# consecutive exceedance days (looser than Hobday).
+#
+# These are pure, IO-free functions operating on a 1-D exceedance series for one
+# cell; the state engine applies them per cell along the time axis.
+
+
+def find_consecutive_runs(exc: np.ndarray) -> list[tuple[int, int]]:
+    """Maximal runs of True in a 1-D boolean array.
+
+    Returns a list of (start, end) index pairs, both inclusive.
+    """
+    exc = np.asarray(exc, dtype=bool)
+    if exc.ndim != 1:
+        raise ValueError("find_consecutive_runs expects a 1-D array")
+    runs: list[tuple[int, int]] = []
+    n = exc.size
+    i = 0
+    while i < n:
+        if exc[i]:
+            j = i
+            while j + 1 < n and exc[j + 1]:
+                j += 1
+            runs.append((i, j))
+            i = j + 1
+        else:
+            i += 1
+    return runs
+
+
+def qualify_mhw_events(
+    exc: np.ndarray,
+    *,
+    min_duration: int = 5,
+    max_gap: int = 2,
+) -> list[tuple[int, int]]:
+    """Merged MHW event segments for a 1-D exceedance series (Hobday/heatwaveR).
+
+    Step 1: keep only consecutive-exceedance runs of length >= `min_duration`.
+    Step 2: merge two kept events whose gap (below-threshold days between them)
+            is <= `max_gap`; absorbed gap days become part of the event.
+
+    `max_gap <= 0` disables merging (strict consecutive-only mode).
+
+    Returns a list of (start, end) inclusive index pairs, in ascending order.
+    """
+    runs = find_consecutive_runs(exc)
+    events = [(s, e) for (s, e) in runs if (e - s + 1) >= min_duration]
+    if not events:
+        return []
+    merged: list[tuple[int, int]] = [events[0]]
+    for s, e in events[1:]:
+        prev_s, prev_e = merged[-1]
+        gap = s - prev_e - 1  # number of days strictly between the two events
+        if max_gap > 0 and gap <= max_gap:
+            merged[-1] = (prev_s, e)  # absorb the gap, extend the event
+        else:
+            merged.append((s, e))
+    return merged
+
+
+def active_flag_from_exc(
+    exc: np.ndarray,
+    *,
+    min_duration: int = 5,
+    max_gap: int = 2,
+) -> np.ndarray:
+    """Boolean active-MHW flag per day for a 1-D exceedance series.
+
+    True on every day belonging to a confirmed (possibly merged) event under the
+    Hobday/heatwaveR rule — including gap days absorbed by merging.
+    """
+    active = np.zeros(np.asarray(exc).shape, dtype=bool)
+    for s, e in qualify_mhw_events(exc, min_duration=min_duration, max_gap=max_gap):
+        active[s : e + 1] = True
+    return active
+
+
+def finalize_events_grid(
+    out_x: np.ndarray,   # (T, n_lat, n_lon) exceedance
+    out_I: np.ndarray,   # (T, n_lat, n_lon) intensity (seasonal-mean-referenced)
+    *,
+    confirm_days: int,
+    gap_days: int,
+    k_days: int,
+    onset_ref: str,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Derive A, D, C, O from a full exceedance/intensity series (Hobday-faithful).
+
+    Runs the two-pass qualification (``qualify_mhw_events``) per cell along the
+    time axis, so the ≥confirm_days test is applied to *consecutive* exceedance
+    before ≤gap_days merging (Hobday et al. 2016; heatwaveR ``proto_event``).
+    Every returned quantity is the Hobday definition mapped onto the per-day
+    state variables. Returns (A, D, C, O):
+
+    - ``A`` : uint8 active flag, 1 on every day of a confirmed (merged) event,
+              counted from the event's physical start ``ts`` (not causal day-5).
+    - ``D`` : float32 running duration = 1-based day index within the event
+              (``D`` at the last event day == Hobday ``duration = te − ts + 1``).
+    - ``C`` : float32 running cumulative intensity within the event (reset only
+              between events) == Hobday ``i_cum`` at the last event day.
+    - ``O`` : float32 Hobday onset rate placed on the event's START day ``ts``:
+              ``(i_peak − i_start_edge) / ((t_peak − ts) + 0.5)`` where
+              ``i_start_edge = ½·(I[ts] + I[ts−1])`` (the half-day-before-start
+              boundary of Oliver's marineHeatWaves / heatwaveR; ``I`` must be the
+              signed anomaly so the pre-start day is not clamped). Truncated events
+              (starting at series index 0) get ``O = 0`` (Hobday reports NA).
+
+    ``onset_ref == "at_confirmation"`` keeps the legacy forward-difference onset
+    for diagnostics only. This is the authoritative A/D/C/O path when
+    ``qualification_mode == consecutive_first``. ``x`` is unaffected; ``I`` is the
+    (mean-referenced) intensity from the day loop and is left as-is.
+    """
+    T, n_lat, n_lon = out_x.shape
+    A = np.zeros((T, n_lat, n_lon), dtype=np.uint8)
+    D = np.zeros((T, n_lat, n_lon), dtype=np.float32)
+    C = np.zeros((T, n_lat, n_lon), dtype=np.float32)
+    O = np.zeros((T, n_lat, n_lon), dtype=np.float32)
+
+    exc_grid = out_x > 0  # (T, lat, lon) bool
+
+    for i in range(n_lat):
+        for j in range(n_lon):
+            exc = exc_grid[:, i, j]
+            if not exc.any():
+                continue  # land / permanently sub-threshold cell — skip fast
+            events = qualify_mhw_events(
+                exc, min_duration=confirm_days, max_gap=gap_days
+            )
+            if not events:
+                continue
+            I_cell = out_I[:, i, j]
+            for s, e in events:
+                A[s : e + 1, i, j] = 1
+                D[s : e + 1, i, j] = np.arange(1, e - s + 2, dtype=np.float32)
+                # Hobday i_cum: cumulative intensity over the whole event span.
+                C[s : e + 1, i, j] = np.cumsum(I_cell[s : e + 1]).astype(np.float32)
+
+                conf_day = s + confirm_days - 1  # day A first turns on
+                if onset_ref == "at_confirmation":
+                    # Legacy diagnostic: forward difference over first k days.
+                    t_hi = min(conf_day + k_days, e + 1)
+                    for t in range(conf_day, t_hi):
+                        I_prev = I_cell[t - 1] if t >= 1 else np.float32(0.0)
+                        O[t, i, j] = I_cell[t] - I_prev
+                else:  # "physical_start" → Hobday start→peak onset rate
+                    if s >= 1:
+                        p = int(np.argmax(I_cell[s : e + 1]))  # peak offset from ts
+                        i_peak = I_cell[s + p]
+                        # i_start_edge uses the SIGNED anomaly the day before the
+                        # start (Hobday's half-day-before-start boundary); intensity
+                        # must be unclamped for this to be correct.
+                        i_start_edge = 0.5 * (I_cell[s] + I_cell[s - 1])
+                        # Onset is an attribute of the event START (ts), so place it
+                        # on day s — active under the corrected rule, so it feeds Ōbar.
+                        O[s, i, j] = (i_peak - i_start_edge) / (p + 0.5)
+                    # else: event truncated at series start → O stays 0 (Hobday NA)
+    return A, D, C, O
+
+
+# ---------------------------------------------------------------------------
 # Running state container
 # ---------------------------------------------------------------------------
 class StateBuffer:
@@ -150,8 +321,10 @@ def _update_one_day(
     # ---- 6.4  Intensity (raw — not conditioned on A) ----
     if int_ref == "threshold":
         I = x.copy()
-    else:  # "climatological_mean"
-        I = np.where(valid, np.maximum(0.0, sst - mu_t), 0.0).astype(np.float32)
+    else:  # "climatological_mean" — SIGNED seasonal anomaly (Hobday/heatwaveR
+        # relSeas). Not clamped at 0: i_mean/i_cum and the onset start-edge term
+        # need the true (possibly negative) anomaly to match Hobday exactly.
+        I = np.where(valid, sst - mu_t, 0.0).astype(np.float32)
 
     # ---- 6.4  Duration ----
     D = np.where(A, state.Dtilde, 0.0).astype(np.float32)
@@ -225,6 +398,9 @@ def run_state_engine(
     gap_days     = mhw["gap_days"]
     confirm_days = mhw["confirm_days"]
     int_ref      = mhw["intensity_reference"]
+    # Hobday-faithful qualification (default). "bridged_run" keeps the legacy
+    # single-counter A/D/O for A/B comparison only. See config note.
+    qual_mode    = mhw.get("qualification_mode", "consecutive_first")
 
     onset_cfg = cfg["onset"]
     k_days    = onset_cfg["k_days"]
@@ -328,6 +504,28 @@ def run_state_engine(
     if remote_ds is not None:
         remote_ds.close()
 
+    # --- Corrected qualification (Hobday-faithful) -------------------------
+    # The day loop above computes x and I (qualification-independent) plus a
+    # legacy single-counter A/D/C/O. In the default "consecutive_first" mode we
+    # discard that legacy A/D/C/O and re-derive it over the FULL time axis so the
+    # ≥confirm_days minimum applies to *consecutive* exceedance before ≤gap_days
+    # merging, with Hobday event span / i_cum / onset-rate. This is why the
+    # backfill runs each region as one contiguous series.
+    if qual_mode == "consecutive_first":
+        if verbose:
+            print("  Finalizing events (consecutive-first, Hobday-faithful) …",
+                  flush=True)
+        out_A, out_D, out_C, out_O = finalize_events_grid(
+            out_x, out_I,
+            confirm_days=confirm_days, gap_days=gap_days,
+            k_days=k_days, onset_ref=onset_ref,
+        )
+    elif qual_mode != "bridged_run":
+        raise ValueError(
+            f"Unknown qualification_mode '{qual_mode}' "
+            "(expected 'consecutive_first' or 'bridged_run')."
+        )
+
     # --- Build output Dataset ---
     times = np.array([np.datetime64(str(d)) for d in date_range])
     ds = xr.Dataset(
@@ -356,6 +554,7 @@ def run_state_engine(
             "end_date":            str(end_date),
             "gap_days":            gap_days,
             "confirm_days":        confirm_days,
+            "qualification_mode":  qual_mode,
             "intensity_reference": int_ref,
             "onset_reference":     onset_ref,
         },
@@ -750,7 +949,9 @@ def main(argv: list[str] | None = None) -> None:
 # ---------------------------------------------------------------------------
 def backfill_main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="Backfill MHW states + aggregates year-by-year, then rebuild risk table."
+        description="Backfill MHW states + aggregates over the full contiguous series, "
+                    "then rebuild risk table. (Hobday-faithful qualification needs the "
+                    "whole series so events/gap-merges are not split at year boundaries.)"
     )
     parser.add_argument("--start",     default="1982-01-01",
                         help="Start date (default: 1982-01-01)")
@@ -780,51 +981,43 @@ def backfill_main(argv: list[str] | None = None) -> None:
     from mhw.states.risk import compute_risk_table, save_risk_table
 
     years = list(range(start.year, end.year + 1))
-    state: StateBuffer | None = None   # carry state across year boundaries
-    mask    = None
-    weights = None
 
-    completed = 0
-    for year in years:
-        yr_start = max(start, date(year, 1, 1))
-        yr_end   = min(end,   date(year, 12, 31))
-        print(f"--- {year}  ({yr_start} → {yr_end}) ---", flush=True)
+    # Run the engine ONCE over the full contiguous range. run_state_engine loops
+    # years internally only to load SST; A/D/C/O are derived over the whole time
+    # axis (Hobday-faithful) so no event or gap-merge is split at a year boundary.
+    ds, _ = run_state_engine(
+        args.region, start, end, cfg,
+        use_cache=not args.no_cache,
+    )
+    print(f"    qualification_mode={ds.attrs.get('qualification_mode')}  "
+          f"intensity_reference={ds.attrs.get('intensity_reference')}", flush=True)
 
-        ds_yr, state = run_state_engine(
-            args.region, yr_start, yr_end, cfg,
-            use_cache=not args.no_cache,
-            initial_state=state,
-        )
+    mask, weights = _load_mask_weights(
+        args.region, ds["lat"].values, ds["lon"].values,
+    )
+    print(f"    Mask loaded: {int(mask.sum())} cells in '{args.region}'", flush=True)
 
-        # Load mask + weights once (grid is constant across all years)
-        if mask is None:
-            mask, weights = _load_mask_weights(
-                args.region,
-                ds_yr["lat"].values,
-                ds_yr["lon"].values,
-            )
-            n_mask = int(mask.sum())
-            print(f"    Mask loaded: {n_mask} cells in '{args.region}'", flush=True)
+    act_frac = _active_fraction_series(ds["A"].values)
+    print(f"    MHW days: {int((act_frac > 0).sum())}  "
+          f"peak frac: {float(act_frac.max()):.3f}", flush=True)
 
-        # Summary stats
-        A_arr    = ds_yr["A"].values
-        act_frac = _active_fraction_series(A_arr)
-        peak_f   = float(act_frac.max())
-        mhw_days = int((act_frac > 0).sum())
-        print(f"    MHW days: {mhw_days}  peak frac: {peak_f:.3f}", flush=True)
-
-        # Save per-year zarr (full-date naming matches _find_states_zarr convention)
-        if not args.skip_zarr:
+    # Save per-year zarr slices (the states_{region}_{yr_start}_{yr_end}.zarr naming
+    # is what _find_states_zarr / the read layer expect — slicing preserves it).
+    if not args.skip_zarr:
+        for year in years:
+            yr_start = max(start, date(year, 1, 1))
+            yr_end   = min(end,   date(year, 12, 31))
+            ds_yr = ds.sel(
+                time=slice(np.datetime64(str(yr_start)), np.datetime64(str(yr_end)))
+            ).assign_attrs(start_date=str(yr_start), end_date=str(yr_end))
             out_zarr = STATES_DIR / f"states_{args.region}_{yr_start}_{yr_end}.zarr"
             save_states(ds_yr, out_zarr)
 
-        # Aggregate and upsert into region_daily parquet
-        df_yr = aggregate_region(ds_yr, mask, weights)
-        save_aggregates(df_yr, args.region)
-
-        ds_yr.close()
-        completed += 1
-        print(f"    [{completed}/{len(years)}] done", flush=True)
+    # Aggregate the full series in one pass and upsert into region_daily parquet.
+    df = aggregate_region(ds, mask, weights)
+    save_aggregates(df, args.region)
+    ds.close()
+    completed = len(years)
 
     # Rebuild risk percentile table from the full backfill distribution (frozen mode)
     if not args.skip_risk and completed > 0:
