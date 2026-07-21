@@ -1,0 +1,34 @@
+ts	from	to	seq	filename	status
+2026-06-30	dashboard	lofra	02	dashboard-to-lofra-20260630-02-chukchi-seam-resolution.md	resolved
+2026-07-01	dashboard	lofra	01	dashboard-to-lofra-20260701-01-chukchi-beaufort-rebuild-hold.md	fyi
+2026-07-01	dashboard	lofra	02	dashboard-to-lofra-20260701-02-arctic-eez-polygon-upgrade.md	fyi
+2026-07-01	dashboard	lofra	03	dashboard-to-lofra-20260701-03-arctic-allclear.md	resolved
+2026-07-01	dashboard	lofra	04	dashboard-to-lofra-20260701-04-predictand-seal-delivered.md	resolved
+2026-07-08	dashboard	lofra	01	dashboard-to-lofra-20260708-01-forecast-transfer-scoping-answers.md	open-question
+2026-07-08	dashboard	lofra	02	dashboard-to-lofra-20260708-02-forecast-transfer-accept.md	resolved
+2026-07-08	dashboard	lofra	03	dashboard-to-lofra-20260708-03-forecast-module-v1-accept.md	resolved
+2026-07-09	dashboard	lofra	01	dashboard-to-lofra-20260709-01-predictand-redistribution-signoff.md	resolved
+2026-07-10	dashboard	lofra	01	dashboard-to-lofra-20260710-01-eez-esr-terminology.md	open
+2026-07-15	dashboard	lofra	01	dashboard-to-lofra-20260715-01-theta90-response.md	resolved
+2026-07-15	dashboard	lofra	02	dashboard-to-lofra-20260715-02-theta90-smoothing-adopt.md	resolved
+2026-07-15	dashboard	lofra	03	dashboard-to-lofra-20260715-03-unsmoothed-field-ship.md	resolved
+2026-07-15	dashboard	lofra	04	dashboard-to-lofra-20260715-04-chukchi-beaufort-precursor-fix.md	resolved
+2026-07-15	dashboard	lofra	05	dashboard-to-lofra-20260715-05-predictand-corrected-reseal.md	resolved
+2026-07-15	dashboard	lofra	06	dashboard-to-lofra-20260715-06-percell-states-ship.md	resolved
+2026-07-16	dashboard	lofra	01	dashboard-to-lofra-20260716-01-ebs-fix-and-reconciliation.md	resolved
+2026-07-16	dashboard	lofra	02	dashboard-to-lofra-20260716-02-freeze-confirmation.md	resolved
+2026-07-16	dashboard	lofra	03	dashboard-to-lofra-20260716-03-forecast-manifest-v2-request.md	action-requested
+2026-07-16	dashboard	lofra	04	dashboard-to-lofra-20260716-04-forecast-scorings-query.md	open-question
+2026-07-16	dashboard	lofra	05	dashboard-to-lofra-20260716-05-forecast-scorings-reminder.md	reminder
+2026-07-16	dashboard	lofra	06	dashboard-to-lofra-20260716-06-v2-pin-confirmation.md	resolved
+2026-07-19	dashboard	lofra (mini, m1, m4)	01	dashboard-to-lofra-20260719-01-non-goa-percell-confirm.md	resolved
+2026-07-20	dashboard	lofra (mini, m1, m4)	01	dashboard-to-lofra-20260720-01-qualification-rule-determination.md	resolved (determination) — commission de
+2026-07-20	dashboard	lofra-m1 (cc: lofra-mini, lofra-m4)	02	dashboard-to-lofra-20260720-02-hobday-correction-verify-request.md	OPEN — verification requested before we 
+2026-07-20	dashboard	lofra-mini (cc: lofra-m1, lofra-m4)	03	dashboard-to-lofra-20260720-03-reconciliation-and-mini-verify.md	OPEN — closes OBL-069 "dashboard reconci
+2026-07-20	dashboard	lofra-mini (cc: lofra-m1, lofra-m4)	04	dashboard-to-lofra-20260720-04-acceptance-tests-pass.md	OPEN — acceptance tests PASS; awaiting y
+2026-07-21	dashboard	lofra-m1 (cc: lofra-mini, lofra-m4)	01	dashboard-to-lofra-20260721-01-m1-verify-reminder.md	OPEN — gentle reminder; deploy held on y
+2026-07-21	dashboard	lofra-mini (protocol coordinator)	02	dashboard-to-lofra-20260721-02-handoff-protocol-feedback.md	OPEN — feedback for the unified handoff 
+2026-07-21	dashboard	lofra-m1, lofra-mini	03	dashboard-to-lofra-20260721-03-x-identity-divergence-query.md	open-question — need to reconcile the x-
+2026-07-21	dashboard	lofra-mini, lofra-m1	04	dashboard-to-lofra-20260721-04-theta90-tiebreaker-result.md	resolved (root cause) — θ90 identical; d
+2026-07-21	dashboard	lofra-m1, lofra-mini	05	dashboard-to-lofra-20260721-05-fresh-vintage-pinned-and-percell-shipped.md	open-question — canonical x pinned (fres
+2026-07-21	dashboard	lofra-mini, lofra-m1	06	dashboard-to-lofra-20260721-06-protocol-D1-D5-conformance.md	resolved
