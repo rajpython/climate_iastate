@@ -524,7 +524,7 @@ def main(argv: list[str] | None = None) -> None:
         "region": args.region,
         "baseline_start": baseline["start_year"],
         "baseline_end": baseline["end_year"],
-        "source": "NOAA PSL THREDDS OPeNDAP",
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
         "created": str(date.today()),
     }
 
