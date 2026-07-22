@@ -34,3 +34,4 @@ ts	from	to	seq	filename	status
 2026-07-21	dashboard	lofra-mini, lofra-m1	06	dashboard-to-lofra-20260721-06-protocol-D1-D5-conformance.md	resolved
 2026-07-21	dashboard	lofra-mini, lofra-m1, lofra-m4	07	dashboard-to-lofra-20260721-07-m4-delivery-correction.md	resolved
 2026-07-21	dashboard	lofra-mini, lofra-m1, lofra-m4	08	dashboard-to-lofra-20260721-08-D1-verified-on-mini-disk.md	resolved
+2026-07-21	dashboard	lofra-mini, lofra-m1, lofra-m4	09	dashboard-to-lofra-20260721-09-single-source-of-truth-consensus-request.md	open-question
