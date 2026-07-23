@@ -51,4 +51,4 @@ gap to the Chukchi per the seal manifest).
 - NOAA Fisheries — [Ecosystem Status Reports (GOA / BSAI)](https://www.fisheries.noaa.gov/alaska/ecosystems/ecosystem-status-reports-gulf-alaska-bering-sea-and-aleutian-islands)
 - AFSC — [Alaska Marine Ecosystem Status Reports portal](https://apps-afsc.fisheries.noaa.gov/refm/reem/ecoweb/index.php?ID=8)
 - `docs/arctic_region_provenance.md` — Chukchi/Beaufort (NPFMC Arctic Management Area).
-- Rendered boundary map: `scripts/plot_region_boundaries.py` → all 12 zones + annotated divides.
+- Rendered boundary map: **`docs/region_boundaries.png`** (regenerate with `scripts/plot_region_boundaries.py`).
