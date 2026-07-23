@@ -1,5 +1,11 @@
 # Chukchi & Beaufort region-polygon provenance
 
+> Part of the whole-map provenance set. See **`docs/region_provenance.md`** for the doctrine
+> (ESR ecoregions are authoritative), the full 12-zone boundary table, and the CI guardrail
+> (`config/regions_provenance.json` + `tests/test_region_provenance.py`). This note is the
+> Chukchi/Beaufort detail.
+
+
 The Chukchi and Beaufort SST/MHW regions (`config/regions.geojson`) were the last two regions still
 defined as crude lat/lon **boxes** after the 2026-06-29 board-wide re-base onto AFSC ESR "Alaska
 Marine Management Areas" (that dataset's ecosystem-area layer has **no Arctic stratum**, so the two
