@@ -92,6 +92,8 @@ mhw-aggregate = "mhw.states.aggregates:main"
 mhw-compute-risk = "mhw.states.risk:main"
 mhw-backfill = "mhw.states.update_states:backfill_main"
 mhw-forecast = "mhw.forecast.cli:main"
+mhw-fetch-psl-mhw = "mhw.fetch.psl_mhw:main"
+mhw-build-psl-mhw = "mhw.forecast.psl_mhw:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
