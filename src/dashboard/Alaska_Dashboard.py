@@ -76,9 +76,10 @@ from dashboard.pages.research import render as research_render  # noqa: E402
 # of (label, url_path) for that section's pages — revealed on hover (see _HOME_CSS) so a visitor
 # can jump straight to a related page. url_paths must match the st.navigation registry below.
 _COVERAGE = [
-    ("Marine Heatwaves", "Operational &amp; historical monitoring",
+    ("Marine Heatwaves", "Operational, historical &amp; forecast",
      "Marine heatwave conditions across Alaska shelf ecosystems.", False,
-     [("Marine Heatwaves", "marine_heatwaves")]),
+     [("Marine Heatwaves", "marine_heatwaves"),
+      ("MHW Forecast (NOAA PSL)", "mhw_forecast")]),
     ("Bering Sea", "Bottom Conditions &amp; Climate–Fisheries Relationships",
      "Cold-pool indicators, bottom-temperature assessments, model validation, and "
      "climate–fisheries relationships.", False,
