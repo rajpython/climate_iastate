@@ -4,6 +4,8 @@ All functions are pure (no I/O).
 """
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 
 
@@ -45,3 +47,37 @@ def compute_mu_theta(
     mu = np.nanmean(stack, axis=0).astype(np.float32)
     theta = np.nanpercentile(stack, percentile, axis=0).astype(np.float32)
     return mu, theta
+
+
+def smooth_doy_field(field: np.ndarray, window_days: int = 31) -> np.ndarray:
+    """Circular centered moving average along the day-of-year axis (axis 0).
+
+    This is the second smoothing step of the canonical Hobday et al. (2016) MHW
+    definition: after the 11-day-window percentile, the seasonally-varying
+    climatology mu(d) and threshold theta90(d) are each smoothed with a 31-day
+    moving average to remove the day-to-day sampling noise left in the per-DOY
+    percentile (each DOY is estimated from only ~11 x N_baseline pooled values).
+
+    Wrap-around at the year boundary (Dec <-> Jan) and NaN-aware: land/masked
+    cells stay NaN; a DOY whose window has some finite days averages over those.
+
+    Parameters
+    ----------
+    field       : (n_doy, n_lat, n_lon) float array (n_doy usually 366), may hold NaN
+    window_days : centered window length in days (default 31, Hobday-canonical)
+
+    Returns
+    -------
+    Smoothed array, same shape and dtype as *field*.
+    """
+    if window_days <= 1:
+        return field
+    n = field.shape[0]
+    half = window_days // 2
+    padded = np.concatenate([field[n - half:], field, field[:half]], axis=0)
+    out = np.empty_like(field)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN slices -> NaN (land)
+        for d in range(n):
+            out[d] = np.nanmean(padded[d:d + window_days], axis=0)
+    return out.astype(field.dtype)
