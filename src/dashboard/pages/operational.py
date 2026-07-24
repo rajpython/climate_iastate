@@ -39,10 +39,18 @@ from dashboard.components.ts_event_metrics import (
     mhw_plot,
     region_menu_label,
 )
+from dashboard.components.driver_links import (
+    build_drivers_frame,
+    targets_for_region,
+)
 from dashboard.components.predictability_panel import (
     _add_event_shading,
     _zero_line,
+    best_lag_table,
+    deseasonalize,
+    lagged_cross_correlation,
     load_ao,
+    load_npi,
     load_pdo,
 )
 from dashboard.components.risk_gauge import (
@@ -52,6 +60,8 @@ from dashboard.components.risk_gauge import (
     _make_sparkline,
     load_risk_table,
 )
+from dashboard.pages.forecast import render_forecast_panel, zones_for_region
+from mhw.forecast.deploy import load_forecast_config
 from mhw.states.risk import compute_risk_table, save_risk_table
 
 from dashboard.components.bottom_ui import (
@@ -60,11 +70,13 @@ from dashboard.components.bottom_ui import (
     PURPLE,
     RED,
     SLATE,
+    callout,
     footer,
     inject_css,
     kpi_card,
     kpi_grid,
     page_header,
+    section_title,
 )
 
 RISK_DIR = Path(__file__).parents[3] / "data" / "derived" / "risk"
@@ -83,6 +95,60 @@ def _fmt(d) -> str:
 
 # Page config, fonts and sidebar styling are owned by the navigation shell
 # (Alaska_Dashboard.py) — this script just renders the page body.
+
+
+# The cross-zone driver × metric matrix and its shared monthly driver/target builders moved to
+# ``dashboard.components.driver_links`` (rendered on the standalone "Climate Driver Links" page).
+# The per-region table below reuses ``build_drivers_frame`` / ``targets_for_region`` from there.
+
+
+def _driver_cross_correlation(region, agg_df, ao_df, pdo_df, npi_anom) -> None:
+    """Region-scoped lagged cross-correlation of the climate drivers vs the MHW metrics.
+
+    Correlates each driver (AO monthly-mean, PDO, deseasonalized NPI) **leading** the region's
+    monthly area fraction, mean intensity and onset count by 0–6 months over the full overlapping
+    record, then tabulates the best driver-leads lag per pair. Descriptive context, not a forecast.
+    """
+    st.markdown("<div style='height:0.4rem'></div>", unsafe_allow_html=True)
+    section_title(f"Driver Cross-Correlation — {_REGION_NAMES.get(region, region.upper())}",
+                  note="driver leads this zone's MHW by 0–6 months · Pearson r on monthly series")
+    if agg_df is None or agg_df.empty:
+        callout("No monthly MHW series for this region yet — run <code>mhw-aggregate</code>.",
+                icon="🔗", tint=SLATE)
+        return
+
+    drivers = build_drivers_frame(ao_df, pdo_df, npi_anom)
+    targets = targets_for_region(agg_df)
+
+    grid = lagged_cross_correlation(drivers, targets, max_lag=6)
+    best = best_lag_table(grid)
+    if best.empty:
+        callout("Not enough overlapping months to estimate driver correlations.",
+                icon="🔗", tint=SLATE)
+        return
+
+    disp = best[["driver", "target", "lag", "r", "n"]].copy()
+    disp["r"] = disp["r"].map(lambda v: f"{v:+.2f}")
+    disp = disp.rename(columns={"driver": "Driver", "target": "MHW metric",
+                                "lag": "Best lead (mo)", "r": "r", "n": "n months"})
+    st.dataframe(disp, hide_index=True, use_container_width=True)
+
+    top = best.iloc[0]
+    sign = "positively" if top["r"] >= 0 else "negatively"
+    lead = "the same month" if int(top["lag"]) == 0 else f"{int(top['lag'])} month(s) ahead"
+    callout(
+        f"Strongest link: <b>{top['driver']}</b> {sign} co-varies with <b>{top['target']}</b> at a "
+        f"lead of <b>{lead}</b> (r = {top['r']:+.2f}, n = {int(top['n'])}). NPI is deseasonalized; "
+        "AO/PDO are native anomalies. This is a plain association, <b>not</b> causation and "
+        "<b>not</b> a fitted forecast.", icon="🔗", tint=BLUE)
+
+    with st.expander("Full lag grid — r at each 0–6 month lead"):
+        pivot = (grid.assign(pair=grid["driver"] + " → " + grid["target"])
+                 .pivot(index="pair", columns="lag", values="r")
+                 .map(lambda v: "" if pd.isna(v) else f"{v:+.2f}"))
+        pivot.columns = [f"lead {c}" for c in pivot.columns]
+        st.dataframe(pivot, use_container_width=True)
+
 
 def render() -> None:
     """Operational MHW view — rendered inside the Marine Heatwaves hub."""
@@ -111,6 +177,7 @@ def render() -> None:
     agg_df    = load_aggregates(region)
     ao_df     = load_ao()
     pdo_df    = load_pdo()
+    npi_df    = load_npi()
 
     # Ensure risk table exists
     _risk_path = RISK_DIR / f"risk_{region}.parquet"
@@ -125,11 +192,12 @@ def render() -> None:
     # ---------------------------------------------------------------------------
     # Tabs
     # ---------------------------------------------------------------------------
-    tab_map, tab_ts, tab_pred, tab_risk = st.tabs([
+    tab_map, tab_ts, tab_pred, tab_risk, tab_fc = st.tabs([
         "🗺️ Live MHW Map",
         "📈 Event Metrics",
-        "🌐 Predictability",
+        "🌐 Climate Drivers",
         "🚦 Risk Gauge",
+        "🔮 Forecast",
     ])
 
     # ============================================================
@@ -161,8 +229,13 @@ def render() -> None:
                 metric_key = st.selectbox("Metric", list(avail_metrics.keys()),
                                           format_func=lambda k: avail_metrics[k][0],
                                           index=1, key="map_metric")
-                date_idx = st.slider("Date", 0, len(dates) - 1, len(dates) - 1,
-                                     key="map_date")
+                # A single-date zarr can't drive a slider (min==max is a
+                # Streamlit error); pin to the only day in that case.
+                if len(dates) > 1:
+                    date_idx = st.slider("Date", 0, len(dates) - 1, len(dates) - 1,
+                                         key="map_date")
+                else:
+                    date_idx = 0
                 st.caption(f"**{_fmt(dates[date_idx])}**")
 
             values = data[metric_key][date_idx]
@@ -284,7 +357,7 @@ def render() -> None:
             ], cols=3)
 
     # ============================================================
-    # TAB 3 — Predictability Context
+    # TAB 3 — Climate Drivers (AO / PDO / Aleutian Low + cross-correlation)
     # ============================================================
     with tab_pred, st.container(border=True):
         if ao_df is None:
@@ -310,52 +383,84 @@ def render() -> None:
                 ao_win = ao_df.tail(min(win_days, len(ao_df))).reset_index(drop=True)
                 st.info(f"AO data not available for MHW period. Showing most recent {win_days} AO days.")
 
-            row_titles = ["AO (daily)", "PDO (monthly)", "Area Fraction", "Mean Intensity (°C)"]
+            # NPI (Aleutian Low proxy) is raw SLP with a strong seasonal cycle → deseasonalize to a
+            # monthly anomaly before plotting/correlating. It updates slower than AO/PDO, so it only
+            # appears in the chart for windows that reach its record (shown when the window overlaps).
+            npi_anom = (deseasonalize(npi_df, "npi") if npi_df is not None and not npi_df.empty
+                        else None)
+            npi_win = (npi_anom[(npi_anom["date"] >= t_start) & (npi_anom["date"] <= t_end)]
+                       if npi_anom is not None else None)
+            show_pdo = pdo_win is not None and not pdo_win.empty
+            show_npi = npi_win is not None and not npi_win.empty
+            show_mhw = agg_win is not None and not agg_win.empty
+
+            row_titles = ["AO (daily)"]
+            if show_pdo:
+                row_titles.append("PDO (monthly)")
+            if show_npi:
+                row_titles.append("NPI anomaly (monthly) — low = strong Aleutian Low")
+            if show_mhw:
+                row_titles += ["Area Fraction", "Mean Intensity (°C)"]
             n_rows = len(row_titles)
             fig = make_subplots(rows=n_rows, cols=1, shared_xaxes=True,
                                 subplot_titles=row_titles, vertical_spacing=0.07)
 
+            r = 1
             ao_colors = np.where(ao_win["ao"].values >= 0, "steelblue", "tomato")
             fig.add_trace(go.Bar(x=ao_win["date"], y=ao_win["ao"],
                                  marker_color=ao_colors.tolist(), name="AO",
                                  hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.3f}}<extra></extra>"),
-                          row=1, col=1)
-            _zero_line(fig, 1)
-            fig.update_yaxes(title_text="AO", row=1, col=1, title_font={"size": 9})
+                          row=r, col=1)
+            _zero_line(fig, r)
+            fig.update_yaxes(title_text="AO", row=r, col=1, title_font={"size": 9})
+            r += 1
 
-            if pdo_win is not None and not pdo_win.empty:
+            if show_pdo:
                 pdo_colors = np.where(pdo_win["pdo"].values >= 0, "darkorange", "royalblue")
                 fig.add_trace(go.Bar(x=pdo_win["date"], y=pdo_win["pdo"],
                                      marker_color=pdo_colors.tolist(), name="PDO",
                                      hovertemplate=f"%{{x|{_PLOTLY_MONTH}}}: %{{y:.3f}}<extra></extra>"),
-                              row=2, col=1)
-                _zero_line(fig, 2)
-                fig.update_yaxes(title_text="PDO", row=2, col=1, title_font={"size": 9})
+                              row=r, col=1)
+                _zero_line(fig, r)
+                fig.update_yaxes(title_text="PDO", row=r, col=1, title_font={"size": 9})
+                r += 1
 
-            if agg_win is not None and not agg_win.empty:
+            if show_npi:
+                # Purple = negative anomaly (deep low → strong Aleutian Low); teal = positive.
+                npi_colors = np.where(npi_win["npi"].values >= 0, "#4c9a8f", "#8e6fb3")
+                fig.add_trace(go.Bar(x=npi_win["date"], y=npi_win["npi"],
+                                     marker_color=npi_colors.tolist(), name="NPI",
+                                     hovertemplate=f"%{{x|{_PLOTLY_MONTH}}}: %{{y:.2f}} hPa<extra></extra>"),
+                              row=r, col=1)
+                _zero_line(fig, r)
+                fig.update_yaxes(title_text="hPa", row=r, col=1, title_font={"size": 9})
+                r += 1
+
+            if show_mhw:
                 active_flag = agg_win["area_frac"].values > AREA_THRESH
                 fig.add_trace(go.Scatter(
                     x=agg_win["date"], y=agg_win["area_frac"], mode="lines",
                     line={"color": "tomato", "width": 1.8},
                     fill="tozeroy", fillcolor="rgba(255,99,71,0.15)",
                     hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.4f}}<extra></extra>"),
-                    row=3, col=1)
+                    row=r, col=1)
                 fig.add_hline(y=AREA_THRESH, line_dash="dash", line_color="darkred",
-                              line_width=1, row=3, col=1)
-                fig.update_yaxes(title_text="fraction", row=3, col=1, title_font={"size": 9})
+                              line_width=1, row=r, col=1)
+                fig.update_yaxes(title_text="fraction", row=r, col=1, title_font={"size": 9})
+                r += 1
 
                 fig.add_trace(go.Scatter(
                     x=agg_win["date"], y=agg_win["Ibar"], mode="lines",
                     line={"color": "orangered", "width": 1.8},
                     hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.3f}} °C<extra></extra>"),
-                    row=4, col=1)
-                fig.update_yaxes(title_text="°C", row=4, col=1, title_font={"size": 9})
+                    row=r, col=1)
+                fig.update_yaxes(title_text="°C", row=r, col=1, title_font={"size": 9})
 
                 _add_event_shading(fig, agg_win["date"], active_flag, n_rows)
 
             fig.update_layout(
-                title=f"Predictability Context — {region.upper()}",
-                height=220 * n_rows, showlegend=False, template="plotly_white",
+                title=f"Climate Drivers — {_REGION_NAMES.get(region, region.upper())}",
+                height=210 * n_rows, showlegend=False, template="plotly_white",
                 bargap=0.05, margin={"l": 60, "r": 20, "t": 60, "b": 40},
             )
             # Force shared x-axis to the requested window (Plotly auto-expands
@@ -369,10 +474,24 @@ def render() -> None:
             ]
             if pdo_df is not None and not pdo_df.empty:
                 _cards.append(kpi_card("Latest PDO", f"{float(pdo_df['pdo'].iloc[-1]):.3f}", SLATE))
+            if npi_anom is not None and not npi_anom.empty:
+                _npi_last = npi_anom.iloc[-1]
+                _cards.append(kpi_card(
+                    "Latest NPI anomaly", f"{float(_npi_last['npi']):+.2f}", SLATE,
+                    sub=f"hPa · to {_fmt(_npi_last['date'])}", label_note="(low = strong Low)"))
             if agg_win is not None and not agg_win.empty:
                 _cards.append(kpi_card("MHW event days",
                               f"{int((agg_win['area_frac'] > AREA_THRESH).sum())}", BLUE))
             kpi_grid(_cards, cols=len(_cards))
+
+            _driver_cross_correlation(region, agg_df, ao_df, pdo_df, npi_anom)
+
+            # The all-zones comparison lives on its own page; link to it rather than repeating the
+            # same cross-zone matrix on every region view.
+            callout(
+                "Want the big picture? See <a href='/driver_correlations' "
+                "style='text-decoration:underline'><b>Climate Driver Links</b></a> for the strongest "
+                "PDO / AO / NPI correlations across every ESR zone.", icon="🗺️", tint=SLATE)
 
     # ============================================================
     # TAB 4 — Risk Gauge
@@ -433,6 +552,17 @@ def render() -> None:
                 if agg_df is not None:
                     st.plotly_chart(_make_sparkline(risk_df, agg_df, n_days=30),
                                     use_container_width=True, key="risk_sparkline")
+
+    # ============================================================
+    # TAB 5 — Forecast (LOFRA frozen module, scoped to this region's ESR zones)
+    # ============================================================
+    with tab_fc:
+        try:
+            fc_cfg = load_forecast_config()
+        except Exception as exc:  # missing config/vendor — degrade, don't crash the page
+            st.info(f"Forecast module not available: {exc}")
+        else:
+            render_forecast_panel(zones_for_region(region, fc_cfg), fc_cfg)
 
     footer("Data sources: NOAA OISST v2.1 (SST + sea ice) · CPC Arctic Oscillation · PSL Pacific "
            "Decadal Oscillation. Daily; OISST typically lags real time by 1–2 days.")

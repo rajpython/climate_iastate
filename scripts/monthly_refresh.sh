@@ -83,9 +83,10 @@ _run_parallel "risk" \
     "mhw-compute-risk --region __REGION__" \
     "Saved"
 
-log "[indices] refreshing AO (full record from ~1950) and PDO (full record from 1854)..."
-# Pass --ao-years/--pdo-years explicitly (with values that exceed available
-# history) so the refresh is robust even if the upstream defaults change.
-mhw-fetch-indices --ao-years 100 --pdo-years 200
+log "[indices] refreshing AO (~1950), PDO (1854) and NPI (Aleutian Low proxy, 1948)..."
+# Pass --ao-years/--pdo-years/--npi-years explicitly (with values that exceed
+# available history) so the refresh is robust even if the upstream defaults change.
+# NPI (NOAA PSL np.data) updates more slowly than AO/PDO — it may trail by ~1 yr.
+mhw-fetch-indices --ao-years 100 --pdo-years 200 --npi-years 100
 
 log "=== Refresh complete. Data now extends through $TARGET_END ==="

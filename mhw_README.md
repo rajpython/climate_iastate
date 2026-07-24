@@ -235,6 +235,22 @@ $$
 \theta_g(d)=\mathrm{quantile}_{0.9}\left(T_{g,t}\in W(d)\right)
 $$
 
+Then, as the **second step of the canonical Hobday et al. (2016) recipe**, both the
+climatology and threshold are smoothed along day-of-year with a **31-day centered moving
+average** (wrap-around at the year boundary):
+
+$$
+\mu_g(d)\leftarrow \frac{1}{31}\sum_{k=d-15}^{d+15}\mu_g(k), \qquad
+\theta_g(d)\leftarrow \frac{1}{31}\sum_{k=d-15}^{d+15}\theta_g(k)
+$$
+
+The 11-day window pools ~11×N_baseline samples to *estimate* each DOY's statistic; the
+subsequent 31-day smoothing removes the residual day-to-day sampling noise in that per-DOY
+estimate. Controlled by `climatology.smoothing.post_smoothing` in `climatology.yml`
+(`window_days: 31`, wrap-around). This step was omitted in builds before 2026-07-15 (an
+oversight — the 11-day pooling window was mistaken for the full smoothing); it is now applied,
+so θ90 follows the canonical definition that defines the predictand.
+
 ---
 
 ### 5.4 Storage Design

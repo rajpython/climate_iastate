@@ -50,6 +50,20 @@ def load_pdo() -> pd.DataFrame | None:
     return df.sort_values("date").reset_index(drop=True)
 
 
+@st.cache_data(show_spinner="Loading NPI index …", ttl=3600)
+def load_npi() -> pd.DataFrame | None:
+    """North Pacific Index (Aleutian Low proxy), monthly. Columns: date, npi (hPa).
+
+    Low NPI = deep/strong Aleutian Low (the index is inverse to Aleutian Low strength).
+    """
+    p = RAW_DIR / "npi_monthly.parquet"
+    if not p.exists():
+        return None
+    df = pd.read_parquet(p)
+    df["date"] = pd.to_datetime(df["date"])
+    return df.sort_values("date").reset_index(drop=True)
+
+
 @st.cache_data(show_spinner="Loading aggregates …", ttl=3600)
 def load_aggregates(region: str) -> pd.DataFrame | None:
     p = AGG_DIR / f"region_daily_{region}.parquet"
@@ -93,6 +107,94 @@ def _add_event_shading(fig, dates: pd.Series, active: np.ndarray, n_rows: int) -
         for r in range(1, n_rows + 1):
             fig.add_vrect(x0=s, x1=dates.iloc[-1], fillcolor="salmon",
                           opacity=0.12, layer="below", line_width=0, row=r, col=1)
+
+
+# ---------------------------------------------------------------------------
+# Cross-correlation helpers (pure — network-free, unit-testable)
+# ---------------------------------------------------------------------------
+def to_monthly_mean(df: pd.DataFrame, value_col: str, date_col: str = "date") -> pd.DataFrame:
+    """Calendar-month mean of a (possibly daily) series → month-start ``date`` index."""
+    s = df[[date_col, value_col]].copy()
+    s[date_col] = pd.to_datetime(s[date_col])
+    return (s.set_index(date_col)[value_col].resample("MS").mean()
+            .rename(value_col).reset_index())
+
+
+def deseasonalize(df: pd.DataFrame, value_col: str, date_col: str = "date") -> pd.DataFrame:
+    """Remove the calendar-month climatology (anomaly = value − that month's long-run mean).
+
+    Applied to raw NPI (absolute SLP in hPa) so its strong seasonal cycle does not manufacture
+    a spurious correlation with the MHW metrics; AO/PDO already ship as anomalies.
+    """
+    out = df[[date_col, value_col]].copy()
+    out[date_col] = pd.to_datetime(out[date_col])
+    month = out[date_col].dt.month
+    out[value_col] = out[value_col] - out.groupby(month)[value_col].transform("mean")
+    return out
+
+
+def monthly_onset_counts(df: pd.DataFrame, value_col: str = "area_frac", date_col: str = "date",
+                         threshold: float = AREA_THRESH, out_col: str = "Onset events") -> pd.DataFrame:
+    """Monthly count of MHW **onsets** — days the region crosses *into* an active heatwave.
+
+    An onset is a rising edge of ``value_col > threshold``: the day the regional area fraction
+    first exceeds the event threshold after a non-event day. Counting event *initiation* — rather
+    than active days or area — isolates a signal that large-scale drivers may lead differently from
+    heatwave area/intensity. Returns a monthly (month-start ``date``) frame ``[date, out_col]``.
+    Pure: no IO.
+    """
+    s = df[[date_col, value_col]].dropna().copy()
+    s[date_col] = pd.to_datetime(s[date_col])
+    s = s.sort_values(date_col).reset_index(drop=True)
+    if s.empty:
+        return pd.DataFrame({date_col: pd.Series(dtype="datetime64[ns]"),
+                             out_col: pd.Series(dtype=int)})
+    active = (s[value_col] > threshold).to_numpy()
+    onset = active & ~np.concatenate([[False], active[:-1]])   # rising edge = a new event begins
+    return (s.assign(_o=onset.astype(int)).set_index(date_col)["_o"]
+            .resample("MS").sum().rename(out_col).reset_index())
+
+
+def lagged_cross_correlation(drivers: pd.DataFrame, targets: pd.DataFrame, max_lag: int = 6,
+                             min_overlap: int = 12, date_col: str = "date") -> pd.DataFrame:
+    """Pearson r of each driver **leading** each target by lag k = 0…``max_lag`` months.
+
+    Both inputs are monthly frames (month-start dates): ``drivers`` has one value column per
+    climate index, ``targets`` one per MHW metric. Scores ``corr(driver[t], target[t+k])`` —
+    only the driver-leads (predictive) direction. ``r`` is NaN where the overlapping sample is
+    shorter than ``min_overlap``. Pure: no IO.
+
+    Returns a long DataFrame with columns ``[driver, target, lag, r, n]``.
+    """
+    dcols = [c for c in drivers.columns if c != date_col]
+    tcols = [c for c in targets.columns if c != date_col]
+    d = drivers.copy()
+    t = targets.copy()
+    d[date_col] = pd.to_datetime(d[date_col])
+    t[date_col] = pd.to_datetime(t[date_col])
+    merged = (pd.merge(d, t, on=date_col, how="inner")
+              .sort_values(date_col).reset_index(drop=True))
+
+    rows: list[dict] = []
+    for dc in dcols:
+        for tc in tcols:
+            for k in range(max_lag + 1):
+                pair = pd.concat([merged[dc], merged[tc].shift(-k)], axis=1).dropna()
+                n = len(pair)
+                r = (float(pair.iloc[:, 0].corr(pair.iloc[:, 1]))
+                     if n >= min_overlap else float("nan"))
+                rows.append({"driver": dc, "target": tc, "lag": k, "r": r, "n": n})
+    return pd.DataFrame(rows)
+
+
+def best_lag_table(long_df: pd.DataFrame) -> pd.DataFrame:
+    """Reduce the lag grid to the maximum-|r| lag per (driver, target), strongest first."""
+    df = long_df.dropna(subset=["r"]).copy()
+    if df.empty:
+        return df.assign(abs_r=pd.Series(dtype=float))
+    df["abs_r"] = df["r"].abs()
+    idx = df.groupby(["driver", "target"])["abs_r"].idxmax()
+    return df.loc[idx].sort_values("abs_r", ascending=False).reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------

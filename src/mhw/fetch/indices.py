@@ -1,4 +1,4 @@
-"""AO and PDO index fetchers — climate regime conditioning indicators.
+"""AO, PDO and NPI index fetchers — climate regime conditioning indicators.
 
 Sources
 -------
@@ -9,6 +9,13 @@ AO daily  : NOAA CPC FTP — full history (1950–present)
 PDO monthly: NOAA PSL — full history (1870–present)
              https://psl.noaa.gov/pdo/data/pdo.timeseries.sstens.csv
              Format: header line, then YYYY-MM-DD,value (-9999 = missing)
+
+NPI monthly: NOAA PSL — Trenberth & Hurrell North Pacific Index (1948–present)
+             https://psl.noaa.gov/data/correlation/np.data
+             Area-weighted sea-level pressure over 30–65°N, 160°E–140°W (hPa). It is the
+             standard Aleutian Low proxy: a *low* NPI = a deep/strong Aleutian Low (inverse).
+             Format: "<start> <end>" header, then "YYYY  jan feb … dec" rows (-999 = missing),
+             a trailing -999 line, then description text.
 
 CLI: mhw-fetch-indices --plot
 """
@@ -35,6 +42,7 @@ AO_URL = (
     "norm.daily.ao.cdas.z1000.19500101_current.csv"
 )
 PDO_URL = "https://psl.noaa.gov/pdo/data/pdo.timeseries.sstens.csv"
+NPI_URL = "https://psl.noaa.gov/data/correlation/np.data"
 
 _TIMEOUT = 30  # seconds
 
@@ -132,6 +140,72 @@ def fetch_pdo(years_back: int | None = None) -> pd.DataFrame:
         df = df[df["date"] >= cutoff].reset_index(drop=True)
 
     print(f"  PDO: {len(df):,} rows, {df['date'].min().date()} → {df['date'].max().date()}")
+    return df
+
+
+# ---------------------------------------------------------------------------
+# NPI — fetch & parse (North Pacific Index → Aleutian Low proxy)
+# ---------------------------------------------------------------------------
+
+def parse_npi(text: str) -> pd.DataFrame:
+    """Parse the PSL ``np.data`` payload into a tidy monthly frame.
+
+    Pure (no network) so it is unit-testable. The file is a "year + 12 monthly columns"
+    grid bracketed by a "<start> <end>" header line, a trailing ``-999`` line and free-text
+    description lines. We keep only rows whose first token is a 4-digit year followed by 12
+    numeric columns, unpivot to one row per month, and drop the ``-999`` missing sentinel.
+
+    Returns
+    -------
+    pd.DataFrame with columns: date (datetime64, first-of-month), npi (float64, hPa)
+    """
+    rows: list[dict] = []
+    for ln in text.splitlines():
+        parts = ln.split()
+        if len(parts) != 13:
+            continue                      # header / trailing -999 / description lines
+        try:
+            year = int(parts[0])
+            vals = [float(v) for v in parts[1:]]
+        except ValueError:
+            continue
+        if not (1800 <= year <= 2200):    # first token must be a plausible year
+            continue
+        for month, val in enumerate(vals, start=1):
+            if val <= -999.0:             # missing sentinel
+                continue
+            rows.append({"date": pd.Timestamp(year=year, month=month, day=1), "npi": val})
+    if not rows:
+        raise ValueError(
+            "NPI payload parsed to zero rows — the PSL np.data layout may have changed; "
+            "inspect the response before trusting this fetch."
+        )
+    return pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
+
+
+def fetch_npi(years_back: int | None = None) -> pd.DataFrame:
+    """Fetch the Trenberth & Hurrell North Pacific Index (monthly) from NOAA PSL.
+
+    Parameters
+    ----------
+    years_back : int | None
+        Years of history to retain. ``None`` (default) keeps the full record from 1948.
+
+    Returns
+    -------
+    pd.DataFrame with columns: date (datetime64, first-of-month), npi (float64, hPa)
+    """
+    print("Fetching NPI monthly index from NOAA PSL …")
+    resp = requests.get(NPI_URL, timeout=_TIMEOUT)
+    resp.raise_for_status()
+
+    df = parse_npi(resp.text)
+
+    if years_back is not None:
+        cutoff = pd.Timestamp.today() - pd.DateOffset(years=years_back)
+        df = df[df["date"] >= cutoff].reset_index(drop=True)
+
+    print(f"  NPI: {len(df):,} rows, {df['date'].min().date()} → {df['date'].max().date()}")
     return df
 
 
@@ -245,6 +319,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Years of PDO history to retain (default: full record from 1854)",
     )
     parser.add_argument(
+        "--npi-years", type=int, default=None, metavar="N",
+        help="Years of NPI history to retain (default: full record from 1948)",
+    )
+    parser.add_argument(
         "--plot", action="store_true",
         help="Generate and display time series plots (Plotly)",
     )
@@ -256,16 +334,20 @@ def main(argv: list[str] | None = None) -> None:
 
     ao = fetch_ao(years_back=args.ao_years)
     pdo = fetch_pdo(years_back=args.pdo_years)
+    npi = fetch_npi(years_back=args.npi_years)
 
     print("\nSaving parquet files …")
     save_parquet(ao, "ao_daily.parquet")
     save_parquet(pdo, "pdo_monthly.parquet")
+    save_parquet(npi, "npi_monthly.parquet")
 
     # Summary
     print(f"\nAO  — range: {ao['ao'].min():.3f} to {ao['ao'].max():.3f}")
     print(f"PDO — range: {pdo['pdo'].min():.3f} to {pdo['pdo'].max():.3f}")
+    print(f"NPI — range: {npi['npi'].min():.3f} to {npi['npi'].max():.3f} hPa")
     print(f"AO latest date:  {ao['date'].max().date()}")
     print(f"PDO latest date: {pdo['date'].max().date()}")
+    print(f"NPI latest date: {npi['date'].max().date()}")
 
     if args.plot:
         print("\nGenerating plots …")

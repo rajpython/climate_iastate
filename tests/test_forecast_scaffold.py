@@ -1,10 +1,28 @@
-"""Forecast scaffold — config/adapter units + API live-safety (503 before data, 404 unknown)."""
+"""Forecast wiring — config/adapter units, the frozen→artifact mapping, and API live-safety.
+
+The forecast module is vendored + pinned (config/forecast.yml module_version), so the zones
+endpoint reports the pin and per-zone endpoints serve artifacts when present. Artifacts live under
+the gitignored ``data/derived/forecast/`` — the end-to-end producer test skips when the (also
+gitignored) ``region_daily_*`` inputs or the vendored module are absent, per the house pattern.
+"""
 from __future__ import annotations
+
+import math
 
 import pandas as pd
 import pytest
 
-from mhw.forecast.deploy import load_forecast_config, monthly_area_frac, zone_role
+from mhw.forecast import deploy
+from mhw.forecast.deploy import (
+    AGG_DIR,
+    FORECAST_COLUMNS,
+    VENDOR_DIR,
+    _forecast_rows,
+    load_forecast_config,
+    monthly_area_frac,
+    run_forecast,
+    zone_role,
+)
 
 
 def test_monthly_area_frac_reduces_daily_to_month_starts():
@@ -32,6 +50,61 @@ def test_zone_roles_match_settled_split():
     assert zone_role("sebs", cfg) == "persistence"
 
 
+# --- frozen result → artifact mapping (pure; no manifest / no IO) ----------
+
+def _fake_out(model: str, l1_occurrence: float | None) -> dict:
+    """A minimal ``forecast_frozen``-shaped result over leads 1–3."""
+    leads = {}
+    for h, point, var in ((1, 0.9, 0.01), (2, -0.05, 0.02), (3, 0.03, 0.03)):
+        entry = {"target_date": f"2026-{7 + h:02d}-01", "point_area_frac": point,
+                 "predictive_variance": var, "predictive_variance_kind": "test"}
+        if h == 1 and l1_occurrence is not None:
+            entry["occurrence_prob_q90"] = l1_occurrence
+        leads[h] = entry
+    return {"zone": "z", "model": model, "coefficient_vintage": "2026-04-01",
+            "origin_date": "2026-07-01", "leads": leads}
+
+
+def test_forecast_rows_damped_maps_and_clips():
+    cfg = load_forecast_config()
+    df = _forecast_rows(_fake_out("damped_persistence", 0.3), cfg)
+    assert list(df.columns) == FORECAST_COLUMNS + ["target_date"]
+    assert list(df["lead"]) == ["L1", "L2", "L3"]
+    assert list(df["confidence"]) == ["headline", "banded", "watch"]
+    # points/bands are display-clipped to [0, 1] and the band brackets the point.
+    assert (df["point"].between(0, 1)).all()
+    assert (df["band_lo"] <= df["point"]).all() and (df["point"] <= df["band_hi"]).all()
+    assert df.loc[df["lead"] == "L2", "point"].iloc[0] == 0.0        # -0.05 clipped
+    # L1-only occurrence probability.
+    assert df.loc[df["lead"] == "L1", "l1_prob"].iloc[0] == pytest.approx(0.3)
+    assert math.isnan(df.loc[df["lead"] == "L2", "l1_prob"].iloc[0])
+
+
+def test_forecast_rows_climatology_has_no_occurrence():
+    cfg = load_forecast_config()
+    df = _forecast_rows(_fake_out("climatology", None), cfg)
+    assert (df["method"] == "climatology").all()
+    assert df["l1_prob"].isna().all()
+
+
+# --- end-to-end producer (skips when gitignored inputs are absent) ---------
+
+def _inputs_present(zone: str) -> bool:
+    return VENDOR_DIR.exists() and (AGG_DIR / f"region_daily_{zone}.parquet").exists()
+
+
+def test_run_forecast_writes_pinned_artifact(tmp_path, monkeypatch):
+    if not _inputs_present("chukchi"):
+        pytest.skip("vendored module or region_daily inputs not generated")
+    monkeypatch.setattr(deploy, "FORECAST_DIR", tmp_path)
+    path = run_forecast("chukchi")
+    assert path.parent == tmp_path
+    df, meta = deploy.read_forecast_artifact("chukchi")
+    assert list(df.columns[:len(FORECAST_COLUMNS)]) == FORECAST_COLUMNS
+    assert meta["module_version"] == load_forecast_config()["module_version"]
+    assert meta["coefficient_vintage"]  # provenance embedded
+
+
 # --- API live-safety -------------------------------------------------------
 
 _client = None
@@ -48,22 +121,35 @@ def _get_client():
     return _client
 
 
-def test_forecast_zones_endpoint_lists_roles():
+def test_forecast_zones_endpoint_reports_pin():
     r = _get_client().get("/v1/forecast/zones")
     assert r.status_code == 200
     body = r.json()
     assert body["zones"]["sebs"]["role"] == "persistence"
     assert body["zones"]["chukchi"]["role"] == "climatology"
-    assert body["module_version"] is None   # not pinned until LOFRA delivers
+    assert body["module_version"] == load_forecast_config()["module_version"]
 
 
 def test_forecast_unknown_zone_404():
     assert _get_client().get("/v1/forecast/atlantis").status_code == 404
 
 
-def test_forecast_missing_artifact_503():
-    # Valid zone, but no artifact in the test env → live-safe 503 (not 500).
+def test_forecast_missing_artifact_503(tmp_path, monkeypatch):
+    # Point the artifact lookup at an empty dir → live-safe 503 (not 500), even once data exists.
+    monkeypatch.setattr(deploy, "FORECAST_DIR", tmp_path)
     assert _get_client().get("/v1/forecast/sebs").status_code == 503
+
+
+def test_forecast_served_when_present(tmp_path, monkeypatch):
+    if not _inputs_present("sebs"):
+        pytest.skip("vendored module or region_daily inputs not generated")
+    monkeypatch.setattr(deploy, "FORECAST_DIR", tmp_path)
+    run_forecast("sebs")
+    r = _get_client().get("/v1/forecast/sebs")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["module_version"] == load_forecast_config()["module_version"]
+    assert len(body["records"]) == 3
 
 
 def test_onset_missing_artifact_503():

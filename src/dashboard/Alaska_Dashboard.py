@@ -75,9 +75,12 @@ from dashboard.pages.research import render as research_render  # noqa: E402
 # of (label, url_path) for that section's pages — revealed on hover (see _HOME_CSS) so a visitor
 # can jump straight to a related page. url_paths must match the st.navigation registry below.
 _COVERAGE = [
-    ("Marine Heatwaves", "Operational &amp; historical monitoring",
-     "Marine heatwave conditions across Alaska shelf ecosystems.", False,
-     [("Marine Heatwaves", "marine_heatwaves")]),
+    ("Marine Heatwaves", "Operational, historical &amp; forecast",
+     "Marine heatwave conditions across Alaska shelf ecosystems — live monitoring, the historical "
+     "record, and a short-term outlook.", False,
+     [("Operational", "marine_heatwaves"),
+      ("Historical", "marine_heatwaves"),
+      ("Forecast", "marine_heatwaves")]),
     ("Bering Sea", "Bottom Conditions &amp; Climate–Fisheries Relationships",
      "Cold-pool indicators, bottom-temperature assessments, model validation, and "
      "climate–fisheries relationships.", False,
@@ -260,6 +263,8 @@ nav = {
     # become sibling pages here.
     "Alaska-wide Climate": [
         st.Page(marine_heatwaves_render, title="Marine Heatwaves", url_path="marine_heatwaves"),
+        st.Page("pages/driver_correlations.py", title="Climate Driver Links",
+                url_path="driver_correlations"),
     ],
     "Bering Sea": [
         st.Page(lambda: bottom_observed_render(group="bering"),
