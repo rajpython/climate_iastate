@@ -76,15 +76,33 @@ regions:
 mhw_definition:
   confirm_days: 5
   gap_days: 2
+  qualification_mode: "consecutive_first"
+  qualification_mode_notes: >
+    How the confirm_days minimum and gap-bridging interact — the letter of Hobday et al. (2016).
+    "consecutive_first" (default, Hobday/heatwaveR-faithful): an event is a run of ≥confirm_days
+    *consecutive* exceedance days; only THEN are two such events separated by ≤gap_days merged into
+    one continuous event (absorbing the gap days). The ≥5 test applies to consecutive exceedance
+    BEFORE any bridging. This is what heatwaveR / Oliver's marineHeatWaves (the reference software)
+    implement and is computed by a per-cell two-pass over the time axis.
+    "bridged_run" (LEGACY — retained only for A/B comparison, NOT for production): the original
+    single-counter rule where one Dtilde counter incremented on exceedance AND on bridged gap days,
+    then confirmed at Dtilde≥5. This let events confirm with <5 consecutive exceedance days (as few
+    as 2), i.e. LOOSER than Hobday. Corrected 2026-07-20 — do not ship results built under this mode.
   gap_days_notes: >
     Hobday et al. specifies that gaps of ≤2 days between exceedance spells are bridged
     into a single continuous event. Set to 0 to disable gap-bridging (strict mode).
-  intensity_reference: "threshold"
+  intensity_reference: "climatological_mean"
   intensity_reference_notes: >
-    "threshold": I_{g,t} = T - theta90 (anomaly above 90th percentile). Default for
-    operational monitoring — zero point is the detection boundary.
-    "climatological_mean": I_{g,t} = T - mu (anomaly above climatological mean), matching
-    Hobday et al. (2016) Table 2 definition of imax. Produces larger values since mu < theta90.
+    "climatological_mean" (default, Hobday-faithful): I_{g,t} = T - mu, the SIGNED anomaly
+    above the seasonal climatological MEAN (heatwaveR/marineHeatWaves "relSeas"; not clamped
+    at 0). This is the intensity reference of Hobday et al. (2016) Table 2 (imax/imean/icum are
+    all relative to the seasonal mean, not the threshold). Onset rate (start→peak, keyed to the
+    event start day) and cumulative intensity (i_cum) are built from this signed anomaly — the
+    clamp is omitted so i_mean/i_cum and the onset start-edge term match Hobday exactly.
+    Switched from "threshold" to match the letter of Hobday, 2026-07-20
+    (see [[project-hobday-qualification-correction]]).
+    "threshold" (LEGACY): I_{g,t} = T - theta90 (anomaly above the 90th-percentile detection
+    boundary). Smaller values (theta90 > mu); retained only for A/B comparison — do not ship.
     Both references are available since mu and theta90 are precomputed.
   candidate_days_show: true
   candidate_threshold: 1

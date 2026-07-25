@@ -1,0 +1,87 @@
+# NOAA PSL experimental Marine Heatwave (MHW) forecast — replication config.
+#
+# Source product: Jacox et al. (2022, Nature) NMME-based MHW probability,
+# published as NetCDF at https://downloads.psl.noaa.gov/Datasets/marinehw/.
+# The dashboard page displays this published product for the 9 Alaska ESR
+# zones; nothing here re-fits or re-derives the forecast itself (Stage 1).
+#
+# schema: values were confirmed against the real file headers on 2026-07-14
+# (see docs/forecast_extension/psl_noaa_replication/ build brief, Step 0).
+
+source:
+  base_url: "https://downloads.psl.noaa.gov/Datasets/marinehw/"
+  raw_dir: "data/raw/psl_marinehw"
+  # Refreshed by PSL ~monthly (sometimes mid-month as models land) — fetched
+  # daily with a conditional Last-Modified check by mhw-fetch-psl-mhw.
+  latest_files:
+    prob_trend: "NMME_prob90_latest.nc"
+    prob_detrend: "NMME_prob90_detrend_latest.nc"
+    obs_anom_trend: "oisst.mon.anom_latest.nc"
+    obs_anom_detrend: "oisst.mon.detrend.anom_latest.nc"
+    obs_q90_trend: "oisst.mon.quantile90_latest.nc"
+    obs_q90_detrend: "oisst.mon.detrend.quantile90_latest.nc"
+  static_files:
+    mask: "oisst_land_sea_ice_mask_NMMEgrid.nc"
+  # 1.1 GB each, static (2022 vintage). Only needed for the one-time local
+  # SEDI skill build (mhw-build-psl-mhw --sedi); never fetched by the cron.
+  hindcast_files:
+    hindcast_trend: "nmme_mhw_forecast_probability_1991_2020.nc"
+    hindcast_detrend: "nmme_mhw_forecast_probability_detrended_1991_2020.nc"
+
+# Analysis window covering all 9 ESR zones, in the NMME 0-360 lon frame
+# (ai_west starts at 167.6E; egoa ends near 226E).
+alaska_window:
+  lat_min: 46.0
+  lat_max: 78.0
+  lon_min: 166.0
+  lon_max: 236.0
+
+# Confirmed from real headers (Step 0), 2026-07-14:
+schema:
+  grid:            # shared by every file: 1 deg global, cell centers on integers
+    lat: "lat"     # -90 .. 90 (181 points)
+    lon: "lon"     # 0 .. 359 (360 points, 0-360 frame)
+    resolution_deg: 1.0
+  prob:
+    var: "mhw_probability"
+    dims: ["lead_time", "lat", "lon", "start_time"]   # note: init time is LAST
+    init_dim: "start_time"      # datetime64, monthly (2021-01 .. present)
+    lead_dim: "lead_time"       # float 0.5 .. 11.5 (12 leads, months)
+    units: "fraction"           # already 0-1; land is NaN
+  mask:
+    var: "mask"
+    ocean_value: 0              # 0=ocean, 1=land, 2=ice
+  obs:
+    anom_var: "sst_anom"        # monthly SST anomaly vs 1991-2020
+    q90_var: "sst_anom"         # per-calendar-month 90th-pct threshold (month dim 1-12)
+    q90_month_dim: "month"
+    time_dim: "time"
+
+derived:
+  dir: "data/derived/psl_mhw"
+  masks_weights: "data/derived/psl_mhw/nmme_zone_masks_weights.nc"   # static
+  prob_cube: "data/derived/psl_mhw/alaska_prob_{flavor}.nc"          # flavor = trend|detrend
+  zone_series: "data/derived/psl_mhw/zone_series_{flavor}.parquet"
+  obs_status: "data/derived/psl_mhw/zone_obs_status.parquet"
+  sedi: "data/derived/psl_mhw/alaska_sedi.nc"                        # local build + rsync
+
+# The 9 leaf zones of the sealed ESR partition (ids match config/regions.geojson).
+zones:
+  - sebs
+  - nbs
+  - wgoa
+  - egoa
+  - ai_west
+  - ai_central
+  - ai_east
+  - chukchi
+  - beaufort
+
+sedi:
+  # NOAA does not publish its SEDI recipe alongside the data; we binarize the
+  # hindcast probability at this decision threshold and document the choice.
+  decision_threshold: 0.5
+
+citation: >-
+  Image provided by the NOAA Physical Sciences Laboratory, Boulder, Colorado,
+  from the website at https://psl.noaa.gov/.

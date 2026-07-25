@@ -23,6 +23,14 @@ Logs append to `outputs/cron.log`.
 | `0 14 * * *`      | `scripts/daily_refresh.sh`    | OISST → current-year MHW states + aggregates + risk, all 12 ESR regions   |
 | `0 15 1 * *`      | `scripts/monthly_indices_refresh.sh` | AO + PDO climate indices (`mhw-fetch-indices`, full-record defaults) |
 | `0 16 2 * *`      | `scripts/bottom_state_refresh.sh`    | Observed cold-pool index (EBS/NBS) + GOA/AI bottom-temp + FOSS survey catch (8 species) |
+| `30 15 * * *`     | `scripts/psl_mhw_refresh.sh`         | NOAA PSL marine-heatwave forecast (conditional: HEADs the PSL files, downloads + rebuilds the Alaska derived artifacts only when they changed ~monthly) |
+
+`psl_mhw_refresh.sh` runs daily but is a no-op on most days: `mhw-fetch-psl-mhw` HEADs each
+PSL file, compares Last-Modified against a local sidecar, and exits `3` ("unchanged") so the
+script skips the rebuild. When PSL updates (~monthly, sometimes mid-month), it downloads the two
+`*_latest.nc` forecasts (~0.75 GB), rebuilds the small Alaska-window artifacts with
+`mhw-build-psl-mhw --flavor both`, and restarts the dashboard. The **SEDI skill map is *not*
+built here** — that is the heavy local job in §2 below.
 
 **New-Year self-heal:** `daily_refresh.sh` runs the state engine with `--warmup-days 150`
 **unconditionally every night** (`WARMUP_DAYS=150`, `daily_refresh.sh:65`). This replays a
@@ -57,6 +65,21 @@ Companion `scripts/rebuild_sst_esr.sh` rebuilds the full MHW SST history for the
 (after a climatology/region change); `scripts/monthly_refresh.sh [YYYY-MM-DD]` extends the MHW
 backfill locally to a target date. Escape hatch: resize Lightsail to ≥8 GB to move the model
 rebuild into VM cron.
+
+**PSL marine-heatwave SEDI skill map.** The daily VM cron (§1) refreshes the forecast but never
+builds the skill map — SEDI needs the two static 1991–2020 hindcast files (~1.1 GB each), too
+heavy to fetch/hold on the VM. Build it **on the Mac** and rsync the small artifact. Cadence:
+**one-time / when the SEDI methodology or decision threshold changes** (the hindcast is a fixed
+2022 vintage; the `*_latest.nc` forecasts it scores against do change, but the skill *climatology*
+is stable enough to rebuild rarely).
+
+```bash
+.venv/bin/mhw-fetch-psl-mhw --include-hindcast        # adds the 2×1.1 GB hindcast files locally
+.venv/bin/mhw-build-psl-mhw --sedi                    # → data/derived/psl_mhw/alaska_sedi.nc (~3 MB)
+rsync -av data/derived/psl_mhw/alaska_sedi.nc ubuntu@3.137.98.10:/opt/iastate-ai/projects/mhw/data/derived/psl_mhw/
+ssh -i ~/.ssh/LightsailDefaultKey-us-east-2.pem ubuntu@3.137.98.10 \
+  'cd /opt/iastate-ai/projects/mhw && docker compose restart dashboard'
+```
 
 ---
 
@@ -117,6 +140,8 @@ mhw-fetch-landings-foss` then `docker compose restart dashboard`.
 | MHW / SST states, aggregates, risk      | VM cron (`daily_refresh.sh`)     | daily    |
 | AO / PDO indices                        | VM cron (`monthly_indices_refresh.sh`) | monthly |
 | Observed cold pool + bottom temp + catch| VM cron (`bottom_state_refresh.sh`) | monthly |
+| PSL marine-heatwave forecast (probability + zone series) | VM cron (`psl_mhw_refresh.sh`, conditional) | daily |
+| PSL marine-heatwave **SEDI skill map**  | local rebuild + rsync            | one-time / on method change |
 | Bottom-state **model** series           | local rebuild + rsync            | ~annual  |
 | Economic SAFE groundfish (E2) + crab (E3)| **manual CSV download** + ingest | annual   |
 | FOSS commercial landings (E1)           | manual live fetch                | annual   |

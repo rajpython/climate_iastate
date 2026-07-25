@@ -46,6 +46,7 @@ st.markdown(
 # Region-specific bottom-state pages are group-aware callables; the placeholder + research
 # pages are plain callables. Importing them here is safe — these modules define functions only.
 from dashboard.pages.marine_heatwaves import render as marine_heatwaves_render  # noqa: E402
+from dashboard.pages.mhw_forecast import render as mhw_forecast_render  # noqa: E402
 from dashboard.pages.bottom_observed import render as bottom_observed_render  # noqa: E402
 from dashboard.pages.bottom_models import render as bottom_models_render  # noqa: E402
 from dashboard.pages.catch import render as catch_render  # noqa: E402
@@ -80,7 +81,8 @@ _COVERAGE = [
      "record, and a short-term outlook.", False,
      [("Operational", "marine_heatwaves"),
       ("Historical", "marine_heatwaves"),
-      ("Forecast", "marine_heatwaves")]),
+      ("Forecast", "marine_heatwaves"),
+      ("MHW Forecast (NOAA PSL)", "mhw_forecast")]),
     ("Bering Sea", "Bottom Conditions &amp; Climate–Fisheries Relationships",
      "Cold-pool indicators, bottom-temperature assessments, model validation, and "
      "climate–fisheries relationships.", False,
@@ -263,6 +265,7 @@ nav = {
     # become sibling pages here.
     "Alaska-wide Climate": [
         st.Page(marine_heatwaves_render, title="Marine Heatwaves", url_path="marine_heatwaves"),
+        st.Page(mhw_forecast_render, title="MHW Forecast (NOAA PSL)", url_path="mhw_forecast"),
         st.Page("pages/driver_correlations.py", title="Climate Driver Links",
                 url_path="driver_correlations"),
     ],

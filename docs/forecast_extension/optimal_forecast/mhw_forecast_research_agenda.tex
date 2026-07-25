@@ -1,0 +1,644 @@
+\documentclass[11pt]{article}
+
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{xurl}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{setspace}
+
+\definecolor{linkblue}{RGB}{24,87,139}
+\definecolor{softgray}{RGB}{245,247,250}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=linkblue,
+  urlcolor=linkblue,
+  citecolor=linkblue,
+  pdftitle={Beyond Persistence: A Structural and Decision-Centered Research Agenda for Forecasting Marine Heatwaves in Alaska},
+  pdfauthor={Prepared for Rajesh Singh},
+  pdfsubject={Marine heatwave forecasting research agenda},
+  pdfkeywords={marine heatwaves, Alaska, forecasting, VAR, Bayesian VAR, persistence, ocean heat budget}
+}
+
+\titleformat{\section}{\Large\bfseries\sffamily}{\thesection}{0.75em}{}
+\titleformat{\subsection}{\large\bfseries\sffamily}{\thesubsection}{0.75em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\sffamily}{\thesubsubsection}{0.75em}{}
+\setlist[itemize]{topsep=3pt,itemsep=2pt,leftmargin=1.5em}
+\setlist[enumerate]{topsep=3pt,itemsep=2pt,leftmargin=1.7em}
+\renewcommand{\arraystretch}{1.25}
+\onehalfspacing
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Marine Heatwave Forecasting Research Agenda}
+\rhead{\thepage\ of \pageref{LastPage}}
+\setlength{\headheight}{14pt}
+
+\newcommand{\MHW}{marine heatwave}
+\newcommand{\MHWs}{marine heatwaves}
+\newcommand{\vect}[1]{\boldsymbol{#1}}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+\vspace*{1.0in}
+{\Huge\bfseries\sffamily Beyond Persistence\par}
+\vspace{0.35in}
+{\Large\bfseries A Structural and Decision-Centered Research Agenda\par}
+\vspace{0.12in}
+{\Large\bfseries for Forecasting Marine Heatwaves in Alaska\par}
+\vspace{0.65in}
+{\large Draft concept paper\par}
+\vspace{0.2in}
+{\large Prepared for research planning around the Alaska marine ecosystem dashboard\par}
+\vfill
+{\large July 2026\par}
+\vspace*{0.5in}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section*{Provisional abstract}
+\addcontentsline{toc}{section}{Provisional abstract}
+
+Current evidence indicates that damped persistence is a formidable benchmark for forecasts of monthly regional \MHW{} area fraction across the productive Alaska marine ecosystem regions. This result is operationally useful, but it does not imply that one univariate model is optimal for all forecast questions. \MHWs{} are multidimensional events involving onset, spatial expansion, intensity, duration, decline, vertical penetration, and ecosystem exposure. These dimensions may be governed by different mechanisms and may be predictable at different horizons.
+
+This concept paper proposes an integrated research program organized around three principles. First, the forecast target must be matched to the decision problem. Second, statistical models should be informed by the ocean heat budget and by the timescales through which atmospheric circulation, ocean memory, sea ice, and large-scale climate modes affect regional heat. Third, candidate models must demonstrate incremental, calibrated out-of-sample value relative to persistence.
+
+The program would combine direct event models, vector autoregressions, Bayesian VARs, Bayesian linear inverse models, spatial state-space models, dynamical forecasts, and forecast combinations. It would develop region-, season-, horizon-, and target-specific forecast systems rather than search for one universal winner. The work naturally divides into several publishable strands: a structural atlas of Alaska ocean-heat predictability, Bayesian multivariate forecasting, event-lifecycle prediction, spatial and vertical \MHW{} forecasting, and an operational champion--challenger forecasting system.
+
+\section{Motivation}
+
+The existing Alaska study answers an important first question:
+
+\begin{quote}
+How difficult is it for established statistical and dynamical methods to improve on damped persistence when forecasting monthly regional \MHW{} area fraction?
+\end{quote}
+
+The answer appears to be: very difficult at one- to two-month leads, with limited region- and horizon-specific exceptions. The next research program should ask a broader question:
+
+\begin{quote}
+What forecast information about \MHWs{} can be produced reliably enough to improve scientific understanding and management decisions in each Alaska ecosystem region?
+\end{quote}
+
+This is not merely an exercise in adding models. It requires reconsidering what constitutes the forecast object, which physical processes generate forecastable variation, which variables should be treated as states or drivers, at what temporal frequency those relationships operate, whether the relationships are stable, how uncertainty should be represented, and how forecasts should be evaluated for use.
+
+Global seasonal forecast work has already shown that \MHW{} predictability varies substantially by region, season, event characteristic, and large-scale climate state. Onset, intensity, and duration need not share the same forecast horizon. This is consistent with a research design that treats \MHW{} forecasting as a family of related problems rather than a single model-selection exercise.
+
+\section{Core proposition: the optimal object is a forecast system}
+
+There is unlikely to be one ``optimal'' \MHW{} model. The preferred forecast may vary across
+
+\begin{equation}
+(\text{region},\ \text{season},\ \text{lead},\ \text{forecast target},\ \text{decision loss}).
+\end{equation}
+
+For example, damped persistence may be best for one-month expected regional area; a dynamical system may be best for the Eastern Gulf of Alaska at lead three; a field model may improve southeastern Bering Sea onset discrimination; a subsurface model may be best for persistent ecosystem exposure; a regional ocean model may be needed for bottom temperature and cold-pool extent; and a forecast combination may be better calibrated than any individual model.
+
+The operational objective should therefore be a \textbf{modular forecast system} in which different models may be selected or combined for different forecast tasks.
+
+\section{The forecast object}
+
+A \MHW{} should be treated as an evolving state rather than a single scalar outcome.
+
+\subsection{Regional state and magnitude}
+
+Forecasts may include:
+
+\begin{itemize}
+  \item regional area fraction;
+  \item mean intensity over affected cells;
+  \item maximum intensity;
+  \item regional sea-surface temperature anomaly;
+  \item cumulative intensity;
+  \item upper-ocean heat content.
+\end{itemize}
+
+\subsection{Event lifecycle}
+
+Separate forecasts should be considered for onset, continuation, spatial expansion, intensification, peak timing, decline, termination, and re-emergence. Onset and decline create different operational windows and can display different dynamics. Treating all positive-area months as one occurrence process mixes event initiation with persistence.
+
+\subsection{Spatial configuration}
+
+Regional area alone does not indicate whether warming overlaps with shelf habitat, slope habitat, nursery areas, spawning areas, survey strata, fishing grounds, sea-ice margins, or coastal communities. Spatial forecasts should therefore include cell-level exceedance probability, expected regional area, centroid and displacement, coastal--offshore partition, and exposure-weighted area.
+
+\subsection{Vertical structure}
+
+Surface heatwaves may not describe the conditions experienced by demersal or subsurface species. The forecast system should eventually distinguish surface \MHWs{}, mixed-layer \MHWs{}, upper-ocean heat content, subsurface \MHWs{}, bottom-temperature anomalies, and cold-pool area or volume. Subsurface anomalies can persist after the surface expression has weakened and can support different forms of forecast skill than the surface area fraction alone.
+
+\section{Structural framework: what changes ocean heat?}
+
+A forecasting agenda should be organized around the regional ocean heat budget. In simplified form, mixed-layer temperature evolves according to
+
+\begin{equation}
+\frac{\partial T}{\partial t}
+=
+\frac{Q_{\mathrm{net}}}{\rho C_p h}
+-
+\mathbf{u}\cdot\nabla T
+-
+\frac{w_e}{h}(T-T_b)
++
+D_T
++
+\varepsilon,
+\end{equation}
+
+where $Q_{\mathrm{net}}$ is net surface heat flux, $h$ is mixed-layer depth, $\mathbf{u}\cdot\nabla T$ represents horizontal heat advection, $w_e(T-T_b)/h$ represents entrainment across the mixed-layer base, $D_T$ represents unresolved mixing and diffusion, and $\varepsilon$ contains measurement and budget residuals.
+
+Net surface heat flux can be decomposed as
+
+\begin{equation}
+Q_{\mathrm{net}}
+=
+Q_{\mathrm{SW}}
++
+Q_{\mathrm{LW}}
++
+Q_{\mathrm{latent}}
++
+Q_{\mathrm{sensible}}.
+\end{equation}
+
+For major northeast Pacific warming events, previous work has emphasized anomalously weak ocean heat loss, reduced cold-water advection, shallow mixed layers, and suppressed entrainment as important processes. The relative importance of these terms changes across events, regions, and seasons.
+
+This leads to a causal hierarchy:
+
+\begin{align*}
+&\text{large-scale atmosphere and ocean states}\\
+&\qquad\Downarrow\\
+&\text{regional winds, air temperature, humidity, clouds, currents, and sea ice}\\
+&\qquad\Downarrow\\
+&\text{surface flux, advection, mixing, entrainment, and heat storage}\\
+&\qquad\Downarrow\\
+&\text{temperature distribution and vertical heat structure}\\
+&\qquad\Downarrow\\
+&\text{\MHW{} onset, intensity, area, duration, and exposure}.
+\end{align*}
+
+Large-scale indices should be treated as possible upstream indicators, not as substitutes for the proximate physical terms.
+
+\section{Drivers and relevant frequencies}
+
+The relevant predictors should be classified by mechanism and timescale rather than placed indiscriminately in one regression.
+
+\small
+\begin{longtable}{@{}p{0.17\textwidth}p{0.22\textwidth}p{0.29\textwidth}p{0.18\textwidth}@{}}
+\toprule
+\textbf{Driver class} & \textbf{Examples} & \textbf{Likely forecast relevance} & \textbf{Main caution} \\
+\midrule
+Synoptic atmosphere & Pressure ridges, storms, air temperature, wind, humidity, cloud & Days to several weeks; onset and rapid intensification & Low persistence and forecast error growth \\
+\addlinespace
+Intraseasonal circulation & AO, PNA, NPO, MJO-related teleconnections, Aleutian Low displacement & Several weeks to roughly two months; strongly seasonal & Relationships may be regime-dependent \\
+\addlinespace
+Ocean surface state & SST anomaly, \MHW{} extent, fronts & Weeks to a few months & Persistence may dominate \\
+\addlinespace
+Upper-ocean memory & OHC, mixed-layer depth, stratification & One season or longer in some regions & Memory may not translate into surface-event skill \\
+\addlinespace
+Sea ice & Concentration, edge location, freeze-up and breakup, ice-season length & Weeks to seasons in the Bering, Chukchi, and Beaufort seas & Observation quality and nonlinear feedbacks \\
+\addlinespace
+Ocean circulation & Currents, Ekman transport, wind-stress curl, eddies, advection & Weeks to seasons & Difficult to observe and may require model-derived fields \\
+\addlinespace
+Tropical climate state & ENSO & Seasons to more than a year in favorable states & Teleconnection is season- and event-dependent \\
+\addlinespace
+North Pacific low-frequency state & PDO, NPGO, related patterns & Seasonal to interannual context & Indices partly summarize the same SST field being forecast \\
+\addlinespace
+Forced trend & Long-term ocean warming & Background probability and threshold exceedance & Can inflate apparent skill if not separated from internal variability \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\subsection{Arctic Oscillation}
+
+The Arctic Oscillation is principally an atmospheric circulation index and has its greatest variability during the cold season. Its most plausible role in Alaska ocean forecasting is through short- to subseasonal changes in winds, air temperature, storm tracks, heat flux, and sea-ice transport. It should not automatically be assumed to possess several months of independent predictive content. The relevant test is whether lagged AO information, or an actual forecast of the AO, improves regional heat forecasts beyond the local ocean state.
+
+\subsection{Pacific Decadal Oscillation}
+
+The Pacific Decadal Oscillation is potentially informative but conceptually difficult. It is derived from North Pacific sea-surface temperature and is not a single autonomous forcing process. It reflects combinations of atmospheric forcing, ENSO teleconnections, and oceanic memory. Including the contemporaneous PDO index in a regional SST or \MHW{} equation can therefore be partly tautological, because the target region contributes to the ocean field from which the index is derived.
+
+Appropriate designs would use lagged PDO values only, a PDO index constructed without the target region, a separately forecast PDO, decomposition into atmospheric forcing, ENSO-related and residual oceanic components, or direct predictors such as Aleutian Low position, wind stress, and OHC instead of the summary index.
+
+\subsection{Aleutian Low}
+
+The Aleutian Low is likely to be more physically interpretable than the PDO for winter Alaska heat conditions, but a scalar strength index may be inadequate. Work on the Bering Sea has emphasized that winter temperatures can be more sensitive to the position of the Aleutian Low and associated storm tracks than to strength alone. Candidate variables should therefore include central pressure, longitude and latitude of the center, North Pacific Index, ridge and trough positions, storm-track metrics, and regional wind projections.
+
+\subsection{ENSO}
+
+ENSO is a stronger candidate for seasonal prediction because it is itself forecastable and can influence the North Pacific through atmospheric teleconnections. Its value is likely to depend on ENSO phase and amplitude, event type, season, forecast lead, and interaction with the Aleutian Low and North Pacific circulation.
+
+\subsection{Sea ice}
+
+For northern Bering, Chukchi, and Beaufort regions, sea ice should be modelled as part of the physical system rather than merely as contamination. It affects albedo, ocean--atmosphere heat exchange, wind coupling, spring stratification, timing of solar heat uptake, and observability of SST. A joint sea-ice and ocean-temperature model is likely more appropriate than applying the southern-region SST architecture unchanged.
+
+\section{How to establish whether a driver matters}
+
+``Does PDO matter?'' is not one question. At least four questions must be separated.
+
+\subsection{Association}
+
+Is the index correlated with regional heat or \MHW{} occurrence? This is descriptive and may reflect common trends, contemporaneous construction, a third common driver, or feedback from the target region.
+
+\subsection{Incremental predictability}
+
+Does information available at time $t$ improve the forecast of $t+h$ after controlling for the current local state? This is the central operational test:
+
+\begin{equation}
+L\!\left(Y_{t+h},\hat Y^{\text{local state + driver}}_{t+h}\right)
+<
+L\!\left(Y_{t+h},\hat Y^{\text{local state}}_{t+h}\right)
+\end{equation}
+
+out of sample.
+
+\subsection{Mechanism}
+
+Can the relationship be connected to an identifiable heat-budget pathway? For example:
+
+\begin{align*}
+&\text{Aleutian Low displacement}
+\rightarrow \text{weaker winds}\\
+&\quad \rightarrow \text{reduced latent heat loss and entrainment}
+\rightarrow \text{SST warming}.
+\end{align*}
+
+\subsection{Structural causality}
+
+Would an exogenous change in the driver produce a corresponding regional heat response? Observational time-series methods alone will rarely establish this conclusively because ocean and atmosphere interact. Structural interpretation should combine heat-budget analysis, temporal ordering, forecast experiments, regional model perturbation experiments, and physically restricted statistical models.
+
+\subsection{Frequency-resolved testing}
+
+Each candidate driver should be tested at multiple resolutions: daily or weekly for synoptic and subseasonal processes, monthly for regional \MHW{} forecasts, seasonal for ENSO and ocean-memory effects, and interannual for PDO-like state variation.
+
+Useful diagnostics include cross-spectral coherence, wavelet or time-varying coherence, distributed-lag models, local projections, season-specific Granger-predictive tests, rolling-window stability, and forecast-encompassing tests. The final criterion must remain genuine out-of-sample improvement.
+
+\section{Role of VAR models}
+
+\subsection{Why a VAR is attractive}
+
+A VAR allows several interacting state variables to evolve jointly:
+
+\begin{equation}
+X_t = c + A_1X_{t-1}+\cdots+A_pX_{t-p}+u_t.
+\end{equation}
+
+A regional state vector might include
+
+\begin{equation}
+X_{r,t} =
+\begin{bmatrix}
+\text{SST anomaly}\\
+\text{\MHW{} area}\\
+\text{OHC}\\
+\text{mixed-layer depth}\\
+\text{sea-ice concentration}\\
+\text{net surface heat flux}\\
+\text{wind-stress or advection index}
+\end{bmatrix}.
+\end{equation}
+
+Large-scale indices or forecast atmospheric variables could enter as exogenous predictors or as a separate block. A VAR could answer whether, for example, OHC predicts future SST after current SST is controlled for; heat-flux anomalies forecast area expansion; sea-ice anomalies propagate into summer heat; warming moves between Alaska regions; or local ocean states feed back into regional atmospheric variables.
+
+\subsection{Why an unrestricted VAR is unlikely to work well}
+
+The available monthly record is relatively short compared with the number of possible variables, regions, lags, and seasonal interactions. With $K$ variables and $p$ lags, the lag coefficient count is approximately
+
+\begin{equation}
+K^2p.
+\end{equation}
+
+A large unrestricted VAR would overfit, estimate unstable cross-effects, produce imprecise forecasts, be vulnerable to structural change, and lose to damped persistence through parameter variance. A conventional VAR should therefore be treated as a transparent benchmark, not as the principal high-dimensional model.
+
+\section{Bayesian VARs}
+
+Bayesian shrinkage is particularly well suited to this problem because the existing evidence already suggests a strong prior:
+
+\begin{quote}
+Most variables are persistent, and most cross-variable and long-lag effects are probably small.
+\end{quote}
+
+\subsection{Minnesota-style prior}
+
+A useful starting prior would shrink the first own lag toward regional persistence, longer own lags toward zero, cross-variable lags strongly toward zero, and physically remote cross-region effects more strongly than neighboring effects. This asks the added predictors to earn their influence while protecting the forecast against parameter proliferation.
+
+\subsection{Hierarchical BVAR across regions}
+
+The nine regions provide related but heterogeneous systems. A hierarchical model could allow
+
+\begin{equation}
+A_{r,j} = \bar A_j+\eta_{r,j},
+\end{equation}
+
+where $\bar A_j$ represents a common Alaska-level effect and $\eta_{r,j}$ permits regional departure. This would partially pool evidence while allowing Gulf of Alaska dynamics, Bering shelf processes, Aleutian advection, and Arctic sea-ice effects to differ.
+
+\subsection{Factor-augmented BVAR}
+
+Atmospheric and oceanic fields contain too many grid cells for a regional VAR. They can first be reduced to physically interpretable factors: pressure and ridge factors, wind and wind-stress-curl factors, surface heat-flux factors, OHC factors, current and advection factors, and sea-ice factors.
+
+A factor-augmented BVAR would then forecast regional \MHW{} states using the factors and local variables. This is closely related to the existing LIM. A LIM in reduced EOF/PC space is essentially a multivariate linear dynamical model. A Bayesian LIM or BVAR formulation adds shrinkage and a posterior forecast distribution.
+
+\subsection{Bayesian LIM as a direct continuation of the paper}
+
+Rather than treating BVAR and LIM as unrelated alternatives, a natural next paper would compare conventional LIM, Bayesian LIM, small regional BVAR, factor-augmented BVAR, and damped persistence. The Bayesian prior could favor stable dynamics, dissipative modes, sparse cross-factor interactions, physically plausible timescales, and persistence as the prior center. This would directly answer whether the current LIM loses because its multivariate operator is estimated too noisily.
+
+\subsection{Mixed-frequency BVAR}
+
+Monthly aggregation may discard the atmospheric sequences that initiate an event. A mixed-frequency design could combine weekly atmospheric forcing, daily or weekly SST/\MHW{} state, monthly OHC and ocean reanalysis, and seasonal climate indices. Possible approaches include weekly BVARs with monthly forecast aggregation, mixed-data-sampling regressions, state-space mixed-frequency BVARs, and summary variables such as accumulated heat flux over the previous two to six weeks.
+
+\subsection{Time-varying parameter and regime-switching BVAR}
+
+Relationships may change with season, sea-ice state, long-term warming, pre- and post-2014 conditions, strong versus weak ENSO, and shallow versus deep mixed layers. Candidate extensions include seasonally varying coefficients, time-varying-parameter BVAR, Markov-switching BVAR, threshold BVAR, and stochastic volatility. These should be introduced only after a stable shrinkage BVAR benchmark has been established.
+
+\subsection{Quantile or tail-focused BVAR}
+
+Mean forecasts may miss the primary concern: the probability of unusually extensive or intense warming. A quantile BVAR or distributional model could target median area, upper-quartile area, probability of area above 25\% or 50\%, extreme OHC, or tail risk conditional on an atmospheric regime. This may reveal predictor value that is invisible in mean-squared-error comparisons.
+
+\section{Structural VARs: useful, but with restraint}
+
+A structural BVAR could be used to investigate shocks such as reduced ocean heat loss, warm-air advection, weak-wind conditions, sea-ice loss, anomalous ocean heat advection, and ENSO-related atmospheric forcing.
+
+Identification could use sign restrictions derived from the heat budget. For example, a positive heat-flux shock should initially raise upper-ocean temperature, while a reduced-mixing shock should shallow the mixed layer and retain heat near the surface.
+
+However, structural identification will be difficult because atmosphere and ocean respond simultaneously, heat flux can be both a cause and a response to SST, climate indices are not primitive shocks, monthly observations may not resolve event ordering, and reanalysis variables contain model dependence. Structural VAR results should therefore be interpreted as mechanism-consistent decompositions, not definitive causal experiments. They should be checked against regional ocean-model perturbation experiments.
+
+\section{Direct models of the \MHW{} lifecycle}
+
+A separate research strand should model the event process directly.
+
+\subsection{Multi-state model}
+
+Define states such as no event, onset, expanding, mature, declining, and terminated. Transition probabilities could depend on current area and intensity, heat-flux forecasts, OHC, mixed-layer depth, atmospheric regime, sea ice, and season. This would distinguish new-event prediction from continuation, where persistence has a natural advantage.
+
+\subsection{Hazard models}
+
+An onset hazard could be written as
+
+\begin{equation}
+P(\text{onset}_{t+h}=1\mid \text{currently inactive},X_t).
+\end{equation}
+
+A termination hazard could condition on current event age, cumulative intensity, OHC, forecast cooling, wind, and mixing conditions. These models could answer operational questions such as:
+
+\begin{itemize}
+  \item What is the probability of onset within the next month?
+  \item What is the expected remaining duration?
+  \item What is the probability that the event expands beyond 25\% of the region?
+  \item What is the probability of termination before the next survey period?
+\end{itemize}
+
+\subsection{Dynamic fractional models}
+
+For expected area fraction, alternatives to the current hurdle model should include dynamic fractional logit, zero-and-one-inflated beta autoregression, Bayesian dynamic beta model, latent Gaussian state transformed to $[0,1]$, and distributional regression for both mean and dispersion. These should be estimated directly by horizon where practical rather than relying entirely on recursive iteration.
+
+\section{Spatial forecasting}
+
+A spatial model should exploit the fact that \MHW{} area is generated by local threshold exceedances. Possible approaches include grid-cell logistic or probit forecasts, spatial generalized linear mixed models, Gaussian-process latent fields, dynamic conditional autoregressive models, graph neural networks, convolutional or operator-learning methods, and spatial Bayesian state-space models.
+
+A direct spatial probability model would forecast
+
+\begin{equation}
+p_{i,t+h}=P(T_{i,t+h}>q_{i,d}\mid \mathcal F_t),
+\end{equation}
+
+and regional expected area would follow as
+
+\begin{equation}
+E[A_{r,t+h}\mid\mathcal F_t]
+=
+\frac{\sum_{i\in r} w_i p_{i,t+h}}
+{\sum_{i\in r}w_i}.
+\end{equation}
+
+This avoids the need to map one scalar regional temperature predictor into area fraction and retains information about spatial configuration. It also supports habitat-weighted forecasts by replacing $w_i$ with biologically meaningful exposure weights.
+
+\section{Dynamical--statistical hybrids}
+
+The statistical and dynamical models should not be regarded as mutually exclusive. A hybrid forecast could use damped persistence as the prior or baseline; SEAS5, NMME, or S2S anomalies as forward-looking inputs; regional MOM6 or ROMS output where available; statistical correction of regional bias; BVAR or machine-learning prediction of dynamical-model residuals; and Bayesian forecast combination.
+
+A useful structure is
+
+\begin{equation}
+Y_{t+h}
+=
+\hat Y^{DP}_{t+h}
++
+f_h\!\left(Z^{dyn}_{t,h},X_t\right)
++
+\epsilon_{t+h},
+\end{equation}
+
+where $f_h$ is permitted to adjust persistence only when the dynamical forecast and current state contain repeatable incremental information. This directly tests whether the dynamical system can forecast the failure of persistence.
+
+\section{Model evaluation}
+
+\subsection{Operationally faithful hindcasts}
+
+Evaluation should reproduce the information that would have existed on each historical issue date. This requires rolling origins, no use of revised future observations where avoidable, nested fitting of all preprocessing, lead-specific models, archived dynamical hindcasts, and explicit treatment of publication and data latency.
+
+\subsection{Multiple benchmarks}
+
+Every model should be compared with climatology, persistence, damped persistence, a seasonal autoregression, and the current operational champion.
+
+\subsection{Target-appropriate scores}
+
+For expected area and intensity, use MSE, MAE, and CRPS for forecast distributions. For occurrence and thresholds, use Brier score, log score, reliability, sharpness, calibration slope, and threshold-weighted scores. For lifecycle forecasts, use onset detection, false-alarm rate, lead time gained, duration error, and survival calibration. For spatial forecasts, use cell-level Brier score, fractions skill score, spatial overlap, displacement error, and regional exposure error.
+
+\subsection{Conditional skill}
+
+Average skill can conceal useful forecast windows. Skill should be reported conditional on season, current \MHW{} state, ENSO state, sea-ice state, OHC state, event magnitude, mixed-layer depth, and atmospheric regime. A model that does not improve the unconditional average may add substantial value during a well-defined forecast opportunity.
+
+\subsection{Statistical uncertainty}
+
+Because forecast errors are serially and spatially dependent, uncertainty should be assessed using block bootstrap, region-aware resampling, forecast-origin clustering, model-confidence-set procedures, and tests of forecast encompassing. Failure to reject equal skill should not automatically be interpreted as proof of equivalence.
+
+\subsection{Decision loss}
+
+The operationally optimal forecast is the one that minimizes expected decision loss, not necessarily RMSE. Managers may assign different costs to missing a major event, issuing a false warning, changing survey logistics unnecessarily, or failing to anticipate habitat compression. The dashboard should initially report general probabilistic information, but the research program should eventually elicit user-specific thresholds and loss functions.
+
+\section{Research strands}
+
+\subsection{Strand 1: Translation and benchmark audit}
+
+\textbf{Central question.} How much of the challengers' apparent weakness arises in their native forecasts, and how much arises in the translation to area fraction?
+
+\textbf{Main analyses.} Native temperature skill; translation ceiling; direct grid thresholding; isotonic stability; alternative monotone mappings; ensemble-member transformation; fully nested preprocessing audit.
+
+\textbf{Potential paper.} \emph{From Temperature Forecasts to Marine-Heatwave Extent: Where Is Forecast Skill Lost?}
+
+\subsection{Strand 2: Structural atlas of Alaska ocean-heat predictability}
+
+\textbf{Central question.} Which heat-budget terms and upstream climate states generate forecastable regional heat variation, at what frequency, in which season, and in which region?
+
+\textbf{Main analyses.} Mixed-layer heat-budget decomposition; OHC and vertical heat storage; sea-ice interactions; heat-flux, advection, and mixing regimes; lead--lag and spectral analysis; forecast tests for ENSO, AO, PDO, NPO, PNA, and Aleutian Low characteristics.
+
+\textbf{Potential paper.} \emph{Sources of Regional Ocean-Heat Predictability across Alaska: A Heat-Budget and Frequency-Domain Assessment}
+
+\subsection{Strand 3: Bayesian multivariate forecasting}
+
+\textbf{Central question.} Can shrinkage recover incremental multivariate information that an unrestricted LIM, hurdle model, or conventional VAR cannot estimate reliably?
+
+\textbf{Models.} Small regional BVAR; hierarchical Alaska BVAR; factor-augmented BVAR; Bayesian LIM; regime- or season-varying BVAR.
+
+\textbf{Potential paper.} \emph{Can Bayesian Shrinkage Beat Marine-Heatwave Persistence? Evidence from Alaska Ecosystem Regions}
+
+\subsection{Strand 4: \MHW{} lifecycle forecasting}
+
+\textbf{Central question.} Are onset, continuation, expansion, and termination governed by different predictors and forecast horizons?
+
+\textbf{Models.} Multi-state transition models; onset and termination hazards; dynamic fractional models; conditional tail forecasts.
+
+\textbf{Potential paper.} \emph{Forecasting the Lifecycle of Marine Heatwaves: Onset, Expansion, Persistence, and Termination}
+
+\subsection{Strand 5: Spatial and vertical heatwave prediction}
+
+\textbf{Central question.} Does forecast value emerge when the target retains spatial and vertical structure rather than reducing the event to regional surface area?
+
+\textbf{Main targets.} Cell-level probabilities; shelf versus offshore exposure; subsurface \MHWs{}; bottom temperature; cold-pool extent; habitat-weighted exposure.
+
+\textbf{Potential papers.} \emph{Spatially Explicit Marine-Heatwave Forecasts for Alaska Fisheries}; \emph{From Surface Heatwaves to Bottom-State Risk in the Bering Sea}
+
+\subsection{Strand 6: Hybrid operational forecast system}
+
+\textbf{Central question.} Can persistence, statistical drivers, and dynamical models be combined into a better-calibrated and more robust operational forecast?
+
+\textbf{Main methods.} Constrained forecast combinations; Bayesian stacking; persistence-plus-residual models; region/lead/target-specific champions; forecast opportunity regimes.
+
+\textbf{Potential paper.} \emph{A Champion--Challenger Marine Ecosystem Forecasting System for Alaska}
+
+\section{Initial empirical design}
+
+\subsection{Regions}
+
+Begin with regions where the current paper provides reliable baselines: southeastern Bering Sea, western Gulf of Alaska, eastern Gulf of Alaska, and western, central, and eastern Aleutians. Treat northern Bering separately because of its stronger ice and shelf-transition dynamics. Develop a distinct observation and forecasting design for Chukchi and Beaufort.
+
+\subsection{Forecast horizons}
+
+Use three operational scales: subseasonal, approximately one to four weeks; monthly, one, two, and three months; and seasonal, approximately three to six months. Do not assume that monthly predictors are suitable for onset at the subseasonal horizon.
+
+\subsection{Candidate data}
+
+The core historical system could combine daily NOAA OISST for surface state and event definition; atmospheric forcing and heat-flux fields from ERA5; ORAS5 or another ocean reanalysis for OHC, mixed-layer depth, and currents; sea-ice concentration; dynamical hindcasts; and regional model fields where available.
+
+Because reanalyses are model-dependent, key conclusions should be checked across alternative products and against available observations.
+
+\subsection{First model comparison}
+
+A disciplined first-stage comparison could contain:
+
+\begin{enumerate}
+  \item damped persistence;
+  \item direct seasonal AR models;
+  \item dynamic fractional model;
+  \item small BVAR;
+  \item hierarchical BVAR;
+  \item Bayesian LIM;
+  \item direct grid-threshold LIM;
+  \item SEAS5;
+  \item persistence--SEAS5 combination.
+\end{enumerate}
+
+This is sufficiently broad to test the main hypotheses without immediately introducing unconstrained machine learning.
+
+\section{Main hypotheses}
+
+The agenda can be organized around the following falsifiable hypotheses.
+
+\subsection*{H1: Target specificity}
+No single model dominates across area, onset, duration, spatial exposure, and vertical heat state.
+
+\subsection*{H2: Persistence prior}
+Multivariate statistical models will be competitive only when strongly shrunk toward persistence.
+
+\subsection*{H3: Conditional predictability}
+Large-scale climate modes improve forecasts primarily during particular seasons and regimes rather than uniformly.
+
+\subsection*{H4: Proximate-driver superiority}
+Local heat-budget variables will generally provide more stable incremental information than broad climate indices alone.
+
+\subsection*{H5: Spatial information}
+Field models will show more value for spatial exposure and onset than for aggregate regional area.
+
+\subsection*{H6: Subsurface memory}
+OHC and subsurface temperature will provide greater forecast value for continuation, re-emergence, and vertical exposure than for immediate surface-area magnitude.
+
+\subsection*{H7: Hybrid value}
+Dynamical systems will add the most value when used to predict departures from persistence rather than replacing persistence wholesale.
+
+\subsection*{H8: Regional heterogeneity}
+SEBS, GOA, Aleutian, and Arctic regions will require different predictor sets and potentially different model classes.
+
+\section{Operational architecture}
+
+The dashboard should ultimately display a forecast object with several layers.
+
+\subsection{Baseline layer}
+
+Damped-persistence outlook, uncertainty interval, and historical reliability.
+
+\subsection{Event layer}
+
+Onset probability, continuation probability, probability of exceeding area thresholds, and expected remaining duration.
+
+\subsection{Spatial layer}
+
+Grid-cell exceedance probability, expected affected area, and shelf and habitat overlap.
+
+\subsection{Ocean-state layer}
+
+Upper-ocean heat content, mixed-layer state, bottom temperature, and cold-pool indicators where available.
+
+\subsection{Model-evidence layer}
+
+Operational champion, challenger models, incremental skill over persistence, and conditions under which the challenger has historically helped.
+
+This would make the scientific message transparent:
+
+\begin{quote}
+Persistence is the default, but it is not treated as an article of faith. Every additional model must demonstrate where, when, and for which forecast target it adds information.
+\end{quote}
+
+\section{Expected contribution}
+
+The proposed program would move the research from a model horse race toward a theory of regional \MHW{} predictability. Its contribution would be to establish:
+
+\begin{enumerate}
+  \item which \MHW{} dimensions are forecastable;
+  \item which physical processes supply that predictability;
+  \item at what frequency those processes operate;
+  \item which statistical architectures can estimate the relationships reliably;
+  \item when dynamical forecasts add value beyond the observed ocean state;
+  \item how forecasts should be combined and communicated for ecosystem use.
+\end{enumerate}
+
+The existing paper provides the necessary starting point. It establishes the benchmark and shows how high the bar is. The next program should not attempt to disprove persistence everywhere. It should identify the particular states, horizons, and forecast dimensions in which persistence is predictably incomplete.
+
+\section*{Selected literature and data sources}
+\addcontentsline{toc}{section}{Selected literature and data sources}
+
+\begin{enumerate}[label={\arabic*.},leftmargin=2em]
+  \item Jacox, M. G. et al. (2022). ``Global seasonal forecasts of marine heatwaves.'' \emph{Nature}. DOI: \href{https://doi.org/10.1038/s41586-022-04573-9}{10.1038/s41586-022-04573-9}.
+  \item Spillman, C. M. et al. (2021). ``Onset and Decline Rates of Marine Heatwaves.'' \emph{Frontiers in Climate}. DOI: \href{https://doi.org/10.3389/fclim.2021.801217}{10.3389/fclim.2021.801217}.
+  \item Foster, D., Comeau, D., and Urban, N. M. (2020). ``A Bayesian approach to regional decadal predictability: Sparse parameter estimation in high-dimensional linear inverse models of high-latitude sea surface temperature variability.'' arXiv: \href{https://arxiv.org/abs/2004.13105}{2004.13105}.
+  \item Rodionov, S. N., Bond, N. A., and Overland, J. E. (2007). ``The Aleutian Low, storm tracks, and winter climate variability in the Bering Sea.'' \emph{Deep-Sea Research II}, 54, 2560--2577.
+  \item UCAR Climate Data Guide. ``Pacific Decadal Oscillation (PDO): Definition and Indices.'' \href{https://climatedataguide.ucar.edu/climate-data/pacific-decadal-oscillation-pdo-definition-and-indices}{climatedataguide.ucar.edu}.
+  \item NOAA Physical Sciences Laboratory. ``NOAA OI SST V2 High Resolution Dataset.'' \href{https://psl.noaa.gov/data/gridded/data.noaa.oisst.v2.highres.html}{psl.noaa.gov}.
+  \item NOAA National Centers for Environmental Information. ``Optimum Interpolation Sea Surface Temperature (OISST).'' \href{https://www.ncei.noaa.gov/products/optimum-interpolation-sst}{ncei.noaa.gov}.
+  \item ECMWF Climate Data Store. ``ERA5 hourly data on single levels from 1940 to present.'' \href{https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels}{cds.climate.copernicus.eu}.
+  \item ECMWF. ``Ocean Reanalysis/analysis.'' \href{https://www.ecmwf.int/en/research/climate-reanalysis/ocean-reanalysis}{ecmwf.int}.
+  \item ECMWF Climate Data Store. ``ORAS5 global ocean reanalysis monthly data from 1958 to present.'' \href{https://cds.climate.copernicus.eu/datasets/reanalysis-oras5}{cds.climate.copernicus.eu}.
+\end{enumerate}
+
+\end{document}

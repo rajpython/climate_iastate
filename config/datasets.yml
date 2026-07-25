@@ -117,6 +117,21 @@ sources:
         landing_page: "https://www.ncei.noaa.gov/access/monitoring/pdo/"
         notes: "Useful fallback source/validation."
 
+  - id: "psl_marinehw_forecast"
+    name: "NOAA PSL experimental Marine Heatwave forecast (NMME)"
+    provider: "NOAA Physical Sciences Laboratory"
+    purpose: "Published per-cell MHW exceedance probability (Jacox et al. 2022), displayed for the 9 Alaska ESR zones. Not part of the MHW-monitoring definition; a separate forecast product."
+    cadence: "monthly (files sometimes refresh mid-month as NMME models land)"
+    variables:
+      - name: "mhw_probability"
+        units: "fraction"
+        required: true
+    access:
+      - type: "https_directory"
+        priority: 1
+        landing_page: "https://downloads.psl.noaa.gov/Datasets/marinehw/"
+        notes: "Direct NetCDF download; config/psl_mhw.yml holds the file set + schema. Fetched daily with a conditional Last-Modified check by mhw-fetch-psl-mhw."
+
 regions:
   # Provide polygon files (GeoJSON) in config/regions.geojson.
   # These region IDs must match those polygons.
