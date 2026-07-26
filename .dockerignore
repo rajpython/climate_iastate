@@ -32,6 +32,8 @@ docs/
 # Research → Literature Summaries / Forecast Development read these at runtime.
 !docs/mhw_forecasting_synthesis.md
 !docs/mhw_forecasting_synthesis.pdf
+# Study Regions page (pages/study_regions.py) renders this map at runtime.
+!docs/region_boundaries.png
 
 # ── tests (not needed in image) ──────────────────────────────────────────────
 tests/
