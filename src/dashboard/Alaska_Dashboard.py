@@ -257,6 +257,11 @@ nav = {
     "Overview": [
         st.Page(home, title="Overview", default=True),
     ],
+    # Front-door reference: the 12 ecosystem zones (one annotated map + cited provenance) that
+    # every mask/aggregation/map/forecast on the board is built on. Path-registered docs page.
+    "Study Regions": [
+        st.Page("pages/study_regions.py", title="Study Regions", url_path="study_regions"),
+    ],
     "Ask Deckhand": [
         st.Page("pages/assistant.py", title="Ask Deckhand", url_path="assistant"),
     ],
