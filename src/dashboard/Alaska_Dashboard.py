@@ -257,13 +257,13 @@ nav = {
     "Overview": [
         st.Page(home, title="Overview", default=True),
     ],
+    "Ask Deckhand": [
+        st.Page("pages/assistant.py", title="Ask Deckhand", url_path="assistant"),
+    ],
     # Front-door reference: the 12 ecosystem zones (one annotated map + cited provenance) that
     # every mask/aggregation/map/forecast on the board is built on. Path-registered docs page.
     "Study Regions": [
         st.Page("pages/study_regions.py", title="Study Regions", url_path="study_regions"),
-    ],
-    "Ask Deckhand": [
-        st.Page("pages/assistant.py", title="Ask Deckhand", url_path="assistant"),
     ],
     # Two-level nav limit: the third level (Marine Heatwaves → Operational / Historical) lives
     # inside the hub page. Future climate indicators (SST anomalies, climate modes, outlooks)
