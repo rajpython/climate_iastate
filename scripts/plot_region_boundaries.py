@@ -19,6 +19,13 @@ from shapely.geometry import shape
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LEAVES = ["sebs", "nbs", "wgoa", "egoa", "ai_west", "ai_central", "ai_east", "chukchi", "beaufort"]
+# Plain-English on-map labels (two lines where the name is long) — no internal codes.
+LABELS = {
+    "sebs": "Southeastern\nBering Sea", "nbs": "Northern\nBering Sea",
+    "wgoa": "Western Gulf\nof Alaska", "egoa": "Eastern Gulf\nof Alaska",
+    "ai_west": "Western\nAleutians", "ai_central": "Central\nAleutians",
+    "ai_east": "Eastern\nAleutians", "chukchi": "Chukchi Sea", "beaufort": "Beaufort Sea",
+}
 
 
 def main(argv=None) -> int:
@@ -42,7 +49,7 @@ def main(argv=None) -> int:
         ax.add_geometries([geom], crs=ccrs.PlateCarree(), facecolor=colors[i],
                           edgecolor="k", linewidth=0.9, alpha=0.55, zorder=2)
         c = geom.representative_point()
-        ax.text(c.x, c.y, r, transform=ccrs.PlateCarree(), fontsize=8, ha="center",
+        ax.text(c.x, c.y, LABELS[r], transform=ccrs.PlateCarree(), fontsize=7, ha="center",
                 va="center", weight="bold", zorder=4,
                 bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.7))
 
@@ -50,14 +57,14 @@ def main(argv=None) -> int:
         ax.text(lon, lat, txt, transform=ccrs.PlateCarree(), fontsize=8.5, color="crimson",
                 weight="bold", ha="center", va="center", rotation=rot, zorder=5,
                 bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="crimson", alpha=0.85))
-    divide(-147, 56.5, "147°W  WGOA|EGOA")
-    divide(-172, 60.3, "60°N  SEBS|NBS", rot=0)
-    divide(-156.47, 72.6, "156.47°W  Chukchi|Beaufort (Pt Barrow)")
+    divide(-147, 56.5, "147°W")
+    divide(-172, 60.3, "60°N", rot=0)
+    divide(-156.47, 72.6, "156.47°W  Point Barrow")
     divide(177, 52.0, "177°E")
-    divide(-170, 52.0, "170°W")
-    ax.set_title("Alaska MHW zones — config/regions.geojson (9 ESR leaves)\n"
-                 "outer edges follow coast/shelf; internal divides are AFSC/ESR management "
-                 "meridians & parallels", fontsize=12)
+    divide(-170, 52.0, "170°W  Samalga Pass")
+    ax.set_title("Alaska Marine Ecosystem Study Regions\n"
+                 "Nine core zones — outer edges follow the coast and shelf; the red lines are the "
+                 "NOAA ecosystem boundaries between zones", fontsize=12)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(args.out, dpi=115, bbox_inches="tight")
     print("saved", args.out)
