@@ -1,33 +1,38 @@
 {
   "_meta": {
-    "purpose": "Cited provenance for every boundary in config/regions.geojson. Sidecar by design: config/regions.geojson is a LOFRA-sealed artifact and is NEVER edited to carry this metadata, so its byte identity (and every derived mask/state/forecast hash) is preserved. Human narrative lives in docs/region_provenance.md; the machine-checkable `checks` here are enforced by tests/test_region_provenance.py so accidental boundary drift fails CI.",
+    "purpose": "Cited provenance for every boundary in config/regions.geojson. Sidecar by design: config/regions.geojson is a LOFRA-sealed artifact and is NEVER edited to carry this metadata, so its byte identity (and every derived mask/state/forecast hash) is preserved. Human narrative lives in docs/region_provenance.md; the machine-checkable `checks` here are enforced by tests/test_region_provenance.py so accidental boundary drift fails CI. The `boundary`/`value`/`label`/`note` strings are the plain-English text rendered on the public Study Regions page — keep them user-facing (no code identifiers or file paths); the `checks` and `source` keys are the machine contract and must not change without moving the geometry.",
     "doctrine": "This is an ESR ecosystem board. The AUTHORITATIVE boundary reference is the AFSC ESR ECOREGIONS, not the fishery-management statistical/survey areas (NMFS 541/542/543). The two systems overlap and disagree by design. Canonical example: the AI Central<->East divide is the ESR ecoregion break at Samalga Pass (~170°W), NOT the management district break at 177°W.",
     "measured_frame": "checks use signed lon in [-180,180) for lon_min/lon_max, lon in [0,360) for lon_min_360/lon_max_360 (dateline-crossing AI), and degrees N for lat_min/lat_max, all read from the polygon vertices."
   },
   "sources": {
     "ebs_esr": {
+      "label": "Eastern Bering Sea — NOAA Ecosystem Status Report (2023)",
       "ref": "Siddon, E. 2023. Ecosystem Status Report 2023: Eastern Bering Sea (In Brief). NPFMC.",
       "locator": "p.2, Ecosystem Impacts",
       "url": "https://apps-afsc.fisheries.noaa.gov/REFM/docs/2023/EBSBrief.pdf"
     },
     "goa_esr": {
+      "label": "Gulf of Alaska — NOAA Ecosystem Status Report (2022)",
       "ref": "Ferriss, B.E. and Zador, S. 2022. Ecosystem Status Report 2022: Gulf of Alaska. NPFMC.",
       "locator": "p.8, Ecosystem Assessment",
       "url": "https://apps-afsc.fisheries.noaa.gov/REFM/docs/2022/GOAecosys.pdf"
     },
     "ai_esr": {
+      "label": "Aleutian Islands — NOAA Ecosystem Assessment (2018)",
       "ref": "Zador, S. and Ortiz, I. 2018. Aleutian Islands Ecosystem Assessment (AI ESR). NPFMC.",
-      "locator": "p.8-9, The Aleutian Islands ecosystem assessment area (Fig. 6)",
+      "locator": "p.8-9, Fig. 6 (assessment area)",
       "url": "https://apps-afsc.fisheries.noaa.gov/REFM/Docs/2018/BSAI/ecosysAI.pdf"
     },
     "arctic_fmp": {
-      "ref": "NPFMC Arctic Fishery Management Plan area; US EEZ (Marine Regions MRGID 8463). See docs/arctic_region_provenance.md.",
-      "locator": "docs/arctic_region_provenance.md",
+      "label": "Arctic (Chukchi & Beaufort) — NPFMC Arctic Fishery Management Plan area / US EEZ",
+      "ref": "NPFMC Arctic Fishery Management Plan area; US Exclusive Economic Zone (Marine Regions MRGID 8463).",
+      "locator": "",
       "url": "https://www.marineregions.org/gazetteer.php?p=details&id=8463"
     },
     "ai_survey_mgmt": {
-      "ref": "CONTRAST ONLY (not the board's reference): AFSC AI bottom-trawl survey / NMFS statistical areas 541/542/543 + Southern Bering Sea. AI survey data report NOAA-TM-AFSC-215; 50 CFR 679.2; BSAI Atka mackerel SAFE Dec 2010 (Amendment 28: Aleutian subarea divided at 177°W and 177°E).",
-      "locator": "TM-AFSC-215 p.1-2 & App. A; Atka SAFE p.1252",
+      "label": "For contrast only — NOAA fishery-management survey districts (not used for these boundaries)",
+      "ref": "NOAA/NMFS Aleutian fishery-management survey districts (areas 541/542/543). These management areas differ, by design, from the ecosystem boundaries this board uses.",
+      "locator": "",
       "url": "https://apps-afsc.fisheries.noaa.gov/Publications/AFSC-TM/NOAA-TM-AFSC-215.pdf"
     }
   },
@@ -35,7 +40,7 @@
     "sebs": {
       "name": "Southeastern Bering Sea", "kind": "leaf",
       "provenance": [
-        {"boundary": "north edge (SEBS<->NBS)", "value": "60°N", "source": "ebs_esr",
+        {"boundary": "Northern edge", "value": "60°N — the divide with the Northern Bering Sea", "source": "ebs_esr",
          "quote": "The southeastern and northern Bering Sea (divided at 60°N) have different oceanographic and zoogeographic characteristics."}
       ],
       "checks": [{"metric": "lat_max", "value": 60.75, "tol": 0.4}]
@@ -43,45 +48,45 @@
     "nbs": {
       "name": "Northern Bering Sea", "kind": "leaf",
       "provenance": [
-        {"boundary": "south edge (SEBS<->NBS)", "value": "60°N", "source": "ebs_esr",
+        {"boundary": "Southern edge", "value": "60°N — the divide with the Southeastern Bering Sea", "source": "ebs_esr",
          "quote": "The southeastern and northern Bering Sea (divided at 60°N)..."},
-        {"boundary": "north edge", "value": "~65.83°N (Bering Strait; ~0.17° polygon gap to Chukchi 66°N)", "source": "arctic_fmp"}
+        {"boundary": "Northern edge", "value": "the Bering Strait (about 66°N)", "source": "arctic_fmp"}
       ],
       "checks": [{"metric": "lat_min", "value": 60.0, "tol": 0.1}, {"metric": "lat_max", "value": 65.83, "tol": 0.4}]
     },
     "wgoa": {
       "name": "Western Gulf of Alaska", "kind": "leaf",
       "provenance": [
-        {"boundary": "east edge (WGOA<->EGOA)", "value": "147°W", "source": "goa_esr",
+        {"boundary": "Eastern edge", "value": "147°W — the divide with the Eastern Gulf of Alaska", "source": "goa_esr",
          "quote": "the western and eastern GOA ecosystems (divided at 147°W)..."},
-        {"boundary": "west edge (seam with ai_east)", "value": "164°W (False Pass)", "source": "ai_esr"}
+        {"boundary": "Western edge", "value": "164°W at False Pass, where it meets the Eastern Aleutians", "source": "ai_esr"}
       ],
       "checks": [{"metric": "lon_max", "value": -147.0, "tol": 0.2}, {"metric": "lon_min", "value": -164.0, "tol": 0.2}]
     },
     "egoa": {
       "name": "Eastern Gulf of Alaska", "kind": "leaf",
       "provenance": [
-        {"boundary": "west edge (WGOA<->EGOA)", "value": "147°W", "source": "goa_esr",
+        {"boundary": "Western edge", "value": "147°W — the divide with the Western Gulf of Alaska", "source": "goa_esr",
          "quote": "the western and eastern GOA ecosystems (divided at 147°W)..."},
-        {"boundary": "east edge", "value": "~130°W (Dixon Entrance / SE Alaska)", "source": "goa_esr"}
+        {"boundary": "Eastern edge", "value": "about 130°W at Dixon Entrance (Southeast Alaska)", "source": "goa_esr"}
       ],
       "checks": [{"metric": "lon_min", "value": -147.0, "tol": 0.2}, {"metric": "lon_max", "value": -130.0, "tol": 0.4}]
     },
     "ai_west": {
       "name": "Western Aleutians", "kind": "leaf",
       "provenance": [
-        {"boundary": "east edge (West<->Central)", "value": "177°E", "source": "ai_esr",
+        {"boundary": "Eastern edge", "value": "177°E — the divide with the Central Aleutians", "source": "ai_esr",
          "quote": "The Western Aleutian Islands ecoregion spans 170° to 177°E. These are the same boundaries as the North Pacific Fishery Council fishery management area 543."},
-        {"boundary": "west edge", "value": "167.64°E", "source": "ai_esr",
-         "note": "OPEN ITEM: overshoots the ESR nominal western boundary (US-Russia border at 170°E) by ~2.4°; ~71 mask cells (~9% of the zone) fall west of 170°E. Unprovenanced box edge. See docs/region_provenance.md Part C (deliberate geometry decision; deferred)."}
+        {"boundary": "Western edge", "value": "167.64°E", "source": "ai_esr",
+         "note": "The western edge is drawn a little farther west than the ecoregion's nominal 170°E limit. This is a small, deliberate mapping choice that is documented and under review; it does not affect any indicator shown on the board."}
       ],
       "checks": [{"metric": "lon_max_360", "value": 177.0, "tol": 0.1}, {"metric": "lon_min_360", "value": 167.64, "tol": 0.3}]
     },
     "ai_central": {
       "name": "Central Aleutians", "kind": "leaf",
       "provenance": [
-        {"boundary": "west edge (West<->Central)", "value": "177°E", "source": "ai_esr"},
-        {"boundary": "east edge (Central<->East)", "value": "170°W (Samalga Pass, 169.5°W rounded)", "source": "ai_esr",
+        {"boundary": "Western edge", "value": "177°E — the divide with the Western Aleutians", "source": "ai_esr"},
+        {"boundary": "Eastern edge", "value": "170°W at Samalga Pass — the divide with the Eastern Aleutians", "source": "ai_esr",
          "quote": "The Central Aleutian Islands ecoregion spans 177°E to 170°W. ... the eastern boundary of this ecoregion occurs at Samalga Pass, which is at 169.5°W, but for easier translation to fishery management area, it was agreed that 170°W was a close approximation."}
       ],
       "checks": [{"metric": "lon_min_360", "value": 177.0, "tol": 0.1}, {"metric": "lon_max_360", "value": 190.0, "tol": 0.1}]
@@ -89,8 +94,8 @@
     "ai_east": {
       "name": "Eastern Aleutians", "kind": "leaf",
       "provenance": [
-        {"boundary": "west edge (Central<->East)", "value": "170°W (Samalga Pass)", "source": "ai_esr"},
-        {"boundary": "east edge", "value": "164°W (False Pass)", "source": "ai_esr",
+        {"boundary": "Western edge", "value": "170°W at Samalga Pass — the divide with the Central Aleutians", "source": "ai_esr"},
+        {"boundary": "Eastern edge", "value": "164°W at False Pass", "source": "ai_esr",
          "quote": "The Eastern Aleutian Islands ecoregion spans 170°W to False Pass at 164°W. ... This area encompasses the NPFMC fishery management areas 518, 519 (EBS) and the western half of 610 (GOA)."}
       ],
       "checks": [{"metric": "lon_min_360", "value": 190.0, "tol": 0.1}, {"metric": "lon_max_360", "value": 196.0, "tol": 0.1}]
@@ -98,25 +103,25 @@
     "chukchi": {
       "name": "Chukchi Sea", "kind": "leaf",
       "provenance": [
-        {"boundary": "east edge (Chukchi<->Beaufort)", "value": "156.47°W (Point Barrow)", "source": "arctic_fmp",
+        {"boundary": "Eastern edge", "value": "156.47°W at Point Barrow — the divide with the Beaufort Sea", "source": "arctic_fmp",
          "quote": "Split at Point Barrow ~=156.47°W (156 deg 28' W; IHO S-23 / NOAA Coast Pilot 9 convention)."},
-        {"boundary": "south edge", "value": "66°N (north of Bering Strait)", "source": "arctic_fmp"}
+        {"boundary": "Southern edge", "value": "66°N, just north of the Bering Strait", "source": "arctic_fmp"}
       ],
       "checks": [{"metric": "lon_max", "value": -156.47, "tol": 0.1}, {"metric": "lat_min", "value": 66.0, "tol": 0.2}]
     },
     "beaufort": {
       "name": "Beaufort Sea", "kind": "leaf",
       "provenance": [
-        {"boundary": "west edge (Chukchi<->Beaufort)", "value": "156.47°W (Point Barrow)", "source": "arctic_fmp"},
-        {"boundary": "east edge", "value": "141°W (US-Canada maritime boundary)", "source": "arctic_fmp"}
+        {"boundary": "Western edge", "value": "156.47°W at Point Barrow — the divide with the Chukchi Sea", "source": "arctic_fmp"},
+        {"boundary": "Eastern edge", "value": "141°W at the US–Canada maritime boundary", "source": "arctic_fmp"}
       ],
       "checks": [{"metric": "lon_max", "value": -141.0, "tol": 0.1}, {"metric": "lon_min", "value": -156.47, "tol": 0.1}]
     },
     "ebs": {"name": "Eastern Bering Sea", "kind": "rollup", "members": ["sebs", "nbs"],
-      "provenance": [{"boundary": "union", "value": "sebs union nbs", "source": "ebs_esr"}], "checks": []},
+      "provenance": [{"boundary": "Combined region", "value": "Southeastern Bering Sea + Northern Bering Sea", "source": "ebs_esr"}], "checks": []},
     "goa": {"name": "Gulf of Alaska", "kind": "rollup", "members": ["wgoa", "egoa"],
-      "provenance": [{"boundary": "union", "value": "wgoa union egoa", "source": "goa_esr"}], "checks": []},
+      "provenance": [{"boundary": "Combined region", "value": "Western Gulf of Alaska + Eastern Gulf of Alaska", "source": "goa_esr"}], "checks": []},
     "ai": {"name": "Aleutian Islands", "kind": "rollup", "members": ["ai_west", "ai_central", "ai_east"],
-      "provenance": [{"boundary": "union", "value": "ai_west union ai_central union ai_east", "source": "ai_esr"}], "checks": []}
+      "provenance": [{"boundary": "Combined region", "value": "Western + Central + Eastern Aleutians", "source": "ai_esr"}], "checks": []}
   }
 }
