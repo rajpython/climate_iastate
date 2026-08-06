@@ -1,0 +1,255 @@
+#!/usr/bin/env bash
+# handoff-send — deliver a handoff ATOMICALLY and VERIFY it landed, then index it.
+#
+# WHY THIS EXISTS
+# ---------------
+# Convention B / D1 says "writing to your own outbox is NOT delivery": every outbound
+# handoff must be scp'd into EACH addressed machine's inbox and then committed. That rule
+# was adopted 2026-07-21b and has still failed twice —
+#   * dashboard-to-lofra-20260715-01-theta90-response.md  (stranded 17 days, found 2026-08-01)
+#   * dashboard-to-mini-cc-m1-m4-20260801-01-admin-plane-plan.md (stranded, found same day)
+# In both cases the file was written and the ledger row appended; only the send was skipped.
+#
+# The root cause is not carelessness — it is that delivery was a MANUAL, MULTI-STEP action
+# whose failure is SILENT ON BOTH SIDES: the sender sees a file and a ledger row and believes
+# it is done, and the recipient cannot detect a file that never moved. A rule that depends on
+# remembering will eventually not be remembered.
+#
+# This script removes the failure mode by making delivery one command that either fully
+# succeeds or fails LOUDLY:
+#   1. scp to every addressed machine (to + cc)
+#   2. VERIFY by comparing SHA-256 on the RECIPIENT's disk (not a local exit code)
+#   3. append the INDEX.tsv / OUTBOX.tsv row only after every leg is verified
+# A partially-delivered handoff exits non-zero and tells you exactly which leg failed.
+#
+# USAGE
+#   tools/handoff-send <file.md> [--status OPEN|ACK|BLOCKED|CLOSED|FYI] [--no-index] [--dry-run]
+#
+# Recipients are parsed from the FILENAME marker, which is the uniform, greppable contract:
+#   <sender>-to-<recipient>[-cc-<others>]-YYYYMMDD-NN-<topic>.md
+# e.g. mini-to-m1-cc-m4-20260801-02-topic.md  -> delivers to m1 and m4
+#      dashboard-to-mini-cc-m1-m4-20260801-01-topic.md -> delivers to mini, m1, m4
+# "all" expands to the three lofra cells. The sender never delivers to itself.
+#
+# PORTABLE: runs on a lofra machine (repo ~/dev/acfr) or on the dashboard
+# (repo ~/dev/climate_iastate). It detects which by looking at its own location.
+set -uo pipefail
+
+die() { echo "handoff-send: ERROR: $*" >&2; exit 1; }
+note() { echo "  $*"; }
+
+DRY=0; NOINDEX=0; STATUS=""
+FILE=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dry-run) DRY=1; shift ;;
+    --no-index) NOINDEX=1; shift ;;
+    --status) STATUS="${2:-}"; shift 2 ;;
+    -h|--help) sed -n '1,40p' "$0"; exit 0 ;;
+    -*) die "unknown flag $1" ;;
+    *) FILE="$1"; shift ;;
+  esac
+done
+[ -n "$FILE" ] || die "usage: tools/handoff-send <file.md> [--status S] [--no-index] [--dry-run]"
+[ -f "$FILE" ] || die "no such file: $FILE"
+
+BASE="$(basename "$FILE")"
+
+# --- where am I? lofra repo or the dashboard repo -------------------------------------
+SELF_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -d "$SELF_DIR/handoffs/lofras" ]; then
+  ROLE="lofra"; INDEX="$SELF_DIR/handoffs/INDEX.tsv"
+elif [ -d "$SELF_DIR/docs/handoffs" ]; then
+  ROLE="dashboard"; INDEX="$SELF_DIR/docs/handoffs/OUTBOX.tsv"
+else
+  die "cannot tell which repo this is (expected handoffs/lofras or docs/handoffs under $SELF_DIR)"
+fi
+
+# --- parse sender + recipients from the filename marker -------------------------------
+case "$BASE" in
+  *-to-*) : ;;
+  *) die "filename lacks the mandatory '-to-<recipient>' marker: $BASE
+     expected <sender>-to-<recipient>[-cc-<others>]-YYYYMMDD-NN-<topic>.md" ;;
+esac
+SENDER="${BASE%%-to-*}"
+REST="${BASE#*-to-}"                       # <recipient>[-cc-<others>]-YYYYMMDD-NN-topic.md
+RCPT_PART="${REST%%-20[0-9][0-9][0-9][0-9][0-9][0-9]-*}"
+[ "$RCPT_PART" != "$REST" ] || die "cannot find the -YYYYMMDD- date field in: $BASE"
+DATE_FIELD="$(echo "$REST" | sed -n 's/.*-\(20[0-9][0-9][0-9][0-9][0-9][0-9]\)-.*/\1/p')"
+SEQ="$(echo "$REST" | sed -n 's/.*-20[0-9][0-9][0-9][0-9][0-9][0-9]-\([0-9][0-9]*\)-.*/\1/p')"
+
+# recipient list = RCPT_PART with '-cc-' turned into a separator
+RECIPIENTS="$(echo "$RCPT_PART" | sed 's/-cc-/ /g' | tr '-' ' ')"
+EXPANDED=""
+for r in $RECIPIENTS; do
+  case "$r" in
+    all) EXPANDED="$EXPANDED mini m1 m4 admin" ;;   # 'all' includes lofra-admin, which must see coordination traffic
+    mini|m1|m4|dashboard|admin) EXPANDED="$EXPANDED $r" ;;
+    lofra) die "filename uses the banned alias 'lofra' — use real cell names (mini/m1/m4/dashboard)" ;;
+    *) note "note: ignoring unrecognised token '$r' in the recipient marker" ;;
+  esac
+done
+# de-duplicate and drop the sender itself
+TARGETS=""
+for r in $EXPANDED; do
+  [ "$r" = "$SENDER" ] && continue
+  case " $TARGETS " in *" $r "*) continue ;; esac
+  TARGETS="$TARGETS $r"
+done
+TARGETS="$(echo "$TARGETS" | xargs || true)"
+[ -n "$TARGETS" ] || die "no deliverable recipients parsed from: $BASE"
+
+echo "handoff-send: $BASE"
+echo "  sender:     $SENDER   (running as: $ROLE)"
+echo "  recipients: $TARGETS"
+LOCAL_SHA="$(shasum -a 256 "$FILE" | awk '{print $1}')"
+echo "  sha256:     ${LOCAL_SHA:0:16}…"
+
+# --- resolve each recipient's INBOX path ----------------------------------------------
+# A lofra's inbox is keyed by the CHANNEL: dashboard mail -> from-dashboard/, peer mail -> from-<sender>/.
+# The dashboard's own inbox is keyed by sender.
+inbox_for() {
+  case "$1" in
+    dashboard) echo "~/dev/climate_iastate/docs/handoffs/from-${SENDER}/" ;;
+    # lofra-admin keeps its own mailbox in its own plane. Backstop for peers still running the
+    # pre-2026-08-02 tool (whose 'all' does not include admin): admin shares the mini machine and
+    # reads the mini cell's inbox too, so mail sent to 'all' the old way is still seen.
+    admin) echo "~/dev/acfr-admin/handoffs/lofras/from-${SENDER}/" ;;
+    *) if [ "$SENDER" = "dashboard" ]; then
+         echo "~/dev/acfr/handoffs/dashboard/from-dashboard/"
+       else
+         echo "~/dev/acfr/handoffs/lofras/from-${SENDER}/"
+       fi ;;
+  esac
+}
+# admin is not a machine — it is a plane on the mini machine, so peers deliver admin's mail to host
+# "mini" (path ~/dev/acfr-admin/...). Without this mapping a peer's admin leg tries `ssh admin`, an
+# unresolvable alias, and strands — m1 diagnosed this on 2026-08-06 after its two repair-round
+# verdicts failed the admin leg (content survived via git; the direct leg silently died).
+host_for() { case "$1" in dashboard) echo "m4" ;; admin) echo "mini" ;; *) echo "$1" ;; esac; }
+
+# Is this recipient on the machine we are running on?
+# Needed since 2026-08-02: lofra-admin and the lofra-mini research cell are TWO DIFFERENT CELLS
+# sharing one machine, so admin->mini is a real inter-cell delivery that crosses no network — and
+# a host alias does not resolve to itself ("ssh mini" fails ON mini). Without this branch that
+# leg fails and the handoff is silently undeliverable, which is the very failure class this tool exists to kill.
+is_local() {
+  case "$1" in
+    dashboard) [ -d "$HOME/dev/climate_iastate/docs/handoffs" ] ;;
+    admin) [ -d "$HOME/dev/acfr-admin/handoffs/lofras" ] ;;
+    *) [ "$(sed -n 's/^ACFR_CELL=//p' "$HOME/dev/acfr/.env" 2>/dev/null | tr -d '[:space:]')" = "lofra-$1" ] ;;
+  esac
+}
+
+FAILED=""; DELIVERED=""
+for r in $TARGETS; do
+  host="$(host_for "$r")"; inbox="$(inbox_for "$r")"
+
+  if is_local "$r"; then
+    local_inbox="$(eval echo "$inbox")"
+    echo "-- $r  (LOCAL: $local_inbox)"
+    if [ "$DRY" = "1" ]; then note "dry-run: would copy locally and verify"; DELIVERED="$DELIVERED $r"; continue; fi
+    mkdir -p "$local_inbox" 2>/dev/null
+    # Source and destination can be the SAME file: re-sending a peer's handoff that was already
+    # delivered into this very plane resolves its inbox to the directory the file already sits in.
+    # `cp` refuses that ("are identical") and the leg was then reported UNDELIVERED -- a false gap
+    # for a file demonstrably in place, which is the stale-register error the pending log exists to
+    # avoid producing. Treat same-path as delivered, still verified by hash below.
+    if [ "$(cd "$(dirname "$FILE")" && pwd)/$(basename "$FILE")" = "${local_inbox}${BASE}" ]; then
+      note "already in place at the destination (source == destination)"
+    elif ! cp "$FILE" "$local_inbox" 2>/dev/null; then
+      note "local copy FAILED — NOT delivered"; FAILED="$FAILED $r"; continue
+    fi
+    # Same verification standard as a remote leg: by content, at the destination.
+    local_sha="$(shasum -a 256 "${local_inbox}${BASE}" 2>/dev/null | awk '{print $1}')"
+    if [ "$local_sha" = "$LOCAL_SHA" ]; then
+      note "delivered + VERIFIED on recipient disk (sha matches, same machine)"
+      DELIVERED="$DELIVERED $r"
+    else
+      note "COPIED BUT SHA MISMATCH — treat as NOT delivered"; FAILED="$FAILED $r"
+    fi
+    continue
+  fi
+
+  echo "-- $r  ($host:$inbox)"
+  if [ "$DRY" = "1" ]; then note "dry-run: would scp and verify"; DELIVERED="$DELIVERED $r"; continue; fi
+
+  if ! ssh -o ConnectTimeout=10 -o BatchMode=yes "$host" "mkdir -p $inbox" 2>/dev/null; then
+    note "UNREACHABLE (ssh failed) — NOT delivered"; FAILED="$FAILED $r"; continue
+  fi
+  if ! scp -o ConnectTimeout=15 -q "$FILE" "$host:$inbox" 2>/dev/null; then
+    note "scp FAILED — NOT delivered"; FAILED="$FAILED $r"; continue
+  fi
+  # D2: verify on the RECIPIENT's disk, by content, not by our own exit code
+  remote_sha="$(ssh -o ConnectTimeout=10 -o BatchMode=yes "$host" \
+      "shasum -a 256 ${inbox}${BASE} 2>/dev/null | awk '{print \$1}'" 2>/dev/null || true)"
+  if [ "$remote_sha" = "$LOCAL_SHA" ]; then
+    note "delivered + VERIFIED on recipient disk (sha matches)"
+    DELIVERED="$DELIVERED $r"
+  else
+    note "ARRIVED BUT SHA MISMATCH (remote='${remote_sha:0:16}…') — treat as NOT delivered"
+    FAILED="$FAILED $r"
+  fi
+done
+
+# --- the pending log: a failed leg must leave a trace on DISK, not just on a console ---------
+# Added 2026-08-02 after two same-day partial deliveries (m4 asleep). The ledger deliberately gets
+# NO row until every leg verifies -- a row implies delivery, and that invariant is worth keeping.
+# But that left a partial delivery recorded NOWHERE: once the session ends, nothing on disk says
+# "m4 never got this file". That is the A-10 blind spot rebuilt one level up -- the sender's console
+# is not durable, and the recipient still cannot detect what never arrived. This log is the trace.
+PENDING="$(dirname "$INDEX")/PENDING-DELIVERY.tsv"
+pending_drop() {  # remove any row for this file (delivery completed, or superseded)
+  [ -f "$PENDING" ] || return 0
+  grep -v "	$BASE	" "$PENDING" > "$PENDING.tmp" 2>/dev/null && mv "$PENDING.tmp" "$PENDING"
+}
+
+echo
+if [ -n "$FAILED" ]; then
+  if [ "$DRY" != "1" ]; then
+    [ -f "$PENDING" ] || printf 'first_seen\tfrom\tundelivered_to\tfilename\tnote\n' > "$PENDING"
+    if grep -qF "	$BASE	" "$PENDING" 2>/dev/null; then
+      # Keep the ORIGINAL first_seen (age is the signal) and NARROW the outstanding list only.
+      # Never widen it: a leg that verified on an earlier run is delivered, and an unreachable
+      # host today must not resurrect it as "undelivered" -- that is the stale-register error
+      # (A-08's lesson), and it would send someone chasing a leg that already landed.
+      awk -F'\t' -v b="$BASE" -v f=",$(echo "$FAILED" | xargs | tr ' ' ','), " \
+        'BEGIN{OFS="\t"} NR==1{print;next}
+         $4==b{ n=split($3,a,","); out="";
+                for(i=1;i<=n;i++) if (index(f, "," a[i] ",")) out=(out==""?a[i]:out","a[i]);
+                if (out=="") next;            # every previously-outstanding leg has now landed
+                $3=out }
+         {print}' "$PENDING" > "$PENDING.tmp" && mv "$PENDING.tmp" "$PENDING"
+    else
+      printf '%s\t%s\t%s\t%s\t%s\n' "${DATE_FIELD:-unknown}" "$SENDER" \
+        "$(echo "$FAILED" | xargs | tr ' ' ',')" "$BASE" \
+        "committed to git, so it reaches them on pull; re-run handoff-send to close the direct leg" >> "$PENDING"
+    fi
+    echo "handoff-send: recorded the undelivered leg(s) in $(basename "$PENDING") — commit it so the gap is durable." >&2
+  fi
+  echo "handoff-send: PARTIAL DELIVERY — verified:${DELIVERED:-" none"} | FAILED:$FAILED" >&2
+  echo "handoff-send: the ledger row was NOT written, because a row implies delivery." >&2
+  echo "handoff-send: fix the failing leg and re-run; already-verified legs are idempotent." >&2
+  exit 2
+fi
+[ "$DRY" = "1" ] || pending_drop
+echo "handoff-send: ALL LEGS VERIFIED ->$DELIVERED"
+
+# --- index only after every leg verified ----------------------------------------------
+if [ "$NOINDEX" = "1" ] || [ "$DRY" = "1" ]; then
+  echo "handoff-send: (ledger row skipped)"
+else
+  st="${STATUS:-$(sed -n 's/^Status:[[:space:]]*\([A-Z][A-Z]*\).*/\1/p' "$FILE" | head -1)}"
+  st="${st:-OPEN}"
+  to_csv="$(echo "$TARGETS" | tr ' ' ',')"
+  ts="${DATE_FIELD:0:4}-${DATE_FIELD:4:2}-${DATE_FIELD:6:2}"
+  [ -f "$INDEX" ] || printf 'ts\tfrom\tto\tseq\tfilename\tstatus\n' > "$INDEX"
+  if grep -qF "	$BASE	" "$INDEX" 2>/dev/null; then
+    echo "handoff-send: ledger already has a row for this file — not duplicating."
+  else
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$ts" "$SENDER" "$to_csv" "${SEQ:-00}" "$BASE" "$st" >> "$INDEX"
+    echo "handoff-send: ledger row appended to $(basename "$INDEX") ($ts $SENDER -> $to_csv seq ${SEQ:-00} $st)"
+  fi
+fi
+
+echo "handoff-send: NEXT — commit for the durable audit trail (delivery is done; git is the record)."
