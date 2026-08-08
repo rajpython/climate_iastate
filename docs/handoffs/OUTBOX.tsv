@@ -46,3 +46,4 @@ ts	from	to	seq	filename	status
 2026-07-23	dashboard	lofra-mini, lofra-m1, lofra-m4	01	dashboard-to-mini-cc-m1-m4-20260723-01-region-provenance-settled.md	FYI
 2026-08-01	dashboard	lofra-mini, lofra-m1, lofra-m4	01	dashboard-to-mini-cc-m1-m4-20260801-01-admin-plane-plan.md	OPEN
 2026-08-06	dashboard	admin,mini,m1,m4	01	dashboard-to-admin-cc-mini-m1-m4-20260806-01-ack-four-cell-handoff-send-adopted-theta90-closed.md	ACK
+2026-08-07	dashboard	admin,mini,m1,m4	01	dashboard-to-admin-cc-mini-m1-m4-20260807-01-f2-conceded-restamp-dated-and-scoped-by-producer.md	CORRECTION
