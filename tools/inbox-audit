@@ -1,40 +1,46 @@
 #!/usr/bin/env bash
-# inbox-audit — detect handoffs addressed to `dashboard` that never landed in our inbox.
+# inbox-audit — collect mail addressed to `dashboard` that never reached our inbox.
 #
 # WHY THIS EXISTS
 # ---------------
-# `handoff-send` closed the SENDER's blind spot: a leg that fails now exits non-zero and
-# writes no ledger row, because a row implies delivery. The RECIPIENT's blind spot was
-# declared unclosable — "no recipient-side monitor can ever catch a file that never moved"
-# (mini, 2026-08-01). That is true of the filesystem alone, and false in this program,
-# because the cells keep a SHARED, GIT-TRACKED MANIFEST of what was sent:
-#   handoffs/INDEX.tsv        — one row per handoff, with a `to` column
-#   handoffs/dashboard/to-dashboard/  — the tracked copy of every dashboard-addressed file
-# So the recipient CAN reconcile "what the program says I was sent" against "what is on my
-# disk", and fetch anything missing. That is this script.
+# This machine is a laptop that sleeps in and out constantly, around the clock (its own
+# power log shows 30-85 sleep events per 4-hour block, day and night). Senders deliver by
+# pushing a file over ssh. So a delivery to us fails whenever we happen to be asleep, which
+# is often, at any hour. That is expected and is not going to change: sleep stays as the
+# operator wants it. What must change is that we go and collect what did not arrive.
 #
-# It was written after 2026-08-11, when admin's 20260810-02 never arrived while INDEX.tsv
-# carried a row saying it had. The cells recovered that file by `git pull` (same repo);
-# the dashboard cannot — climate_iastate is a DIFFERENT repo and no LOFRA machine clones
-# it, so for us a skipped leg is terminal, not merely delayed. This closes that gap from
-# our side, with no dependency on any sender remembering anything.
+# WHAT IT LOOKS AT, AND WHY NOT THE LEDGER
+# ----------------------------------------
+# The first version of this script reconciled against the shared ledger (INDEX.tsv). That
+# was the WRONG SHELF, and provably so:
+#   * When a push fails because we are asleep, handoff-send correctly writes NO ledger row
+#     -- it files a PENDING-DELIVERY.tsv slip instead. A ledger-based check is blind to
+#     exactly the case that happens most often here.
+#   * A ledger row can also be written without a delivery (admin's 20260810-02, 2026-08-11).
+# So a ledger row is neither necessary nor sufficient. This version ignores bookkeeping and
+# compares MAIL TO MAIL: every file in the LOFRA handoff tree whose filename ADDRESSES
+# dashboard, against what is on our disk. On its first run that found three m1 handoffs
+# stranded since 2026-07-20/21 that the ledger-based check had reported nothing about.
 #
-# READ-ONLY OUTSIDE OUR REPO. It reads the acfr clones (including the lofra-m4 cell tree
-# that shares this machine) and never writes into them — reaching into a peer's working
-# tree is the A-09 failure mode. Fetched files land only in our own docs/handoffs/.
+# Addressing is read from the filename marker only -- the part before the date field --
+# so a file that merely mentions "dashboard" in its topic slug is not mistaken for our mail.
+#
+# READ-ONLY OUTSIDE OUR REPO. It reads the acfr clones, including the lofra-m4 cell tree
+# that shares this machine, and never writes into them (A-09). Recovered files land only in
+# our own docs/handoffs/.
 #
 # USAGE
-#   tools/inbox-audit            # report only
-#   tools/inbox-audit --fetch    # report, then retrieve anything missing (SHA-verified)
-#   tools/inbox-audit --remote   # force reading the ledger from mini rather than the local clone
+#   tools/inbox-audit            # report only; exit 3 if anything is missing
+#   tools/inbox-audit --fetch    # report, then retrieve each missing file, SHA-verified
+#   tools/inbox-audit --local    # skip the ssh sweep of mini (offline / fast)
 set -uo pipefail
 
-FETCH=0; FORCE_REMOTE=0
+FETCH=0; LOCAL_ONLY=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --fetch) FETCH=1; shift ;;
-    --remote) FORCE_REMOTE=1; shift ;;
-    -h|--help) sed -n '1,30p' "$0"; exit 0 ;;
+    --local) LOCAL_ONLY=1; shift ;;
+    -h|--help) sed -n '1,40p' "$0"; exit 0 ;;
     *) echo "inbox-audit: unknown flag $1" >&2; exit 1 ;;
   esac
 done
@@ -43,90 +49,111 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 INBOX_ROOT="$REPO/docs/handoffs"
 [ -d "$INBOX_ROOT" ] || { echo "inbox-audit: ERROR: $INBOX_ROOT not found" >&2; exit 1; }
 
-LOCAL_ACFR="$HOME/dev/acfr"                       # the lofra-m4 cell clone on this machine
-MINI_ACFR="~/dev/acfr"
-MINI_ADMIN="~/dev/acfr-admin"
+LOCAL_ACFR="$HOME/dev/acfr/handoffs"          # lofra-m4's clone, git-synced, on this machine
+MINI_ACFR="~/dev/acfr/handoffs"
+MINI_ADMIN="~/dev/acfr-admin/handoffs"
 
-# --- the ledger: prefer mini's live copy (authoritative); fall back to the local clone ----
-# The local clone is a peer cell's tree and may be behind; we never pull it to catch up.
-LEDGER="$(mktemp)"; trap 'rm -f "$LEDGER"' EXIT
-SRC=""
-if [ "$FORCE_REMOTE" = "0" ] && [ -f "$LOCAL_ACFR/handoffs/INDEX.tsv" ]; then
-  cp "$LOCAL_ACFR/handoffs/INDEX.tsv" "$LEDGER"; SRC="local acfr clone (may lag)"
-fi
-if remote_ledger="$(ssh -o ConnectTimeout=10 -o BatchMode=yes mini "cat $MINI_ACFR/handoffs/INDEX.tsv" 2>/dev/null)" \
-   && [ -n "$remote_ledger" ]; then
-  printf '%s\n' "$remote_ledger" > "$LEDGER"; SRC="mini:$MINI_ACFR/handoffs/INDEX.tsv (authoritative)"
-fi
-[ -n "$SRC" ] || { echo "inbox-audit: ERROR: no ledger reachable (tried mini, then $LOCAL_ACFR)" >&2; exit 1; }
-echo "inbox-audit: ledger = $SRC"
+# --- does this filename ADDRESS dashboard? (marker only, not the topic slug) -------------
+# current : <sender>-to-<rcpt>[-cc-<others>]-YYYYMMDD-NN-<slug>.md
+# legacy  : YYYY-MM-DD_<sender>-to-<rcpt>_<slug>.md
+addresses_dashboard() {
+  local base="$1" marker
+  case "$base" in
+    20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]_*) marker="${base#*_}"; marker="${marker%%_*}" ;;
+    *) marker="${base%%-20[0-9][0-9][0-9][0-9][0-9][0-9]-*}"; [ "$marker" = "$base" ] && return 1 ;;
+  esac
+  case "$marker" in
+    dashboard-to-*) return 1 ;;                 # our own outbound
+    *dashboard*)    return 0 ;;
+    *)              return 1 ;;
+  esac
+}
 
-# --- which rows are addressed to us? ------------------------------------------------------
-# INDEX columns: ts  from  to  seq  filename  status   ('to' is a comma-separated cell list)
-rows="$(awk -F'\t' 'NR>1 && $3 ~ /(^|,)dashboard(,|$)/ {print $2"\t"$5}' "$LEDGER")"
-total="$(printf '%s' "$rows" | grep -c . || true)"
-echo "inbox-audit: $total ledger rows addressed to dashboard"
+on_our_disk() {
+  local f="$1" c
+  for c in "$INBOX_ROOT"/from-*/"$f" "$INBOX_ROOT/$f"; do [ -f "$c" ] && return 0; done
+  return 1
+}
 
-# --- is each one on our disk? -------------------------------------------------------------
-# Current convention files sit in from-<sender>/; pre-2026-07-21 files sit in the root.
-missing=0; present=0; MISSING_LIST=""
-while IFS=$'\t' read -r from file; do
-  [ -n "$file" ] || continue
-  if [ -f "$INBOX_ROOT/from-$from/$file" ] || [ -f "$INBOX_ROOT/$file" ] \
-     || compgen -G "$INBOX_ROOT/from-*/$file" > /dev/null 2>&1; then
-    present=$((present+1))
-  else
-    missing=$((missing+1)); MISSING_LIST="$MISSING_LIST$from	$file
+sender_of() {  # from-<sender> inbox this file belongs in
+  local base="$1"
+  case "$base" in
+    20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]_*) local m="${base#*_}"; echo "${m%%-to-*}" ;;
+    *) echo "${base%%-to-*}" ;;
+  esac
+}
+
+# --- gather every candidate filename from every place mail for us can sit ----------------
+CAND="$(mktemp)"; SRCMAP="$(mktemp)"; trap 'rm -f "$CAND" "$SRCMAP"' EXIT
+scan_local() {
+  [ -d "$LOCAL_ACFR" ] || return 0
+  find "$LOCAL_ACFR" -name '*.md' -not -path '*/from-dashboard/*' 2>/dev/null |
+    while read -r p; do printf '%s\t%s\n' "$(basename "$p")" "$p"; done
+}
+scan_mini() {
+  [ "$LOCAL_ONLY" = "1" ] && return 0
+  ssh -o ConnectTimeout=10 -o BatchMode=yes mini \
+    "find $MINI_ACFR $MINI_ADMIN -name '*.md' -not -path '*/from-dashboard/*' 2>/dev/null" 2>/dev/null |
+    while read -r p; do [ -n "$p" ] && printf '%s\tmini:%s\n' "$(basename "$p")" "$p"; done
+}
+{ scan_local; scan_mini; } > "$SRCMAP"
+[ -s "$SRCMAP" ] || { echo "inbox-audit: ERROR: no handoff source readable (local clone or mini)" >&2; exit 1; }
+awk -F'\t' '{print $1}' "$SRCMAP" | sort -u > "$CAND"
+
+echo "inbox-audit: scanned $(wc -l < "$CAND" | tr -d ' ') handoff files across $( [ "$LOCAL_ONLY" = 1 ] && echo 'the local clone' || echo 'the local clone + mini (acfr, acfr-admin)')"
+
+# --- which are addressed to us, and which of those are absent? ---------------------------
+MISSING=""; addressed=0; missing=0
+while read -r f; do
+  addresses_dashboard "$f" || continue
+  addressed=$((addressed+1))
+  on_our_disk "$f" && continue
+  missing=$((missing+1)); MISSING="$MISSING$f
 "
-    echo "  MISSING  [$from]  $file"
-  fi
-done <<< "$rows"
+  echo "  MISSING  [$(sender_of "$f")]  $f"
+done < "$CAND"
+echo "inbox-audit: $addressed addressed to dashboard · $((addressed-missing)) present · $missing MISSING"
 
-echo "inbox-audit: $present present, $missing MISSING"
-[ "$missing" -eq 0 ] && { echo "inbox-audit: inbox reconciles with the program ledger."; exit 0; }
+# --- the senders' own failed-delivery slips, as a second signal --------------------------
+slips() {
+  { [ -f "$LOCAL_ACFR/PENDING-DELIVERY.tsv" ] && cat "$LOCAL_ACFR/PENDING-DELIVERY.tsv"
+    [ "$LOCAL_ONLY" = "1" ] || ssh -o ConnectTimeout=10 -o BatchMode=yes mini \
+        "cat $MINI_ACFR/PENDING-DELIVERY.tsv $MINI_ADMIN/PENDING-DELIVERY.tsv 2>/dev/null" 2>/dev/null
+  } | awk -F'\t' 'NR>0 && $3 ~ /(^|,)dashboard(,|$)/ {print "  SLIP  "$2" -> "$4}' | sort -u
+}
+s="$(slips)"
+[ -n "$s" ] && { echo; echo "inbox-audit: senders have recorded failed deliveries TO US:"; echo "$s"; }
 
+[ "$missing" -eq 0 ] && { echo "inbox-audit: nothing outstanding — every handoff addressed to us is on our disk."; exit 0; }
 if [ "$FETCH" = "0" ]; then
-  echo "inbox-audit: re-run with --fetch to retrieve them (SHA-256 verified against the source)." >&2
+  echo "inbox-audit: re-run with --fetch to collect them (SHA-256 verified against the source)." >&2
   exit 3
 fi
 
-# --- retrieve, verifying content against the source we pulled it from ---------------------
-echo; echo "inbox-audit: fetching…"
+# --- collect, verifying content against the source --------------------------------------
+echo; echo "inbox-audit: collecting…"
 failed=0
-while IFS=$'\t' read -r from file; do
-  [ -n "$file" ] || continue
-  dest_dir="$INBOX_ROOT/from-$from"; mkdir -p "$dest_dir"
-  got=""
-  # 1) the git-tracked copy in the acfr clone on this machine (no network, read-only)
-  for cand in "$LOCAL_ACFR/handoffs/dashboard/to-dashboard/$file" "$LOCAL_ACFR/handoffs/lofras/from-$from/$file"; do
-    [ -f "$cand" ] && { cp "$cand" "$dest_dir/" && got="$cand"; break; }
-  done
-  # 2) mini: the research clone, then the admin plane
-  if [ -z "$got" ]; then
-    for rpath in "$MINI_ACFR/handoffs/dashboard/to-dashboard/$file" \
-                 "$MINI_ADMIN/handoffs/dashboard/to-dashboard/$file" \
-                 "$MINI_ACFR/handoffs/lofras/from-$from/$file"; do
-      if scp -o ConnectTimeout=15 -q "mini:$rpath" "$dest_dir/" 2>/dev/null; then got="mini:$rpath"; break; fi
-    done
-  fi
-  if [ -z "$got" ]; then
-    echo "  UNRECOVERED  $file — not found in any known source" >&2; failed=$((failed+1)); continue
-  fi
-  # verify by content against the source, the same standard handoff-send applies to a send
-  local_sha="$(shasum -a 256 "$dest_dir/$file" | awk '{print $1}')"
-  case "$got" in
-    mini:*) src_sha="$(ssh -o ConnectTimeout=10 mini "shasum -a 256 ${got#mini:} 2>/dev/null | awk '{print \$1}'")" ;;
-    *)      src_sha="$(shasum -a 256 "$got" | awk '{print $1}')" ;;
-  esac
-  if [ "$local_sha" = "$src_sha" ]; then
-    echo "  RECOVERED  $file  <- $got  (sha ${local_sha:0:16}… verified)"
+while read -r f; do
+  [ -n "$f" ] || continue
+  dest="$INBOX_ROOT/from-$(sender_of "$f")"; mkdir -p "$dest"
+  src="$(awk -F'\t' -v n="$f" '$1==n {print $2; exit}' "$SRCMAP")"
+  [ -n "$src" ] || { echo "  UNRECOVERED  $f — no source" >&2; failed=$((failed+1)); continue; }
+  if [ "${src#mini:}" != "$src" ]; then
+    scp -o ConnectTimeout=15 -q "mini:${src#mini:}" "$dest/" 2>/dev/null || {
+      echo "  UNRECOVERED  $f — scp failed" >&2; failed=$((failed+1)); continue; }
+    src_sha="$(ssh -o ConnectTimeout=10 mini "shasum -a 256 '${src#mini:}' | awk '{print \$1}'" 2>/dev/null)"
   else
-    echo "  SHA MISMATCH on $file from $got — removed" >&2; rm -f "$dest_dir/$file"; failed=$((failed+1))
+    cp "$src" "$dest/" 2>/dev/null || { echo "  UNRECOVERED  $f — copy failed" >&2; failed=$((failed+1)); continue; }
+    src_sha="$(shasum -a 256 "$src" | awk '{print $1}')"
   fi
-done <<< "$MISSING_LIST"
+  got_sha="$(shasum -a 256 "$dest/$f" | awk '{print $1}')"
+  if [ "$got_sha" = "$src_sha" ]; then
+    echo "  COLLECTED  $f  <- $src  (sha ${got_sha:0:16}… verified)"
+  else
+    echo "  SHA MISMATCH  $f — discarded" >&2; rm -f "$dest/$f"; failed=$((failed+1))
+  fi
+done <<< "$MISSING"
 
 echo
-if [ "$failed" -gt 0 ]; then
-  echo "inbox-audit: $failed file(s) could not be recovered — raise with the sender." >&2; exit 4
-fi
-echo "inbox-audit: all missing handoffs recovered. Commit them for the audit trail, then read them."
+[ "$failed" -gt 0 ] && { echo "inbox-audit: $failed could not be collected — raise with the sender." >&2; exit 4; }
+echo "inbox-audit: collected. Commit them for the audit trail, then READ them — they are unhandled inbound."
