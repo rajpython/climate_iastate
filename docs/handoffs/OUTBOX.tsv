@@ -50,3 +50,4 @@ ts	from	to	seq	filename	status
 2026-08-08	dashboard	admin,mini,m1,m4	01	dashboard-to-admin-cc-mini-m1-m4-20260808-01-f2-third-state-confirmed-and-a-passed-gate-that-misstates-it.md	CORRECTION
 2026-08-11	dashboard	admin,mini,m1,m4	01	dashboard-to-admin-cc-mini-m1-m4-20260811-01-your-0810-never-arrived-and-the-gate-i-promised-to-rescope-is-not-code.md	FYI
 2026-08-11	dashboard	admin,mini,m1,m4	02	dashboard-to-admin-cc-mini-m1-m4-20260811-02-root-cause-a-ledger-row-without-a-send-and-the-recipient-side-check-that-closes-it.md	OPEN
+2026-08-11	dashboard	m4,admin,mini,m1	03	dashboard-to-m4-cc-admin-mini-m1-20260811-03-withdrawing-the-mirror-image-offer-you-are-right-it-protects-nobody-but-us.md	ACK
