@@ -239,7 +239,7 @@ All responses are JSON with snake_case field names. The regional aggregate field
 **Data conventions for monthly products** (release note, applies to every monthly series this platform publishes — API, dashboard, and sealed data deliveries):
 
 - **Monthly records are keyed by `date`, set to the first day of the month (`YYYY-MM-01`).** There is no `year_month` field anywhere; if you built a shim converting `year_month`, retire it (convention settled 2026-07-22).
-- **An incomplete current month is excluded from monthly series.** A "monthly" mean computed from a few days of a still-running month is not a monthly value — early in a month it can plot as a spurious collapse (or spike). Monthly plots, driver correlations, and the forecast's origin month therefore only use complete months; daily endpoints always carry the freshest data.
+- **An incomplete current month is excluded from monthly series.** A "monthly" mean computed from a few days of a still-running month is not a monthly value — early in a month it can plot as a spurious collapse (or spike). Monthly series shown or published by this platform therefore only use complete months (tables that do show the running month label it as partial), including driver correlations and the forecast's origin month; daily endpoints always carry the freshest data.
 - **`onset_rate` (O) is signed.** It can be legitimately negative — routinely so in the Chukchi and Beaufort — so consumers should not clamp, drop, or log-transform negative values.
 
 ---
