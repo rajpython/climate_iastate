@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# pending-watch — the SENDER's counterpart to inbox-watch. A pending delivery leg is the
+# sender's open obligation, and this script supplies the watching the sender used to owe
+# from memory.
+#
+# WHY THIS EXISTS (Col. Raj, 2026-08-11: "everyone who delivers in sleep should not assume
+# it delivered and keep watching and nudging if necessary. This protocol is still not working.")
+# ---------------------------------------------------------------------------------------
+# handoff-send already leaves a durable trace of a failed leg (PENDING-DELIVERY.tsv, A-11)
+# and the git fallback carries the CONTENT — but closing the DIRECT leg still depended on a
+# session remembering to re-run handoff-send when the sleeping machine woke. Observed cost:
+# a verification-critical mail to m1 sat with an open leg for hours while m1's machine
+# slept, and the retry happened only because a human asked what we were waiting for.
+#
+# WHAT IT DOES
+#   Every poll (default 600 s; an immediate first pass on start):
+#     1. For each PENDING-DELIVERY.tsv row whose sender is THIS plane's cell, locate the
+#        file and re-run tools/handoff-send on it (idempotent: verified legs are skipped).
+#     2. If the retry closes the row -> print CLOSED (one-shot mode: exit, waking the
+#        session so the emptied pending log gets committed).
+#     3. If a row's first_seen date is before today -> print NUDGE (a leg pending
+#        overnight is no longer routine; the woken session escalates by another channel
+#        or to Col. Raj rather than waiting silently).
+#
+# HOW A CELL USES IT (doctrine: start it at the top of EVERY session, beside inbox-watch)
+#   Background one-shot:  run `tools/pending-watch` via Bash run_in_background.
+#   Wake-up sweep:        `tools/pending-watch --once` (also called by tools/sync).
+#   Streaming:            `tools/pending-watch --stream` for a persistent Monitor.
+#
+# Identity: THE PLANE DECIDES, never ACFR_CELL alone (same rule as inbox-watch).
+set -uo pipefail
+
+STREAM=0; ONCE=0; INTERVAL=600
+for a in "$@"; do case "$a" in
+  --stream) STREAM=1 ;; --once) ONCE=1 ;;
+  --interval=*) INTERVAL="${a#*=}" ;;
+  -h|--help) sed -n '1,30p' "$0"; exit 0 ;;
+esac; done
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -d "$ROOT/handoffs/lofras" ] && [ ! -d "$ROOT/projects" ]; then
+  ME="admin"
+elif [ -d "$ROOT/docs/handoffs" ]; then
+  ME="dashboard"
+else
+  ME="$(sed -n 's/^ACFR_CELL=lofra-//p' "$ROOT/.env" 2>/dev/null | head -1)"
+fi
+[ -n "$ME" ] || { echo "pending-watch: cannot resolve own cell"; exit 2; }
+
+if [ "$ME" = "dashboard" ]; then PENDING="$ROOT/docs/handoffs/PENDING-DELIVERY.tsv"
+else PENDING="$ROOT/handoffs/PENDING-DELIVERY.tsv"; fi
+
+my_rows() {  # pending rows whose sender is me: first_seen<TAB>from<TAB>legs<TAB>filename<TAB>note
+  [ -f "$PENDING" ] || return 0
+  awk -F'\t' -v me="$ME" 'NR>1 && $2==me {print}' "$PENDING"
+}
+
+pass() {  # one retry pass; prints events; returns 0 if anything was printed
+  hit=1
+  while IFS=$'\t' read -r seen from legs base note; do
+    [ -n "${base:-}" ] || continue
+    f="$(find "$ROOT/handoffs" "$ROOT/docs/handoffs" -name "$base" 2>/dev/null | head -1)"
+    if [ -z "$f" ]; then
+      echo "PENDING but file not found on this plane: $base (row stands; locate before retrying)"
+      hit=0; continue
+    fi
+    "$ROOT/tools/handoff-send" "$f" >/dev/null 2>&1
+    if my_rows | grep -qF "	$base	"; then
+      # still open — nudge if it has been pending since before today
+      today="$(date +%Y%m%d)"
+      if [ "${seen:-$today}" -lt "$today" ] 2>/dev/null; then
+        echo "NUDGE: $base — leg(s) to [$legs] pending since $seen and retry still failing."
+        echo "  Content reached them by git; ATTENTION has not. Escalate by another channel"
+        echo "  (their cell may have no session running) or raise it to Col. Raj."
+        hit=0
+      fi
+    else
+      echo "CLOSED on retry: $base — all legs now verified on recipient disks."
+      echo "  Commit the emptied PENDING-DELIVERY.tsv (and the ledger row if newly written)."
+      hit=0
+    fi
+  done < <(my_rows)
+  return $hit
+}
+
+if [ "$ONCE" = 1 ]; then
+  pass || echo "pending-watch: quiet (no open legs from '$ME')"
+  exit 0
+fi
+
+while :; do
+  if pass && [ "$STREAM" = 0 ]; then exit 0; fi   # one-shot: any event wakes the session
+  sleep "$INTERVAL"
+done

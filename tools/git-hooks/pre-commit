@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# pre-commit — A-16 handoff-delivery guard, dashboard edition.
+#
+# A committed handoff READS AS a sent handoff to anyone auditing later, including this
+# repo's own future sessions — git is the audit trail both sides trust. But writing the
+# file, delivering it, and committing it are three separate acts, and twice from this repo
+# (dashboard-to-lofra-20260715-01, stranded 17 days; dashboard-to-mini-…-20260801-01,
+# stranded until found) the commit happened and the delivery never did. The commit is the
+# one step no send can skip, so the guard lives here.
+#
+# Rules (adapted from acfr tools/git-hooks/pre-commit, A-16 as amended by mini+m4 2026-08-11;
+# adapted because the acfr original is inert in this repo — it derives identity from
+# ACFR_CELL (= "m4" on this machine, never "dashboard"), watches handoffs/ not
+# docs/handoffs/, and reads INDEX.tsv not OUTBOX.tsv — a verbatim install would be a hook
+# that checks nothing, the exact "wired but prose" failure A-16's own audit found):
+#
+#   1. A NEW dashboard-authored handoff commits only if it has an OUTBOX.tsv row
+#      (handoff-send writes one only after every leg SHA-verifies on the recipient's disk)
+#      OR a PENDING-DELIVERY.tsv row (a partial delivery working as designed — the commit
+#      IS the git fallback, and the pending row keeps the direct-leg debt visible).
+#      Recordless = handoff-send was never run = blocked.
+#   2. An already-delivered dashboard handoff may not be edited — recipients hold the sent
+#      bytes; a correction is a new message (HANDOFF-CONVENTION §2 immutability).
+#
+# Inbound mail (from-*/) and anything else in the repo are untouched.
+# Install (once): git config core.hooksPath tools/git-hooks   — then VERIFY it took:
+#                 git config core.hooksPath   (a hook that is not wired is prose)
+# Genuine emergency override: git commit --no-verify
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+HN="docs/handoffs"
+[ -d "$root/$HN" ] || exit 0
+
+ledgered() {  # in OUTBOX.tsv (verified delivery) or PENDING-DELIVERY.tsv (open leg on record)
+  grep -qF "	$1	" "$root/$HN/OUTBOX.tsv" 2>/dev/null && return 0
+  grep -qF "	$1	" "$root/$HN/PENDING-DELIVERY.tsv" 2>/dev/null
+}
+
+added="$(git diff --cached --name-only --diff-filter=A | grep -E "^$HN/dashboard-to-[^/]+\.md$" || true)"
+for f in $added; do
+  base="$(basename "$f")"
+  if ! ledgered "$base"; then
+    {
+      echo "BLOCKED (A-16): $base has neither an OUTBOX.tsv row nor a PENDING-DELIVERY.tsv row —"
+      echo "handoff-send was never run, so no delivery (even partial) is on record. A committed"
+      echo "handoff reads as a sent one; this repo has stranded mail this way twice (07-15, 08-01)."
+      echo "Deliver it first:  tools/handoff-send $f"
+    } >&2
+    exit 1
+  fi
+done
+
+modified="$(git diff --cached --name-only --diff-filter=M | grep -E "^$HN/dashboard-to-[^/]+\.md$" || true)"
+for f in $modified; do
+  base="$(basename "$f")"
+  {
+    echo "BLOCKED (A-16): $base is already delivered — a sent handoff is immutable."
+    echo "Recipients hold the sent bytes; editing the original silently diverges from every copy."
+    echo "Send a follow-up handoff instead. (Genuine emergency: git commit --no-verify.)"
+  } >&2
+  exit 1
+done
+exit 0
