@@ -1,7 +1,9 @@
 """Build mu[doy,lat,lon] and theta90[doy,lat,lon] climatology for a region.
 
 Data source : PFEG CoastWatch ERDDAP OPeNDAP (aggregated, 1981–present)
-  Dataset : ncdcOisst21Agg  (OISST v2.1 Final, AVHRR Only)
+  Dataset : ncdcOisst21Agg  (NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)
+  Canonical provenance string (adopted by lofra-admin 2026-08-17; seals enforce
+  stamped == declared): see mhw.seal.OISST_PROVENANCE — the single source of truth.
   URL     : https://coastwatch.pfeg.noaa.gov/erddap/griddap/ncdcOisst21Agg
   Variables: sst, ice  (ice is in fraction [0, 1])
   Config `ice_threshold_percent` (default 15) is divided by 100 for comparison.
@@ -24,6 +26,7 @@ import xarray as xr
 import yaml
 
 from mhw.climatology.smooth_doy import compute_mu_theta, doy_window, smooth_doy_field
+from mhw.seal import OISST_PROVENANCE
 from mhw.climatology.storage import save_climatology
 
 # ---------------------------------------------------------------------------
@@ -210,8 +213,8 @@ def build_climatology(
     # -----------------------------------------------------------------------
     print(f"Baseline: {start_yr}–{end_yr} ({len(years)} years)")
     print(f"Ice masking: {'ON' if apply_mask else 'OFF'} (threshold {ice_thresh:.2f} fraction)")
-    print(f"Source: PFEG CoastWatch ERDDAP (ncdcOisst21Agg)\n")
-    print(f"Fetching / loading yearly cache …\n")
+    print("Source: PFEG CoastWatch ERDDAP (ncdcOisst21Agg)\n")
+    print("Fetching / loading yearly cache …\n")
 
     sst_arrays: list[np.ndarray] = []
     doy_arrays: list[np.ndarray] = []
@@ -224,9 +227,9 @@ def build_climatology(
     )
     remote_ds = None
     if need_remote:
-        print(f"  Opening PFEG ERDDAP connection …", flush=True)
+        print("  Opening PFEG ERDDAP connection …", flush=True)
         remote_ds = xr.open_dataset(PFEG_URL, engine="netcdf4")
-        print(f"  Connected.\n")
+        print("  Connected.\n")
 
     t0 = time.time()
     for i, year in enumerate(years, 1):
@@ -524,7 +527,9 @@ def main(argv: list[str] | None = None) -> None:
         "region": args.region,
         "baseline_start": baseline["start_year"],
         "baseline_end": baseline["end_year"],
-        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        # Canonical form (lofra-admin ruling 2026-08-17): one string, one definition —
+        # mhw-seal's provenance gate holds stamped == declared, so drift here fails seals.
+        "source": OISST_PROVENANCE,
         "created": str(date.today()),
     }
 
