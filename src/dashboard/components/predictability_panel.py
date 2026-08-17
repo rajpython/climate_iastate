@@ -112,12 +112,36 @@ def _add_event_shading(fig, dates: pd.Series, active: np.ndarray, n_rows: int) -
 # ---------------------------------------------------------------------------
 # Cross-correlation helpers (pure — network-free, unit-testable)
 # ---------------------------------------------------------------------------
+def _drop_partial_tail(monthly: pd.DataFrame, counts: pd.Series) -> pd.DataFrame:
+    """Drop the FINAL month when it clearly has fewer observations than the series' cadence.
+
+    A daily series that currently ends mid-month yields a terminal "monthly" value computed
+    from a handful of days — on 2026-07-01 the July mean was a single day and plotted as a
+    collapse (the F5 terminal-month caveat carried in the 07-22 vintage manifest). The rule
+    is cadence-robust rather than hardcoded to daily: the tail month is dropped only when its
+    observation count is under half the median count of the preceding months, so an
+    already-monthly series (every count = 1) always keeps its last point, while a daily
+    series sheds a partial month and keeps a complete one. Interior months are never touched.
+    """
+    if len(monthly) < 2:
+        return monthly
+    median_prior = float(counts.iloc[:-1].median())
+    if counts.iloc[-1] < 0.5 * median_prior:
+        return monthly.iloc[:-1].reset_index(drop=True)
+    return monthly
+
+
 def to_monthly_mean(df: pd.DataFrame, value_col: str, date_col: str = "date") -> pd.DataFrame:
-    """Calendar-month mean of a (possibly daily) series → month-start ``date`` index."""
+    """Calendar-month mean of a (possibly daily) series → month-start ``date`` index.
+
+    An incomplete terminal month is dropped (see ``_drop_partial_tail``) so a partial
+    current month never plots — or correlates — as a real monthly value.
+    """
     s = df[[date_col, value_col]].copy()
     s[date_col] = pd.to_datetime(s[date_col])
-    return (s.set_index(date_col)[value_col].resample("MS").mean()
-            .rename(value_col).reset_index())
+    g = s.set_index(date_col)[value_col].resample("MS")
+    out = g.mean().rename(value_col).reset_index()
+    return _drop_partial_tail(out, g.count().reset_index(drop=True))
 
 
 def deseasonalize(df: pd.DataFrame, value_col: str, date_col: str = "date") -> pd.DataFrame:
@@ -151,8 +175,11 @@ def monthly_onset_counts(df: pd.DataFrame, value_col: str = "area_frac", date_co
                              out_col: pd.Series(dtype=int)})
     active = (s[value_col] > threshold).to_numpy()
     onset = active & ~np.concatenate([[False], active[:-1]])   # rising edge = a new event begins
-    return (s.assign(_o=onset.astype(int)).set_index(date_col)["_o"]
-            .resample("MS").sum().rename(out_col).reset_index())
+    g = s.assign(_o=onset.astype(int)).set_index(date_col)["_o"].resample("MS")
+    out = g.sum().rename(out_col).reset_index()
+    # Same terminal-month guard as to_monthly_mean: a partial month UNDERCOUNTS onsets
+    # (fewer days observed), which reads as a real quiet month in plots and correlations.
+    return _drop_partial_tail(out, g.count().reset_index(drop=True))
 
 
 def lagged_cross_correlation(drivers: pd.DataFrame, targets: pd.DataFrame, max_lag: int = 6,

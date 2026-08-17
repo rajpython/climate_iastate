@@ -99,13 +99,17 @@ def monthly_area_frac(daily: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("expected columns 'date' and 'area_frac'")
     df = daily[["date", "area_frac"]].copy()
     df["date"] = pd.to_datetime(df["date"])
-    out = (
-        df.set_index("date")["area_frac"]
-        .resample("MS")            # month-start; label each month by its first day
-        .mean()
-        .rename("area_frac")
-        .reset_index()
-    )
+    g = df.set_index("date")["area_frac"].resample("MS")  # month-start labels
+    out = g.mean().rename("area_frac").reset_index()
+    # Terminal-month guard (the F5 caveat in the 07-22 vintage manifest: 2026-07-01's
+    # "monthly" value was a single-day mean). A partial current month must not plot as a
+    # collapse — and, worse here, it would become the forecast ORIGIN month, feeding a
+    # few-day mean into the damped-persistence recursion as if it were a monthly state.
+    # Drop the final month when its day count is under half the median of prior months.
+    if len(out) >= 2:
+        counts = g.count().reset_index(drop=True)
+        if counts.iloc[-1] < 0.5 * float(counts.iloc[:-1].median()):
+            out = out.iloc[:-1].reset_index(drop=True)
     return out
 
 

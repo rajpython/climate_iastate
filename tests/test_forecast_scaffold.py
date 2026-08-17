@@ -176,3 +176,12 @@ def test_onset_route_live_safe():
     if r.status_code == 200:
         recs = r.json()["records"]
         assert recs and all(x["state"] in ("elevated", "normal") for x in recs)
+
+
+def test_monthly_area_frac_drops_partial_terminal_month():
+    # F5 guard: the forecast ORIGIN month must be a complete month — a few-day
+    # partial month must not enter the damped-persistence recursion as state.
+    dates = pd.date_range("2020-01-01", "2020-03-02", freq="D")  # Jan+Feb full, 2 March days
+    df = pd.DataFrame({"date": dates, "area_frac": 0.5})
+    m = monthly_area_frac(df)
+    assert list(m["date"].dt.month) == [1, 2]

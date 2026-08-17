@@ -102,3 +102,48 @@ def test_deseasonalize_removes_month_climatology():
     df = pd.DataFrame({"date": dates, "v": np.tile(np.arange(1, 13, dtype=float), 2)})
     out = deseasonalize(df, "v")
     assert np.allclose(out["v"].to_numpy(), 0.0)
+
+
+# ---------------------------------------------------------------------------
+# Terminal-month guard (F5 caveat: a partial current month is not a monthly value)
+# ---------------------------------------------------------------------------
+def test_to_monthly_mean_drops_single_day_terminal_month():
+    # Jan + Feb complete, then exactly one March day (the 2026-07-01 shape):
+    # the March "mean" is one day and must not appear as a monthly point.
+    daily = pd.DataFrame({
+        "date": pd.date_range("2020-01-01", "2020-03-01", freq="D"),
+        "v": 1.0,
+    })
+    out = to_monthly_mean(daily, "v")
+    assert list(out["date"]) == list(pd.to_datetime(["2020-01-01", "2020-02-01"]))
+
+
+def test_to_monthly_mean_keeps_complete_terminal_month():
+    daily = pd.DataFrame({
+        "date": pd.date_range("2020-01-01", "2020-02-29", freq="D"),
+        "v": 1.0,
+    })
+    out = to_monthly_mean(daily, "v")
+    assert list(out["date"]) == list(pd.to_datetime(["2020-01-01", "2020-02-01"]))
+
+
+def test_to_monthly_mean_keeps_tail_of_already_monthly_series():
+    # PDO-style input: one observation per month. Every count is 1, so the
+    # cadence-robust rule must keep the final point (median rule, not day count).
+    monthly = pd.DataFrame({
+        "date": pd.date_range("2020-01-01", periods=6, freq="MS"),
+        "v": range(6),
+    })
+    out = to_monthly_mean(monthly, "v")
+    assert len(out) == 6
+
+
+def test_monthly_onset_counts_drops_partial_terminal_month():
+    # An onset on Mar 1, but March has only that one observed day: a 1-day month
+    # would UNDERCOUNT onsets and read as a quiet month — it must be dropped.
+    dates = pd.date_range("2020-01-01", "2020-03-01", freq="D")
+    area = np.zeros(len(dates))
+    area[3:6] = 0.5     # one Jan event
+    area[-1] = 0.5      # onset on the lone March day
+    out = monthly_onset_counts(pd.DataFrame({"date": dates, "area_frac": area}), threshold=0.1)
+    assert list(out["date"]) == list(pd.to_datetime(["2020-01-01", "2020-02-01"]))

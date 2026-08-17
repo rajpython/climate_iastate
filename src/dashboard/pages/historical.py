@@ -416,6 +416,13 @@ def render() -> None:
             "event_days": "Event Days", "max_area_frac": "Peak Area Frac.",
             "max_Ibar": "Peak Intensity (°C)", "max_Dbar": "Peak Duration (days)",
         })
+        # Label an incomplete final month: its Event Days count only covers the days
+        # observed so far and would otherwise read as a genuinely quiet month.
+        last_day = df_yr2["date"].max()
+        if last_day < last_day + pd.offsets.MonthEnd(0):  # data stops mid-month
+            partial_name = last_day.month_name()
+            monthly = monthly.rename(
+                index={partial_name: f"{partial_name} (partial — through {last_day:%b %d})"})
         section_title(f"Monthly summary — {sel_year}")
         mhw_table(monthly, use_container_width=True)
 
@@ -441,7 +448,12 @@ def render() -> None:
 
         for col, label, unit, color, cond_only in metrics_hist:
             vals = df_range[col].values
-            plot_vals = vals[vals > 0] if cond_only else vals
+            # Event-day filter: no-event days are stored as exact 0, so select != 0 rather
+            # than > 0. Obar is SIGNED (onset rate can be negative — routinely so in the
+            # Chukchi/Beaufort, where intensity can decline from event start to peak);
+            # > 0 silently dropped those real days AND miscounted them as "zero" days.
+            # Ibar/Dbar/Cbar are positive during events, so != 0 is identical for them.
+            plot_vals = vals[vals != 0] if cond_only else vals
             n_plot  = len(plot_vals)
             n_zero  = len(vals) - n_plot
 
@@ -466,7 +478,7 @@ def render() -> None:
                                 annotation_font_size=9,
                                 annotation_position="top right")
 
-            title_suffix = f"(non-zero: {n_plot:,}  zero: {n_zero:,})" if cond_only else f"(n={n_plot:,})"
+            title_suffix = f"(event days: {n_plot:,}  no-event days: {n_zero:,})" if cond_only else f"(n={n_plot:,})"
             fig_h.update_layout(
                 title=f"{label} — {unit}  {title_suffix}",
                 xaxis_title=unit, yaxis_title="Days",
