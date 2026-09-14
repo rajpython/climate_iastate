@@ -1,10 +1,11 @@
 """Tests for the kriged cold-pool AREA pipeline — pure helpers (no network).
 
 The grid/count helpers (make_grid, snap_extent, area_le) are pure NumPy and always run. The
-kriging tests need PyKrige (the optional ``[geo]`` extra, which CI deliberately doesn't build),
-so they ``skipif`` it's absent. The end-to-end "reproduce AFSC" check is a skip-if-data-missing
-integration test (no network: it only runs when the survey-replicate parquet and the trimmed
-survey-area geojson are already on disk).
+kriging tests need PyKrige and the AFSC-reproduction test also needs geopandas — both from the
+optional ``[geo]`` extra — so they skip when it is absent. (CI has installed ``[geo]`` since
+2026-09-14, so they do run there; the guards are for geo-less environments.) The end-to-end
+"reproduce AFSC" check is additionally a skip-if-data-missing integration test (no network: it
+only runs when the survey-replicate parquet and the trimmed survey-area geojson are on disk).
 """
 import importlib.util
 
@@ -21,7 +22,7 @@ from mhw.bottom.kriged_area import (
     snap_extent,
 )
 
-# PyKrige lives in the optional [geo] extra; CI installs only [api,dashboard,dev].
+# PyKrige lives in the optional [geo] extra.
 needs_pykrige = pytest.mark.skipif(
     importlib.util.find_spec("pykrige") is None, reason="pykrige ([geo] extra) not installed")
 
@@ -105,6 +106,12 @@ def test_krige_recovers_monotonic_gradient_sign():
 # --- integration: reproduce AFSC (skips unless data already present, no network) ----------
 @needs_pykrige
 def test_observed_kriged_area_reproduces_afsc_ebs():
+    # build_kriged_area_series -> load_survey_area lazily imports geopandas (which pulls
+    # shapely). importorskip rather than a find_spec marker on purpose: find_spec only asks
+    # whether geopandas is on the path, so it would still fail on an installed-but-broken geo
+    # stack, whereas this actually performs the import and skips on any ImportError.
+    pytest.importorskip("geopandas", reason="geopandas ([geo] extra) not installed")
+
     from pathlib import Path
 
     from mhw.bottom.kriged_area import (
