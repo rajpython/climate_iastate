@@ -12,11 +12,19 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from shapely.geometry import Polygon, box
 
-from mhw.fetch.psl_mhw import need_download
-from mhw.forecast.psl_mhw import mhw_flags, sedi_from_counts, zonal_mean_cube
-from mhw.regions.nmme_masks import fractional_mask, poly_to_360
+# CI installs the geo extra so these tests DO run there; this guard exists so that an
+# environment without it degrades to a skip. Without it a missing shapely raises during
+# collection, which aborts the entire suite rather than this one module (that is exactly
+# what happened between 2026-07-24 and 2026-09-14). Keep it above the geo imports below —
+# mhw.regions.nmme_masks pulls in shapely too.
+pytest.importorskip("shapely", reason="geo extra not installed")
+
+from shapely.geometry import Polygon, box  # noqa: E402
+
+from mhw.fetch.psl_mhw import need_download  # noqa: E402
+from mhw.forecast.psl_mhw import mhw_flags, sedi_from_counts, zonal_mean_cube  # noqa: E402
+from mhw.regions.nmme_masks import fractional_mask, poly_to_360  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DERIVED = PROJECT_ROOT / "data" / "derived" / "psl_mhw"

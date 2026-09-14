@@ -20,11 +20,15 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Install api + dashboard + dev dependencies
-        # geo extra omitted — not required for unit tests and adds ~5 min to CI.
+      - name: Install api + dashboard + geo + dev dependencies
         # dashboard extra (streamlit) IS required: tests/test_dashboard_regions.py
         # imports dashboard.components.coldpool_data (uses @st.cache_data).
-        run: pip install -e ".[api,dashboard,dev]"
+        # geo extra IS required: tests/test_psl_mhw.py exercises the 0-360 polygon
+        # wrap / fractional rasterization (the Aleutian-strip regression guard) and
+        # needs shapely. It was omitted here until 2026-09-14 to save install time,
+        # which silently aborted collection — and therefore the WHOLE suite — from
+        # 2026-07-24 onward. Never drop it again without first making that test skip.
+        run: pip install -e ".[api,dashboard,geo,dev]"
 
       - name: Run tests
         # Integration tests (test_aggregates, test_api, TestGoaRiskIntegration)
