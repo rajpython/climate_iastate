@@ -187,10 +187,19 @@ def pack(payload_dir: Path, name: str, out_dir: Path, declared: dict | None) -> 
 # ── verification: every gate reads the PACKED archive ──────────────────────────────────
 
 
-def _gate(name: str, ok: bool, scope: str, evidence: str) -> dict:
+def _gate(name: str, ok: bool | None, scope: str, evidence: str) -> dict:
+    """One gate row. ``ok=None`` means the gate did not run — result ``SKIPPED``.
+
+    A gate that measured nothing must not read as ``PASS``: lofra-mini flagged
+    (2026-09-30) that the skipped source-attr gate shipped ``"result": "PASS"``
+    beside the scope "not measured", so a reader counting PASS gates counted one
+    that asserted nothing. That is the F2 defect class this module exists to
+    prevent, reproduced one level down. SKIPPED is not a failure and does not
+    withhold the ``.sha256`` — only ``FAIL`` does.
+    """
     return {
         "gate": name,
-        "result": "PASS" if ok else "FAIL",
+        "result": "SKIPPED" if ok is None else ("PASS" if ok else "FAIL"),
         "measured_scope": scope,
         "evidence": evidence,
     }
@@ -297,7 +306,7 @@ def verify_sealed(tar_path: Path) -> list[dict]:
             gates.append(
                 _gate(
                     "source_attr_matches_declared_product",
-                    True,
+                    None,
                     "not measured — gate skipped",
                     f"skipped: needs both {ATTRS_NAME} in the archive and "
                     "declared.provenance.product in the manifest; asserting nothing.",
@@ -322,9 +331,9 @@ def seal(payload_dir: Path, name: str, out_dir: Path, declared: dict | None) -> 
             indent=2,
         )
     )
-    failed = [g["gate"] for g in gates if g["result"] != "PASS"]
+    failed = [g["gate"] for g in gates if g["result"] == "FAIL"]
     for g in gates:
-        print(f"  {g['result']:4s} {g['gate']}  [{g['measured_scope']}]")
+        print(f"  {g['result']:7s} {g['gate']}  [{g['measured_scope']}]")
     if failed:
         print(f"mhw-seal: FAILED gates {failed} — no .sha256 written; seal is NOT complete.")
         return 1

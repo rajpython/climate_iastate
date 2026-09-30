@@ -82,6 +82,7 @@ def test_seal_happy_path(payload, tmp_path, capsys):
     gates_doc = json.loads((out / "test-seal.gates.json").read_text())
     results = {g["gate"]: g["result"] for g in gates_doc["gates"]}
     assert set(results.values()) == {"PASS"}
+    assert "SKIPPED" not in results.values()
     # every gate names what it measured — the ratified gate-scope rule
     assert all(g["measured_scope"] for g in gates_doc["gates"])
     # gates live in the sidecar, never inside the archive's manifest
@@ -156,6 +157,21 @@ def test_source_attr_gate_skips_honestly_without_inputs(tmp_path):
     )
     assert g["measured_scope"] == "not measured — gate skipped"
     assert "asserting nothing" in g["evidence"]
+    # a gate that measured nothing must not read as PASS (mini, 2026-09-30):
+    # a reader counting PASS gates would count one that asserted nothing.
+    assert g["result"] == "SKIPPED"
+
+
+def test_skipped_gate_does_not_withhold_the_checksum(tmp_path):
+    """SKIPPED is not a failure: the seal still completes and writes its .sha256."""
+    p = tmp_path / "plain"
+    p.mkdir()
+    (p / "data.txt").write_bytes(b"no zarr here")
+    out = tmp_path / "out"
+    assert seal(p, "plain", out, None) == 0
+    assert (out / "plain.tar.gz.sha256").exists()
+    results = [g["result"] for g in json.loads((out / "plain.gates.json").read_text())["gates"]]
+    assert "SKIPPED" in results and "FAIL" not in results
 
 
 def test_corrupt_gzip_raises(payload, tmp_path):

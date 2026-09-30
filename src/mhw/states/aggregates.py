@@ -11,6 +11,21 @@ to produce scalar daily time series per region:
 
 Conditional means are zero when area_frac=0 (no active cells).
 
+Two properties worth stating because they have been misdescribed before:
+
+* **The area_frac denominator is the STATIC mask.** `Sum(w)` is computed once from
+  `weights * mask`, so a cell that never carries valid SST contributes 0 to the
+  numerator and its full cos(lat) to the denominator on every day; ice-masked cells
+  behave the same way on the days they are masked. Nothing "drops out" for want of
+  valid SST. (Wording of record, lofra-mini 2026-09-30, who found it from the data:
+  the sealed area_frac reproduces only under this reading.)
+* **Obar is signed and unclamped** (SDL-030), faithful to Oliver's marineHeatWaves /
+  heatwaveR. In the 20260722 vintage the negatives are **4 daily + 1 monthly** —
+  chukchi daily 2, beaufort daily 2, beaufort monthly 1; no other zone, most negative
+  -0.0248. Do not state that as "five values": it is a total across two series.
+  Anything that log-transforms Obar, takes a rate magnitude, or filters >= 0 will
+  mis-handle them.
+
 Equations from mhw_README.md Section 7:
     area_frac  = Σ(w·A) / Σ(w)            (sum over region mask cells)
     Xbar       = Σ(w·X·A) / Σ(w·A)        (conditional mean, zero when Σ(w·A)=0)
