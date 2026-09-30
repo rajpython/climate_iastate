@@ -1,0 +1,186 @@
+{
+  "recipe": "theta90 transposed to (doy, lat, lon) ascending, cast '<f4', C-contiguous, NaN PRESERVED (not filled); sha256 of the raw buffer",
+  "measured_utc": "2026-09-30",
+  "zones": {
+    "ai": {
+      "sha256": "07d4e2ba809f9c5d93d7ed47e8607173be631d0d91abdba3bcbadef6a7a481a5",
+      "shape": [
+        366,
+        33,
+        113
+      ],
+      "attrs": {
+        "region": "ai",
+        "baseline_start": "1991",
+        "baseline_end": "2020",
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        "created": "2026-07-15"
+      }
+    },
+    "ai_central": {
+      "sha256": "d919bd84e746da61f6b539cd48944e09afe745b87db84aacfa4d45ebc37b4374",
+      "shape": [
+        366,
+        31,
+        52
+      ],
+      "attrs": {
+        "region": "ai_central",
+        "baseline_start": "1991",
+        "baseline_end": "2020",
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        "created": "2026-07-15"
+      }
+    },
+    "ai_east": {
+      "sha256": "45445ad987a838f332f2c33d720e9dd101b7344f4861277d94b904449d746ae2",
+      "shape": [
+        366,
+        23,
+        24
+      ],
+      "attrs": {
+        "region": "ai_east",
+        "baseline_start": "1991",
+        "baseline_end": "2020",
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        "created": "2026-07-15"
+      }
+    },
+    "ai_west": {
+      "sha256": "b61ac63e4f5d161c207bdbb80087603fda1a962b6d847441b709ec4480d61dd8",
+      "shape": [
+        366,
+        32,
+        37
+      ],
+      "attrs": {
+        "region": "ai_west",
+        "baseline_start": "1991",
+        "baseline_end": "2020",
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        "created": "2026-07-15"
+      }
+    },
+    "beaufort": {
+      "sha256": "e420a2e34650179b5bd3d1f97b0169350fb07d66eabce4850876ba9ee027dad6",
+      "shape": [
+        366,
+        20,
+        62
+      ],
+      "attrs": {
+        "region": "beaufort",
+        "baseline_start": "1991",
+        "baseline_end": "2020",
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        "created": "2026-07-15"
+      }
+    },
+    "chukchi": {
+      "sha256": "94a3d793cc2846b2307261c91b110a7f91e076b6e74ea60123e6e116a5f8ddb9",
+      "shape": [
+        366,
+        35,
+        50
+      ],
+      "attrs": {
+        "region": "chukchi",
+        "baseline_start": "1991",
+        "baseline_end": "2020",
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        "created": "2026-07-15"
+      }
+    },
+    "ebs": {
+      "sha256": "18c9bcd31827f4064bcd93676edb646804d31dff3cb02b56f7fa7f8bf6f38bd2",
+      "shape": [
+        366,
+        45,
+        91
+      ],
+      "attrs": {
+        "region": "ebs",
+        "baseline_start": "1991",
+        "baseline_end": "2020",
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        "created": "2026-07-15"
+      }
+    },
+    "egoa": {
+      "sha256": "09569ea190adedcadb075e5044bafc8b3efef5f938a6b07aecc09f46f5acd2fc",
+      "shape": [
+        366,
+        31,
+        68
+      ],
+      "attrs": {
+        "region": "egoa",
+        "baseline_start": "1991",
+        "baseline_end": "2020",
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        "created": "2026-07-15"
+      }
+    },
+    "goa": {
+      "sha256": "367168a95ed40526c83d383d0fe4ee0bfbcdbe5147accfde4b82c8903a4fe158",
+      "shape": [
+        366,
+        44,
+        136
+      ],
+      "attrs": {
+        "region": "goa",
+        "baseline_start": "1991",
+        "baseline_end": "2020",
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        "created": "2026-07-15"
+      }
+    },
+    "nbs": {
+      "sha256": "1273b02b7c6f55d27c5c293976101c6af05c6f12eb20ddaa2ed645ed6e4035ca",
+      "shape": [
+        366,
+        23,
+        76
+      ],
+      "attrs": {
+        "region": "nbs",
+        "baseline_start": "1991",
+        "baseline_end": "2020",
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        "created": "2026-07-15"
+      }
+    },
+    "sebs": {
+      "sha256": "f79023eeae233e0e4941cf3a2fe06f83ea33fadff6130aac8a9adbb5f269af58",
+      "shape": [
+        366,
+        25,
+        91
+      ],
+      "attrs": {
+        "region": "sebs",
+        "baseline_start": "1991",
+        "baseline_end": "2020",
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        "created": "2026-07-15"
+      }
+    },
+    "wgoa": {
+      "sha256": "2dcc1bf0cb728d37559a6ede8f2b4894626ab2db7f150b5d152665c154504a69",
+      "shape": [
+        366,
+        44,
+        68
+      ],
+      "attrs": {
+        "region": "wgoa",
+        "baseline_start": "1991",
+        "baseline_end": "2020",
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        "created": "2026-07-15"
+      }
+    }
+  }
+}

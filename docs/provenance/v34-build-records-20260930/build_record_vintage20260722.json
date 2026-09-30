@@ -1,0 +1,139 @@
+{
+  "record_type": "producer build record",
+  "producer": "Alaska Marine Heatwave Data Project (dashboard cell; repo climate_iastate)",
+  "written": "2026-09-30",
+  "covers_snapshots": [
+    "snap-mhw-hobday-consecutive-20260722",
+    "snap-mhw-hobday-consecutive-20260722-pkg2",
+    "snap-audit5-theta90-percell-20260725",
+    "region_masks.zarr"
+  ],
+  "vintage_id": "mhw-hobday-consecutive-20260722",
+
+  "pipeline": {
+    "identifier": "mhw-state-dashboard",
+    "version": "0.1.0",
+    "repo": "climate_iastate",
+    "stages_in_order": [
+      "mhw-build-masks        (mhw.regions.masks)      -> region_masks.zarr + weights.zarr",
+      "mhw-build-climatology  (mhw.climatology.build_mu_theta) -> mu.zarr / theta90.zarr per zone",
+      "mhw-backfill           (mhw.states.update_states)  -> per-cell state arrays x,A,D,I,C,O",
+      "mhw-aggregate          (mhw.states.aggregates)     -> per-zone daily area_frac,Ibar,Dbar,Cbar,Obar"
+    ],
+    "commits_of_record": {
+      "detection_engine": {
+        "commit": "4b7e8984a2785eea1b99671d796f49e1b42b8206",
+        "note": "captures the exact runtime bytes that produced this vintage (the build ran direct-to-VM before this landed on main)",
+        "src/mhw/states/update_states.py": "76a4f6182bb868357bacc217136900dbcc5c2897d7a1fbc851f70d069b5af241",
+        "config/climatology.yml": "2be665701e7b2a9fa60c86c435a6b80c98b766d48225e4a5d4b6f2656cce518c"
+      },
+      "climatology_smoothing": {
+        "commit": "ad3eddfe7e83c4b3a8d590ded00600502d6b3fba",
+        "src/mhw/climatology/build_mu_theta.py": "7ba6df9321cd05096c973729496328f0fb06d4aad311bc5e6ecfd7c6c0de1278",
+        "src/mhw/climatology/smooth_doy.py": "b16f58045cd2c988781cfdcd722410a9df1495bfa7c392d1efe398a0949f33ca"
+      },
+      "aggregation": {
+        "src/mhw/states/aggregates.py": "18182171af3d9666eb78745b9122c81ba2f7ba1d1dfdb467c7f29386123d0d5b",
+        "note": "byte-identical at HEAD 2026-09-30; unchanged since the build"
+      },
+      "masks": {
+        "commit": "74176b3 (config/regions.geojson, 2026-07-01, last geometry change)",
+        "src/mhw/regions/masks.py": "5917bd6304a87284d8769f604c7905a8f3f1131875d97403ccf0a4f74b0a8eec",
+        "src/mhw/regions/weights.py": "b5cd63bf141f35e9ef1357298a92120ac0be5b98d0d33c24b43c18e1cb758041",
+        "note": "both byte-identical at HEAD 2026-09-30; unchanged since the build"
+      }
+    },
+    "drift_since_build": "src/mhw/climatology/build_mu_theta.py changed once after the build (commit 9632bae, 2026-08-17) to stamp the canonical OISST provenance string per the admin ruling. No algebra touched; no data rebuilt."
+  },
+
+  "input": {
+    "dataset": "NOAA OISST v2.1 Final, AVHRR-Only",
+    "canonical_provenance_string": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)",
+    "endpoint": "https://coastwatch.pfeg.noaa.gov/erddap/griddap/ncdcOisst21Agg",
+    "variables": ["sst", "ice"],
+    "pull_current_year": "2026-07-21T22:14:39Z (forced --no-cache refetch of 2026, all 12 zones)",
+    "pull_historical": "2026-06-29 (1982-2025; OISST Final is immutable, verified fresh-vs-cached diff = 0 cells for 2010 and 2025)",
+    "final_through": "2026-07-01",
+    "n_files": 540,
+    "aggregate_sha256": "01ee85ae7c889dbcbc32613530967454b5115983d646c18398ca608dd2054d47",
+    "aggregate_sha256_recipe": "sha256( '\\n'.join(sorted('<basename>:<sha256>')) ), no trailing newline",
+    "reverified": "2026-09-30 — recomputed from the producer cache; 540 files, aggregate reproduces EXACTLY. Per-file list shipped as oisst_input_file_shas_vintage20260722.txt."
+  },
+
+  "definition_applied": {
+    "reference": "Hobday et al. (2016)",
+    "baseline": "1991-2020 (30-year climate normal)",
+    "series_span": "1982-01-01 to 2026-07-01",
+    "grid": "OISST 0.25 deg",
+    "climatology": {
+      "step_1": "for each day-of-year d, pool SST from DOY in [d-5, d+5] (11-day window, wrap-around) across the 30 baseline years; mu(d) = mean, theta90(d) = 90th percentile",
+      "step_2": "smooth BOTH mu(d) and theta90(d) with a 31-day centred day-of-year rolling mean (wrap-around)",
+      "leap_day": "DOY 366 kept; stabilised by the smoothing window",
+      "ice_masking": "SST set NaN where the OISST ice fraction exceeds 0.15, applied identically when building the baseline and when detecting daily exceedance"
+    },
+    "detection": {
+      "exceedance": "x = max(0, SST - theta90); exceedance day iff x > 0",
+      "qualification_mode": "consecutive_first",
+      "step_1": "keep runs of >= 5 CONSECUTIVE exceedance days",
+      "step_2": "then merge two kept events separated by a gap of <= 2 days; absorbed gap days become part of the event",
+      "note": "the >= 5 test applies to consecutive exceedance BEFORE any bridging. This is the letter of Hobday et al. (2016) and what heatwaveR / Oliver's marineHeatWaves implement. The legacy 'bridged_run' mode, which let events confirm on as few as 2 consecutive days, was corrected 2026-07-20 and no shipped result uses it.",
+      "A": "1 on every day of a confirmed (possibly merged) event, counted from the event's physical start"
+    },
+    "intensity_reference": {
+      "mode": "climatological_mean",
+      "I": "I = SST - mu, the SIGNED anomaly above the seasonal climatological mean (heatwaveR 'relSeas'), NOT clamped at 0 and NOT referenced to theta90",
+      "note": "Hobday et al. (2016) Table 2 defines i_max / i_mean / i_cum relative to the seasonal mean. The clamp is omitted so i_mean, i_cum and the onset start-edge term match the reference implementation exactly."
+    }
+  },
+
+  "columns": {
+    "aggregation_equations": {
+      "area_frac": "area_frac[t] = sum_g(w_g * A_g[t]) / sum_g(w_g), summed over the zone's mask cells, w_g = cos(lat)",
+      "conditional_mean": "Xbar[t] = sum_g(w_g * X_g[t] * A_g[t]) / sum_g(w_g * A_g[t]); Xbar[t] = 0 when the denominator is 0 (no active cells)"
+    },
+    "area_frac": {"units": "fraction", "range": "[0, 1]", "meaning": "cos(lat)-weighted fraction of the zone's grid cells in a confirmed active MHW on day t"},
+    "Ibar": {"units": "degC", "meaning": "weighted mean over active cells of I = SST - mu (signed, unclamped)"},
+    "Dbar": {"units": "days", "meaning": "weighted mean over active cells of D, the 1-based day index within the cell's current event (D on the event's last day == Hobday duration = te - ts + 1)"},
+    "Cbar": {"units": "degC.days", "meaning": "weighted mean over active cells of C, the running cumulative sum of I from the event start (C on the event's last day == Hobday i_cum). Signed, because I is signed."},
+    "Obar": {"units": "degC/day", "meaning": "weighted mean over active cells of O, the Hobday onset rate, placed on the event's START day: O = (i_peak - i_start_edge) / ((t_peak - ts) + 0.5) with i_start_edge = 0.5 * (I[ts] + I[ts-1]). O = 0 on all other days; O = 0 for an event truncated at the series start (Hobday reports NA).",
+      "caveat": "SIGNED AND UNCLAMPED in this vintage (SDL-030). Five negative values exist, all in Chukchi/Beaufort. Anything that log-transforms Obar, takes a rate magnitude, or filters >= 0 will mis-handle them. This is faithful to Oliver's marineHeatWaves and heatwaveR, verified against both sources."},
+    "date_column": {"name": "date", "daily": "YYYY-MM-DD", "monthly": "YYYY-MM-01 (a first-of-month date, NOT a year_month period)"},
+    "monthly_rule": "calendar-month mean of the daily series",
+    "monthly_terminal_caveat": "the 2026-07 monthly point is the mean of a single day (2026-07-01), because the series ends there. Do not read it as a collapse."
+  },
+
+  "zones": {
+    "partition": ["sebs", "nbs", "wgoa", "egoa", "ai_west", "ai_central", "ai_east", "chukchi", "beaufort"],
+    "rollups_not_partition_members": {"ebs": ["sebs", "nbs"], "goa": ["wgoa", "egoa"], "ai": ["ai_west", "ai_central", "ai_east"]},
+    "definition_credit": "ecosystem subareas of NOAA AFSC Ecosystem Status Reports (Ortiz and Zador 2024); Chukchi and Beaufort are the NPFMC Arctic Management Area (US EEZ, Marine Regions MRGID 8463), split at Point Barrow 156.47 W"
+  },
+
+  "licence": {
+    "licence": "CC BY 4.0",
+    "licensor": "Singh, R. (Alaska Marine Heatwave Data Project)",
+    "covers": [
+      "snap-mhw-hobday-consecutive-20260722",
+      "snap-mhw-hobday-consecutive-20260722-pkg2",
+      "snap-audit5-theta90-percell-20260725",
+      "region_masks.zarr",
+      "the July-excluded monthly shims derived from the two predictand packages"
+    ],
+    "citation": "Singh, R. (2026). Nine-zone Alaska marine-heatwave series. Alaska Marine Heatwave Data Project. Derived from NOAA OISST v2.1 under the Hobday et al. (2016) definition. Version snap-mhw-hobday-consecutive-20260722. Licensed CC BY 4.0.",
+    "doi": null,
+    "doi_note": "No DOI or landing identifier exists. The vintage id is the version identifier. If a DOI is minted before publication it will be sent in this thread to swap in.",
+    "third_party_terms_not_merged": ["NOAA OISST v2.1 (DOI 10.25921/RE9P-PT57)", "ECMWF SEAS5", "ECMWF ORAS5", "NOAA CPC/PSL climate indices", "NOAA NCEI ETOPO 2022"],
+    "licence_file": "LICENSE-data-CC-BY-4.0.txt (shipped alongside this record)"
+  },
+
+  "exclusivity_of_reconstruction": {
+    "claim": "no script outside this pipeline reconstructs the nine-zone series from OISST",
+    "verified": "2026-09-30, by inspection of every caller in the repo",
+    "sole_production_path": "mhw.states.update_states.run_state_engine / backfill_main -> mhw.states.aggregates.aggregate_region. The detection functions (qualify_mhw_events, active_flag_from_exc, finalize_events_grid) have exactly one production caller and are otherwise referenced only by tests/test_states.py.",
+    "nearby_code_that_is_NOT_a_reconstruction": [
+      "scripts/validate_onset_vs_marineheatwaves.py — runs Oliver's verbatim marineHeatWaves detection+onset on the ALREADY-BUILT theta90/mu and I for one cell, to cross-validate the engine. It consumes derived products; it does not read OISST and does not build a series.",
+      "src/mhw/forecast/exceedance.py — consumes (theta90 - mu) as a threshold for a forecast product. Does not produce the predictand and is not wired to the board.",
+      "src/mhw/fetch/psl_mhw.py — downloads NOAA PSL's own published MHW probability product. A third-party forecast field, not our series.",
+      "src/dashboard/, src/api/ — read the generated parquet/zarr only."
+    ]
+  }
+}
