@@ -56,3 +56,17 @@ carry the stale variable-level attribute `source = "NOAA PSL THREDDS OPeNDAP"`; 
 literal** (build commit `c919050`, line 527) never derived from the fetch, whose only remote open is PFEG
 `ncdcOisst21Agg` (line 228). Confirmed live: a PFEG re-pull of `ai_east` 2020 today is **byte-identical** to the
 cached file the sealed θ90 was built from.
+
+## Four-cell census 2026-09-30 (`…-20260930-03`, to admin)
+
+Read-only `find` + `shasum` across the other cells' trees (no writes, A-09 observed):
+
+| Holder | All 31 files vs canonical |
+|---|---|
+| dashboard | canonical (reference) |
+| lofra-m1 (`mhw-lifecycle/data/scratch/masks_extract/…`) | **byte-identical, 31/31** |
+| lofra-m4 (`mhw-bvar-lim/data/raw/nsidc-sic/masks_work/…`) | **byte-identical, 31/31** |
+| lofra-mini (`obl028-unpack/…`) | 27/31 — the 4 combined-zone chunks are pre-fix |
+
+One stale copy in one unpack directory, not a programme-wide drift. The cells that consume masks in their
+modelling are already on the canonical store, so no m1/m4 work needs revisiting.
