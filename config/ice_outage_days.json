@@ -1,5 +1,5 @@
 {
- "_comment": "Days on which the OISST v2.1 sea-ice field is ABSENT. Read by mhw.climatology.ice_outage; on these days ice status is taken from the bracketing non-outage days (see that module). Found 2026-10-01 after lofra-mini's pre-rerun completeness audit (mini-to-dashboard-cc-admin-m1-m4-20261001-05).",
+ "_comment": "Days on which the OISST v2.1 sea-ice field is ABSENT. Read by mhw.climatology.ice_outage; on these days ice status is taken from the bracketing non-outage days (see that module). Found 2026-10-01; regional 2024-04 entry withdrawn 2026-10-01 (see 'withdrawn') after lofra-mini's pre-rerun completeness audit (mini-to-dashboard-cc-admin-m1-m4-20261001-05).",
  "global": {
   "days": [
    "1987-12-06",
@@ -177,29 +177,19 @@
   "evidence": "NCEI per-day OISST v2.1 global files (oisst-avhrr-v02r01.<YYYYMMDD>.nc): ZERO finite ice values on the whole globe, both hemispheres, including north of 80N where the pack is present every day of the year. Tested on all 702 days on which the Chukchi or Beaufort zone file has no ice value; the split is clean (171 days with 0 ice values north of 80N; every other candidate has >= 1000). The same days are ice-blank in the PFEG-derived zone files.",
   "count": 171
  },
- "regional": [
-  {
-   "days": [
-    "2024-04-22",
-    "2024-04-23",
-    "2024-04-24",
-    "2024-04-25",
-    "2024-04-26"
-   ],
-   "zones": [
-    "beaufort",
-    "chukchi",
-    "ebs",
-    "goa",
-    "nbs",
-    "sebs",
-    "wgoa"
-   ],
-   "evidence": "Ice field empty in the zone on all five days while the zone carries ice values on 2024-04-21 and 2024-04-27 (e.g. Beaufort 1079 and 1079 cells, nbs 1271 and 1255); the global field still has Arctic ice, so this is a regional outage. Zones listed = every zone with ice values on both bracketing days and none on the five days. Found by scanning all 12 zones x all days: no other regional outage in the record (a zone's ice field empty while >= 50% of its cells carry ice on both bracketing days)."
-  }
- ],
+ "regional": [],
  "not_outages": {
   "days": "Beaufort/Chukchi ice-free spells in late summer/autumn (e.g. Sep 2017, 2019, 2023, 2024, Sep-Oct 2025)",
   "why": "the global ice field is present (central-Arctic pack values north of 80N) and the zone is genuinely open water; OISST writes no ice value over open water. Left as observed."
+ },
+ "withdrawn": {
+  "days": [
+   "2024-04-22",
+   "2024-04-23",
+   "2024-04-24",
+   "2024-04-25",
+   "2024-04-26"
+  ],
+  "why": "NOT an outage. NCEI re-issued these five files on 2024-06-05 (Last-Modified); the re-issued files carry the ice field (e.g. 2024-04-24: nbs 1,287 ice cells, beaufort 1,079) and different SST (max |dSST| 3.0 degC). The producer cache, ERDDAP ncdcOisst21Agg and PSL all hold the superseded version. Found by lofra-mini's Quantica server check (2026-10-01); confirmed by admin and by the producer's re-issue census. Fixed in vintage #5 by REPLACING the five days from NCEI (mhw-splice-ncei --replace), not by the outage rule."
  }
 }

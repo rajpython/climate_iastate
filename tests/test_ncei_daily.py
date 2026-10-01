@@ -72,3 +72,29 @@ def test_splice_refuses_a_day_the_cache_already_holds():
     c = _cache(["2026-07-01", "2026-07-02"])
     with pytest.raises(ValueError, match="already holds"):
         splice(c, [subset_day(_global_day("2026-07-02", 9.0), c.lat.values, c.lon.values)])
+
+
+def test_replace_swaps_only_the_named_day_and_keeps_the_axis():
+    from mhw.fetch.ncei_daily import replace
+    c = _cache(["2024-04-21", "2024-04-22", "2024-04-23"])
+    new = subset_day(_global_day("2024-04-22", 3.0), c.lat.values, c.lon.values)
+    out = replace(c, [new])
+    assert np.array_equal(out.time.values, c.time.values)
+    assert np.nanmax(out.sst.values[1]) == 3.0
+    assert np.array_equal(out.sst.values[[0, 2]], c.sst.values[[0, 2]])
+    assert np.nanmax(c.sst.values[1]) == 0.0          # input not mutated
+
+
+def test_replace_refuses_a_day_the_cache_does_not_hold():
+    from mhw.fetch.ncei_daily import replace
+    c = _cache(["2024-04-21"])
+    with pytest.raises(ValueError, match="cannot replace"):
+        replace(c, [subset_day(_global_day("2024-04-22", 3.0), c.lat.values, c.lon.values)])
+
+
+def test_day_sha256_sees_a_changed_day():
+    from mhw.fetch.ncei_daily import day_sha256, replace
+    c = _cache(["2024-04-21", "2024-04-22"])
+    out = replace(c, [subset_day(_global_day("2024-04-22", 3.0), c.lat.values, c.lon.values)])
+    assert day_sha256(c, date(2024, 4, 21)) == day_sha256(out, date(2024, 4, 21))
+    assert day_sha256(c, date(2024, 4, 22)) != day_sha256(out, date(2024, 4, 22))
