@@ -2,7 +2,8 @@
 score each candidate against the real field. Run from the repo root: python scripts/ice_outage_rule_backtest.py
 The chosen rule (F: interpolated ice, open water above 2 degC) is in mhw.climatology.ice_outage."""
 import numpy as np  # noqa: F401  (kept explicit for readers)
-import numpy as np, pandas as pd, xarray as xr
+import pandas as pd
+import xarray as xr
 TH = 0.15
 def load(z, y0, y1):
     S, I, T = [], [], []
