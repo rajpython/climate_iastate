@@ -1,0 +1,62 @@
+{
+ "sebs": {
+  "cell_days": 3,
+  "days": 1,
+  "max_cells_one_day": 3
+ },
+ "nbs": {
+  "cell_days": 6,
+  "days": 3,
+  "max_cells_one_day": 3
+ },
+ "wgoa": {
+  "cell_days": 1,
+  "days": 1,
+  "max_cells_one_day": 1
+ },
+ "egoa": {
+  "cell_days": 0,
+  "days": 0,
+  "max_cells_one_day": 0
+ },
+ "ai_west": {
+  "cell_days": 0,
+  "days": 0,
+  "max_cells_one_day": 0
+ },
+ "ai_central": {
+  "cell_days": 0,
+  "days": 0,
+  "max_cells_one_day": 0
+ },
+ "ai_east": {
+  "cell_days": 0,
+  "days": 0,
+  "max_cells_one_day": 0
+ },
+ "chukchi": {
+  "cell_days": 9,
+  "days": 7,
+  "max_cells_one_day": 2
+ },
+ "beaufort": {
+  "cell_days": 0,
+  "days": 0,
+  "max_cells_one_day": 0
+ },
+ "ebs": {
+  "cell_days": 7,
+  "days": 3,
+  "max_cells_one_day": 4
+ },
+ "goa": {
+  "cell_days": 1,
+  "days": 1,
+  "max_cells_one_day": 1
+ },
+ "ai": {
+  "cell_days": 0,
+  "days": 0,
+  "max_cells_one_day": 0
+ }
+}
