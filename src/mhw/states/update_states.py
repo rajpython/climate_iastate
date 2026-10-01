@@ -44,6 +44,7 @@ from mhw.climatology.build_mu_theta import (
     fetch_year,
     year_cache_stale,
 )
+from mhw.climatology.ice_outage import apply_ice_outages
 
 # ---------------------------------------------------------------------------
 # Derived paths
@@ -485,7 +486,9 @@ def run_state_engine(
         yr_date_to_i = {d: i for i, d in enumerate(yr_dates)}
 
         sst_vals = ds_yr["sst"].values  # (n_time, n_lat, n_lon)
-        ice_vals = ds_yr["ice"].values
+        # Ice-field outage days: blank ice means "unknown", not "open water" -- the
+        # SAME substitution the baseline uses (mhw.climatology.ice_outage).
+        ice_vals = apply_ice_outages(region_id, ds_yr)
 
         # Verify grid alignment
         if sst_vals.shape[1:] != (n_lat, n_lon):

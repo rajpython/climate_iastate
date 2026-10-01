@@ -72,6 +72,7 @@ dev = [
 [project.scripts]
 mhw-fetch-sst = "mhw.fetch.oisst:main"
 mhw-splice-ncei = "mhw.fetch.ncei_daily:main"
+mhw-ice-outage-report = "mhw.climatology.ice_outage:main"
 mhw-fetch-indices = "mhw.fetch.indices:main"
 mhw-fetch-coldpool = "mhw.fetch.coldpool:main"
 mhw-fetch-catch = "mhw.fetch.foss_catch:main"

@@ -24,6 +24,8 @@ from pathlib import Path
 
 import numpy as np
 import xarray as xr
+
+from mhw.climatology.ice_outage import apply_ice_outages
 import yaml
 
 from mhw.climatology.smooth_doy import compute_mu_theta, doy_window, smooth_doy_field
@@ -280,7 +282,8 @@ def build_climatology(
 
         ds = fetch_year(region_id, year, bbox, remote_ds, use_cache=use_cache)
         sst = ds["sst"].values.astype(np.float32)   # (days, lat, lon)
-        icec = ds["ice"].values.astype(np.float32)
+        # Ice-field outage days: blank ice means "unknown", not "open water" (ice_outage.py).
+        icec = apply_ice_outages(region_id, ds)
 
         if lats is None:
             lats = ds["lat"].values
