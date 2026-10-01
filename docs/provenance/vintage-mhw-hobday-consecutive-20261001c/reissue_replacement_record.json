@@ -1,0 +1,486 @@
+{
+ "per_day": [
+  {
+   "zone": "sebs",
+   "day": "2024-04-22",
+   "old_day_sha256": "a8dc5974ae4306a8ceb096ff45d8ae3aa7936ea86b651630691e61239acecc90",
+   "new_day_sha256": "7621e5c7aa7c4f389c5f570e9a7cfdcca3665d0dd9bcc1e80c6103a2ea2073ac",
+   "max_abs_dsst": 1.5199999809265137
+  },
+  {
+   "zone": "sebs",
+   "day": "2024-04-23",
+   "old_day_sha256": "b09a03bb23701b082eb6920f73705f56784cd3e3205ac111f4930fca7d04c586",
+   "new_day_sha256": "73425b507d7a04f5f5e12a340685eef90c56c321f9bf538108a5de588a2ae6bd",
+   "max_abs_dsst": 2.809999942779541
+  },
+  {
+   "zone": "sebs",
+   "day": "2024-04-24",
+   "old_day_sha256": "2ab1800cea26ba98d603fd1d3af047d81013c1f61a5ba94c5a302172c08f09db",
+   "new_day_sha256": "c7a8b9fc845c03be191bf7ede18ce5dec2f777c18221c39f36a6e773c7f25fbb",
+   "max_abs_dsst": 3.0
+  },
+  {
+   "zone": "sebs",
+   "day": "2024-04-25",
+   "old_day_sha256": "1d1453c20185b55a8d6c5015ef1c26fcf13a4fe1bfef017af12caf9cc9bb27fb",
+   "new_day_sha256": "a616a233c2962d0024dad28bc307c91b13ad3b784609adeee0ecea88c680607c",
+   "max_abs_dsst": 1.7300000190734863
+  },
+  {
+   "zone": "sebs",
+   "day": "2024-04-26",
+   "old_day_sha256": "35cd87c1cfb2ffa36f44e51bfa99374cab351a17712e6632e3bae073e2dcb502",
+   "new_day_sha256": "34eed85739f80b7461e924dc19cc41d9d86ca16065fa871ad348ae9633e933a8",
+   "max_abs_dsst": 1.9300000667572021
+  },
+  {
+   "zone": "nbs",
+   "day": "2024-04-22",
+   "old_day_sha256": "2b57ac0925197498b873dcb4c815f8724bb11298e158feff4ba5bf42a0195388",
+   "new_day_sha256": "0604f10852db8335bd410225eea9f094777d57b65710256292d185b7456d5ac5",
+   "max_abs_dsst": 1.5199999809265137
+  },
+  {
+   "zone": "nbs",
+   "day": "2024-04-23",
+   "old_day_sha256": "2fa11fef4b200a5ffb1ab9fa6bfeb125798d441cc3f887a9bc22e1676fa7584e",
+   "new_day_sha256": "a7cbf78800da74e80a98edced11fc22d56bb525a39ed271d0271565bbba01a0d",
+   "max_abs_dsst": 2.809999942779541
+  },
+  {
+   "zone": "nbs",
+   "day": "2024-04-24",
+   "old_day_sha256": "2f887ecf676828ecb04c50545c16dd40ffa4f16d20ce671b46c0750c34900694",
+   "new_day_sha256": "f684dc76701ee4da3ef978e848e5edf5d5c3a913bfecb152e6f91f049d5e0386",
+   "max_abs_dsst": 3.0
+  },
+  {
+   "zone": "nbs",
+   "day": "2024-04-25",
+   "old_day_sha256": "7d0f0e82ae901c087e19d9faf7526f3f755badc163033d23ef225c6f0fcc1544",
+   "new_day_sha256": "d0c95bee9f700057d71c0cfdb5cf0f9a292efacc6da4face972eb4aaa7a0199b",
+   "max_abs_dsst": 1.7300000190734863
+  },
+  {
+   "zone": "nbs",
+   "day": "2024-04-26",
+   "old_day_sha256": "a56852f925d613f00db100a63517527c9986d8d815a486d4a8d039798d819988",
+   "new_day_sha256": "f48f27ac245b71a14a0eff7d0842847c18eba8c8656c5d85ad52f7eb51c6df1d",
+   "max_abs_dsst": 2.2100000381469727
+  },
+  {
+   "zone": "wgoa",
+   "day": "2024-04-22",
+   "old_day_sha256": "d7ffd96fea461574d01e71df67792bde285a5c0edcb076dec8a2cc61f3ccec8a",
+   "new_day_sha256": "205c00ed163f422a361dd51e27dfe8d51e84a9c19dd6751674bd452f1bea0d87",
+   "max_abs_dsst": 1.0699999332427979
+  },
+  {
+   "zone": "wgoa",
+   "day": "2024-04-23",
+   "old_day_sha256": "9dab3a8183dcae080cde0fdec39690917b43a5a750a95ec9475914bef31b7e31",
+   "new_day_sha256": "d3b3fb77ee79f1155dca6097a6d464dba25e64d7b813c8b4d4a2c9771e9c8e4f",
+   "max_abs_dsst": 1.239999771118164
+  },
+  {
+   "zone": "wgoa",
+   "day": "2024-04-24",
+   "old_day_sha256": "4a7bef6e7e57eda428fbd49539d30b2422e716ac7a44777bb22803c5da6be28c",
+   "new_day_sha256": "740d46adedc361bce4c51adf745ec6cb0d4d958923e30b4ae789fb9a4e3b195c",
+   "max_abs_dsst": 1.1299998760223389
+  },
+  {
+   "zone": "wgoa",
+   "day": "2024-04-25",
+   "old_day_sha256": "8dbe13bca14fb4d42e43f96801719c77e598595f432ed87d90d3eeafd73446fd",
+   "new_day_sha256": "4db1ad160607199909f45c07f7131f1b227ada040c8d378f98267d9a007c2144",
+   "max_abs_dsst": 1.5799999237060547
+  },
+  {
+   "zone": "wgoa",
+   "day": "2024-04-26",
+   "old_day_sha256": "954a1cfa60fb75bd92544ba9b01f2650e811ce9d7573cdb2a06ddfdbe3a43713",
+   "new_day_sha256": "0a2475cc8424d7aee9c42c2fcf378733d7e9d541faf8637b6323791356127f33",
+   "max_abs_dsst": 1.9300000667572021
+  },
+  {
+   "zone": "egoa",
+   "day": "2024-04-22",
+   "old_day_sha256": "1457d7e831016b3d85652415e17fcdbea02ee09b0d6ca9a5e083599376c602a2",
+   "new_day_sha256": "efafb21fa95151d7227fed92a6122450a751073ff6d879bc0c9cd1f262c900a1",
+   "max_abs_dsst": 1.5
+  },
+  {
+   "zone": "egoa",
+   "day": "2024-04-23",
+   "old_day_sha256": "f4b8daefe014763bc833416d24f5e39272bd0b30df11c3c5b491137ca04aefd8",
+   "new_day_sha256": "3608037d9f0b47168c2e4add4d44eef0f0638268e5efa77a663d8dbbfed61ccf",
+   "max_abs_dsst": 0.7799997329711914
+  },
+  {
+   "zone": "egoa",
+   "day": "2024-04-24",
+   "old_day_sha256": "bfda78f4b335200fe2e336f6d5c12d4db726390644146c92b8a89ee893e51671",
+   "new_day_sha256": "5e966454af41672cfe7277d4049a155ebd755ef213579713a4a9cfb0dffd1a1b",
+   "max_abs_dsst": 0.37999963760375977
+  },
+  {
+   "zone": "egoa",
+   "day": "2024-04-25",
+   "old_day_sha256": "aab0608e9bd8afdb248a661a410ab8943ae0493e18abdbefac5420e48228776f",
+   "new_day_sha256": "e3f71e4656691d7cdc8e0dff542cd22232809c3975823ef3783ef0291a967ae6",
+   "max_abs_dsst": 0.75
+  },
+  {
+   "zone": "egoa",
+   "day": "2024-04-26",
+   "old_day_sha256": "a3ea01e31db695d7ce085e19d81e0579c7e0add8531dcbbba19f9cdbd2d2424b",
+   "new_day_sha256": "a0fc28722afea1e42e931bb55bdc84dfa096d4a262f54163d9a3beea01ef365c",
+   "max_abs_dsst": 0.4400005340576172
+  },
+  {
+   "zone": "ai_west",
+   "day": "2024-04-22",
+   "old_day_sha256": "f70ce99f908b9f1a87b81a9cfcefe4ed7e48770dbabb901bee343c82b8ef3c93",
+   "new_day_sha256": "b35b13a52aacc4e2b5a23a43043ce7215f0cfd6a6f39d023bed9852e1c73575f",
+   "max_abs_dsst": 0.5
+  },
+  {
+   "zone": "ai_west",
+   "day": "2024-04-23",
+   "old_day_sha256": "07907586b1d9ed52b1595f1c5aca4e375a5ba2a60ce01647b7dd993f55f45d30",
+   "new_day_sha256": "e5432b084b0a479e9458902f13c4b851ee3d5d7c17442e8a3687813256655a5f",
+   "max_abs_dsst": 0.570000171661377
+  },
+  {
+   "zone": "ai_west",
+   "day": "2024-04-24",
+   "old_day_sha256": "629ece556c51bbf91e212fed207ae0348af92080e503e6e450c911cf2ec9a1e9",
+   "new_day_sha256": "e7feef81c0643403f1d15f9779653646719ade2a1a9c774bad5387f2fc8c79a3",
+   "max_abs_dsst": 0.4500000476837158
+  },
+  {
+   "zone": "ai_west",
+   "day": "2024-04-25",
+   "old_day_sha256": "b3a11cfd16c0ad3fba1f24af54bdc187028de24548b1040fa65199d11ef30253",
+   "new_day_sha256": "81484c145ddc2e9a20b90cc900fba211754dd0bf38c302dbd43ca3ca3ac6950e",
+   "max_abs_dsst": 0.4799997806549072
+  },
+  {
+   "zone": "ai_west",
+   "day": "2024-04-26",
+   "old_day_sha256": "e26dbac8aca4982f95bc9d47aef549c107834447e19b2908a95a722b2ae5b2a5",
+   "new_day_sha256": "d99ea1d166ea2496ae1d88830bd24b3a9ccb870e419fcdaba3d868fae0d68928",
+   "max_abs_dsst": 0.5399999618530273
+  },
+  {
+   "zone": "ai_central",
+   "day": "2024-04-22",
+   "old_day_sha256": "99ba0286aef41d750648d05ef3435699b107e2b5de0e36882521bd27cf90bfa2",
+   "new_day_sha256": "b0e9f01f2a0dc42ef520cf5438f86b328da2a196c2ad0cde980706c98c0d509a",
+   "max_abs_dsst": 0.9900000095367432
+  },
+  {
+   "zone": "ai_central",
+   "day": "2024-04-23",
+   "old_day_sha256": "11dac187a58981e99d7fce7fafde2a58a5ea513c6145f7eb74b5ffae2051eb05",
+   "new_day_sha256": "fb078f929911ba35683f656c6aa1808c088092b2ec324cc017dc200081145086",
+   "max_abs_dsst": 0.24000000953674316
+  },
+  {
+   "zone": "ai_central",
+   "day": "2024-04-24",
+   "old_day_sha256": "c6e292c090dc14428c5f2c5b86f51f82c9c9cd588d9c7d12e373d66526867dac",
+   "new_day_sha256": "f030cee1862bce688d3e98f7243d271dba595d2b9106b8d06498f4e27c6c5d24",
+   "max_abs_dsst": 0.26999974250793457
+  },
+  {
+   "zone": "ai_central",
+   "day": "2024-04-25",
+   "old_day_sha256": "cc084ed3df241e0bc880e423c8d26785a138068f26495aecfc3f3f622f567fc5",
+   "new_day_sha256": "80b30a7bf2fe56c6eb6af8abe44614155559ef2f78c9ae442a4a9e1e6edc1c40",
+   "max_abs_dsst": 0.2799999713897705
+  },
+  {
+   "zone": "ai_central",
+   "day": "2024-04-26",
+   "old_day_sha256": "fc8ec9fb6727f17bfa6b3cb88796baf1334b6d06c1f3506654163554ee80f858",
+   "new_day_sha256": "692408d83ee7769188bc51ac2ba362fb746124eadcfdde186eeb4e7b8388e6de",
+   "max_abs_dsst": 0.2200002670288086
+  },
+  {
+   "zone": "ai_east",
+   "day": "2024-04-22",
+   "old_day_sha256": "9b5e499acc4a0be00d01cce19f2978c323b4a566f5f0400a2548e3cb23611a48",
+   "new_day_sha256": "791d4214f4799c98af8ca1e325bfc381a64b2d2cced0a8d356a31cf8ead89ef8",
+   "max_abs_dsst": 0.940000057220459
+  },
+  {
+   "zone": "ai_east",
+   "day": "2024-04-23",
+   "old_day_sha256": "4f17d5ef27fbc70ec96374bb63b52317bb9d604447d6cf7d04e8e088a87af198",
+   "new_day_sha256": "800c94eb7b764ff4f96dca9036c424ae33e79d8af037502fcfc5bf12f192ead4",
+   "max_abs_dsst": 0.9199998378753662
+  },
+  {
+   "zone": "ai_east",
+   "day": "2024-04-24",
+   "old_day_sha256": "2ca51ff8ff20bb1145a3de89cc9942e3a7c2e57b60279b0f9e403d9ad47ed289",
+   "new_day_sha256": "8b47f861d3e1a734300c08e406e35c4ad127f7ff5c93c91f3ee0675776e18383",
+   "max_abs_dsst": 0.18999981880187988
+  },
+  {
+   "zone": "ai_east",
+   "day": "2024-04-25",
+   "old_day_sha256": "2e205d8687f1966327ebcd9be4e1d77618c5f83e7b3d2e6da456179ac5e5b2a5",
+   "new_day_sha256": "21188759cea0ed38e3724487a0e05476d2a32b9f01bf8e45612576aa6a27e176",
+   "max_abs_dsst": 0.2199997901916504
+  },
+  {
+   "zone": "ai_east",
+   "day": "2024-04-26",
+   "old_day_sha256": "a05c1611f9a8eabc22c8a87af80efb31d3a108b8327304480d23c1bb98ac8b3d",
+   "new_day_sha256": "ae66263f4318e721cbeca3b5e5e2b94630d91fddc4b750930a2a90b1c3e9f161",
+   "max_abs_dsst": 0.15000009536743164
+  },
+  {
+   "zone": "chukchi",
+   "day": "2024-04-22",
+   "old_day_sha256": "91ed3b49398a2394d0ca01a76a06889185e2e65237e12975ed4d0ae430e6e822",
+   "new_day_sha256": "b27014199010078668aeed17426f56d3f62e3a1c3474c621ecbd08b11dcca3a5",
+   "max_abs_dsst": 0.03000009059906006
+  },
+  {
+   "zone": "chukchi",
+   "day": "2024-04-23",
+   "old_day_sha256": "6c1a9141fba9b1b976a3fc8f65017f30dad654420fbdebd4f0e23df519f89e40",
+   "new_day_sha256": "a68af6972b89c7cca7cd46cf74d178ada0f85e8705b385f95cf64166edcfcacc",
+   "max_abs_dsst": 2.049999952316284
+  },
+  {
+   "zone": "chukchi",
+   "day": "2024-04-24",
+   "old_day_sha256": "a9b2560b203d6379b08e3cced88db249240ad76b5077566a79dc113b67955cfd",
+   "new_day_sha256": "2727c4c96995fa9550298990d2c0c8623abc8af18b8b110f7be88ab66e01dd0b",
+   "max_abs_dsst": 2.0199999809265137
+  },
+  {
+   "zone": "chukchi",
+   "day": "2024-04-25",
+   "old_day_sha256": "8ee404b1a812c9bd90b2b82d6608a3b5e9960657232d0d416cf68fadba2b78af",
+   "new_day_sha256": "3d1b6dc1916e9f8b7430b930eab035b04c8a7e623fdc4e3a3b2fc22f52652a3c",
+   "max_abs_dsst": 1.9800000190734863
+  },
+  {
+   "zone": "chukchi",
+   "day": "2024-04-26",
+   "old_day_sha256": "70fafb0cfd4e32c7273c35138c598be1ede5634a378a1a91fa3fa2ae2ee53361",
+   "new_day_sha256": "4a321e254a8f98fe37de6af97b6726b72ac1c44e6ead30dd72bcab9685f6bd3d",
+   "max_abs_dsst": 1.9299999475479126
+  },
+  {
+   "zone": "beaufort",
+   "day": "2024-04-22",
+   "old_day_sha256": "92c42105644dc9e6f7e4894baf0d25b812b8e3e944941565fff3e2dfc5d23150",
+   "new_day_sha256": "8847406816f68ee3997566521b9c332d861705f5642f2fd192c34e0f9a89e837",
+   "max_abs_dsst": 0.03000009059906006
+  },
+  {
+   "zone": "beaufort",
+   "day": "2024-04-23",
+   "old_day_sha256": "61659a352d6daed0eeaeecfed07909510bf6563060526cfa311bdbe9a7508e28",
+   "new_day_sha256": "38539b2fdb6aad8a199caf4650acb4dddb0eecb1beb3ff9ef12febb5c6001dd5",
+   "max_abs_dsst": 1.6800000667572021
+  },
+  {
+   "zone": "beaufort",
+   "day": "2024-04-24",
+   "old_day_sha256": "969ca073be95297e185f3db46c1363583ef169ba64e25edbdb0a5e077440ad34",
+   "new_day_sha256": "6cbdb8bb729b6e0db1658a8cda75b7fa28ab307462a657fb23e9af967f72279c",
+   "max_abs_dsst": 0.7399999499320984
+  },
+  {
+   "zone": "beaufort",
+   "day": "2024-04-25",
+   "old_day_sha256": "f2c17f2c4a8c40c730739ee303acb015b3b327f950dee4af74dde80a441b7e05",
+   "new_day_sha256": "fe6c69cdd4a009e431ba521444f5f75ed4a76b68c14d1792d4593c0eaa2af978",
+   "max_abs_dsst": 0.7499999403953552
+  },
+  {
+   "zone": "beaufort",
+   "day": "2024-04-26",
+   "old_day_sha256": "d5a62584c11dea101f484ba93eb38951c56660cb00b96818852343912dbea813",
+   "new_day_sha256": "b23134401444b417d70a07b05f61faaa4c73dbfaf34dec4d897db25f1d5d5b9d",
+   "max_abs_dsst": 1.5799999237060547
+  },
+  {
+   "zone": "ebs",
+   "day": "2024-04-22",
+   "old_day_sha256": "75bf247853c47cbb8c683274857b204e52a7ca7f99e8e659f093405c171dde7c",
+   "new_day_sha256": "753c410aa721764a3073092243c9a279cfe4b8e39402f7e3611affd61ec0ba94",
+   "max_abs_dsst": 1.5199999809265137
+  },
+  {
+   "zone": "ebs",
+   "day": "2024-04-23",
+   "old_day_sha256": "86268c1b823412999148295b879a3bf2ccc01e8024a82d286d8a009aa3010756",
+   "new_day_sha256": "a490e7353a8e7862b6cc57936f487befdf60a1aa30dd0bb8a3c9387b08426d36",
+   "max_abs_dsst": 2.809999942779541
+  },
+  {
+   "zone": "ebs",
+   "day": "2024-04-24",
+   "old_day_sha256": "6f723dfd436679ee792a09070bce00555921993a10eca0b4e6139c256dd29f85",
+   "new_day_sha256": "763b249c4dcd647bf8c883842e7643f7027c5870ca666e4996864200f9d6154d",
+   "max_abs_dsst": 3.0
+  },
+  {
+   "zone": "ebs",
+   "day": "2024-04-25",
+   "old_day_sha256": "742c64a6f942f3e8ca2f4316d91bb921a32695c609dc353f8879276aee05a65a",
+   "new_day_sha256": "d1ccca265e37ef24aa55a1968dfabb76a76fc00fef4dd5978fd2bf9a95736b97",
+   "max_abs_dsst": 1.7300000190734863
+  },
+  {
+   "zone": "ebs",
+   "day": "2024-04-26",
+   "old_day_sha256": "e78e75d23946642151e9080e8a57dc813af2df6092bc55eb70bbb71abb9bdf97",
+   "new_day_sha256": "9b1d2e6669343cacc85e12ffe79beac8dbd3ea7f8d595bbbaa9e1d73f550dd6e",
+   "max_abs_dsst": 2.2100000381469727
+  },
+  {
+   "zone": "goa",
+   "day": "2024-04-22",
+   "old_day_sha256": "eddad44177c8f103709929912dfb247f588bb64e1d352d9adbd5ac8e9fb98835",
+   "new_day_sha256": "d299c360671164c083d0b04d3ebb7a046d6a58a5ed2e0ba5308986804b686327",
+   "max_abs_dsst": 1.5
+  },
+  {
+   "zone": "goa",
+   "day": "2024-04-23",
+   "old_day_sha256": "c0ee2bf5fe826cb79c7543a005960eb3827979efd44dfc9e5089523b6f673e31",
+   "new_day_sha256": "58e828bc59bb0e5219ce6b0412fbb251c70a80196daa3b1483dc04e2fd9d3a17",
+   "max_abs_dsst": 1.239999771118164
+  },
+  {
+   "zone": "goa",
+   "day": "2024-04-24",
+   "old_day_sha256": "de19ce74d5c417f5fa6178360804043b3e89be3d6a58e130c7989dd8a42725c2",
+   "new_day_sha256": "9fde1ce4ea30b44ed645113c78108c51b0c75015d4d17671ffb2f94dd950c41f",
+   "max_abs_dsst": 1.1299998760223389
+  },
+  {
+   "zone": "goa",
+   "day": "2024-04-25",
+   "old_day_sha256": "80468d31f010693f6e8ab511d4784316b29739f8f3f6a39207bc0a0dce45256d",
+   "new_day_sha256": "69b2678f90d5b1cace5b74d30a309fdd15b91cd8f5f9fa9520c96c78577dfce0",
+   "max_abs_dsst": 1.5799999237060547
+  },
+  {
+   "zone": "goa",
+   "day": "2024-04-26",
+   "old_day_sha256": "9cf2395c6d262e5c94d9c62df699b20e86ae1c2811fcbb8efc6759ca93e57c72",
+   "new_day_sha256": "032cbfd17adea993394e8a4763d4478e3c03b36b1a3c4ba29ae5b3284787970d",
+   "max_abs_dsst": 1.9300000667572021
+  },
+  {
+   "zone": "ai",
+   "day": "2024-04-22",
+   "old_day_sha256": "502392b9884fbbc5d180f5155bbf76b91c29a5f90b753742f1a93a8da4a56b8c",
+   "new_day_sha256": "d5be6be5c395316dabf4310a3b7212bcfd026ed33b9fc86d12801304b62df34e",
+   "max_abs_dsst": 0.9900000095367432
+  },
+  {
+   "zone": "ai",
+   "day": "2024-04-23",
+   "old_day_sha256": "1507616a12b4697bfeef8d5fecfd2e68efa18d5e01807bee094e6a052ec7486a",
+   "new_day_sha256": "c9bbd80aa96946931834f09718bd88ea73d150a3d30bf108347f564deda159be",
+   "max_abs_dsst": 0.9900000095367432
+  },
+  {
+   "zone": "ai",
+   "day": "2024-04-24",
+   "old_day_sha256": "1cc0eb3d8a681e26cfe5e338e6b49747f259a68ae84947b7a01e9dc419cda780",
+   "new_day_sha256": "7567924790ee5e7fadb9bf1c46b5dfa809dc241ef9a67bb541c4f0589a928775",
+   "max_abs_dsst": 0.4500000476837158
+  },
+  {
+   "zone": "ai",
+   "day": "2024-04-25",
+   "old_day_sha256": "7020d8894c4880b9153e165c716f030a479989dd70a588a007f0110b8000a54b",
+   "new_day_sha256": "4be66ee73b1144f3fc56cf86119b7d69329b4791ce24e5d8bb156dc1f4123d86",
+   "max_abs_dsst": 0.4799997806549072
+  },
+  {
+   "zone": "ai",
+   "day": "2024-04-26",
+   "old_day_sha256": "ea5ad92c37d6366abf76317027330f837ab6b075a876b5eda961738fedb8aa31",
+   "new_day_sha256": "53a5d8cc2aff5d82ead57ad851a8bf0c1aa5224df3164f772319c194a68f432a",
+   "max_abs_dsst": 0.5399999618530273
+  }
+ ],
+ "zone_year_files": [
+  {
+   "file": "oisst_sebs_2024.nc",
+   "sha256_before": "799da55cf9f4dc6f3381778e5843ba61e5553a5205bc6508c8b65b5efda7f44e",
+   "sha256_after": "1c705e81b5903b4a9b1ad579a9ffea0d12275de35665c784aae1147cf45eb920"
+  },
+  {
+   "file": "oisst_nbs_2024.nc",
+   "sha256_before": "a7d082cb97eba0b751273014257277ad92aabaaa35871370b245043f961a716e",
+   "sha256_after": "ef1d6a2f9f21cb042c7bdf453d1b441e0da72d3051d35be7747fcfeb8d7033a0"
+  },
+  {
+   "file": "oisst_wgoa_2024.nc",
+   "sha256_before": "5b4f45faf83904c19fd876454f03b24cc242ef275c7e75dc94b9ab27ebfa59e7",
+   "sha256_after": "3a7df68804853d823bef1f3d3407a6eb569777365c57b9bf6993268ce0f684df"
+  },
+  {
+   "file": "oisst_egoa_2024.nc",
+   "sha256_before": "f06991082dfabbeb12af79232872d5b57a6b6ffe29210ee1f36f91f9f654a395",
+   "sha256_after": "0038e05cac4332ea25043bbdfdc386e34928468ee576779fc42f3a12efdc78be"
+  },
+  {
+   "file": "oisst_ai_west_2024.nc",
+   "sha256_before": "ccf63b0b83dd9e652c437db9ed6591c1f0a074b9f4eec8c7de81c0f6fb8b5b5b",
+   "sha256_after": "9385f5b55d86dd584dfde8313cbdd945bb78a83e51b859bd660ee9fe82319348"
+  },
+  {
+   "file": "oisst_ai_central_2024.nc",
+   "sha256_before": "fe2519e83096297a5e2a6e39f1d6384ec5e6a552f7fcf0c079cf65c790e76897",
+   "sha256_after": "7cbf0d5f2bd1956a5f86c9a446822dd395bebf35dbbf608ff131dfe1e6c9d1ee"
+  },
+  {
+   "file": "oisst_ai_east_2024.nc",
+   "sha256_before": "1d4ce9c3b1c9ce906058fc24acb353e0276fe9a618bf34654b6a92f3d03f4371",
+   "sha256_after": "8a45fb3858da5c97f14ab3e446867ac41866e2bd7d4b0cd0460beac476f2272f"
+  },
+  {
+   "file": "oisst_chukchi_2024.nc",
+   "sha256_before": "4a782d8b68a4c7e2f9177da9f5bb8dd5dfda50d6dd1e60269f9ac9e91047406f",
+   "sha256_after": "efd6d637e5503e32d13211dd92b4737308af63854599e9c1d3062e54e6a0b249"
+  },
+  {
+   "file": "oisst_beaufort_2024.nc",
+   "sha256_before": "0e72f322e6305ba86789a579f256b1eb2f1718e443d8ac929e7479d0ea7f806e",
+   "sha256_after": "593f1fcb1d729bd14ccee9ec425d55f32bbb52f3fc9a84b3d9704fc558aad7d8"
+  },
+  {
+   "file": "oisst_ebs_2024.nc",
+   "sha256_before": "a7f5d6bc01c177ce3a6fcf30ec3d1bfda18d0ea4564c27c196816521a0bc9dd6",
+   "sha256_after": "797513d6dfa74de410c2c665326b1f201ddbefdbcb27486996b87c81c978766e"
+  },
+  {
+   "file": "oisst_goa_2024.nc",
+   "sha256_before": "1a7a77faecda04e28140f402e81375c9c1e3abde70507b5e111f044b38aec731",
+   "sha256_after": "b69868979d092eb5c52fd9b3186104578d5bb366f3b7747ae8bde29dc808347b"
+  },
+  {
+   "file": "oisst_ai_2024.nc",
+   "sha256_before": "26ff1a151147d51e1be4841c293ed026aaf266bd1dfedbe2f0770e3c67ba3138",
+   "sha256_after": "9a5d7650bcc62a08daa0c068f8ab7c25af764b34519ea158f8b848aa07e0e231"
+  }
+ ]
+}

@@ -1,0 +1,100 @@
+{
+ "sebs": {
+  "outage_rule_days": [
+   35100,
+   258
+  ],
+  "reissued_days": [
+   3057,
+   0
+  ],
+  "other_days": [
+   82,
+   82
+  ]
+ },
+ "nbs": {
+  "outage_rule_days": [
+   137610,
+   13630
+  ],
+  "reissued_days": [
+   6427,
+   21
+  ],
+  "other_days": [
+   404,
+   404
+  ]
+ },
+ "wgoa": {
+  "outage_rule_days": [
+   9038,
+   96
+  ],
+  "reissued_days": [
+   807,
+   0
+  ],
+  "other_days": [
+   38,
+   38
+  ]
+ },
+ "chukchi": {
+  "outage_rule_days": [
+   193438,
+   130722
+  ],
+  "reissued_days": [
+   6040,
+   4601
+  ],
+  "other_days": [
+   0,
+   0
+  ]
+ },
+ "beaufort": {
+  "outage_rule_days": [
+   176108,
+   151258
+  ],
+  "reissued_days": [
+   5395,
+   5038
+  ],
+  "other_days": [
+   0,
+   0
+  ]
+ },
+ "ebs": {
+  "outage_rule_days": [
+   161384,
+   13847
+  ],
+  "reissued_days": [
+   8692,
+   21
+  ],
+  "other_days": [
+   478,
+   478
+  ]
+ },
+ "goa": {
+  "outage_rule_days": [
+   9038,
+   96
+  ],
+  "reissued_days": [
+   807,
+   0
+  ],
+  "other_days": [
+   38,
+   38
+  ]
+ }
+}
