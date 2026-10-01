@@ -395,5 +395,134 @@
       "ai_east",
       "ai"
     ]
+  },
+  "_addendum_20261001_theta90_undefined": {
+    "asked_by": "admin ...-20261001-07 (disclosure for the record; not a reason to hold the seal). Added to this PRODUCER copy after sealing; the sealed copy (dd71ff38) is deliberately not rewritten.",
+    "mechanism": "Outside the 176 outage days, n_cells_valid drops in nbs, sebs and the ebs roll-up (and, outside the zone masks only, wgoa/goa) because some cells' theta90 for a day-of-year was defined ONLY by outage-day frozen-water samples. With those samples removed, theta90 for that cell and day-of-year is undefined (NaN), so the same calendar day in every other year can no longer be scored there; valid_cells() requires a finite theta90. Verified cell by cell: 100% of the cell-days lost outside outage days are cells whose theta90 went finite -> NaN on that day-of-year; 0 unexplained; 0 cell-days gained.",
+    "counts_in_zone_masks": {
+      "sebs": {
+        "days": 21,
+        "cell_days": 74,
+        "drop_range_cells": [
+          1,
+          6
+        ],
+        "months": [
+          1,
+          2
+        ]
+      },
+      "nbs": {
+        "days": 121,
+        "cell_days": 241,
+        "drop_range_cells": [
+          1,
+          14
+        ],
+        "months": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "wgoa": {
+        "days": 0,
+        "cell_days": 0,
+        "drop_range_cells": [
+          0,
+          0
+        ],
+        "months": []
+      },
+      "chukchi": {
+        "days": 0,
+        "cell_days": 0,
+        "drop_range_cells": [
+          0,
+          0
+        ],
+        "months": []
+      },
+      "beaufort": {
+        "days": 0,
+        "cell_days": 0,
+        "drop_range_cells": [
+          0,
+          0
+        ],
+        "months": []
+      },
+      "ebs": {
+        "days": 131,
+        "cell_days": 315,
+        "drop_range_cells": [
+          1,
+          20
+        ],
+        "months": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "goa": {
+        "days": 0,
+        "cell_days": 0,
+        "drop_range_cells": [
+          0,
+          0
+        ],
+        "months": []
+      }
+    },
+    "counts_on_state_grid": {
+      "sebs": {
+        "cell_days_lost": 82,
+        "explained": 82,
+        "unexplained": 0,
+        "theta90_cell_doys_became_undefined": 398
+      },
+      "nbs": {
+        "cell_days_lost": 404,
+        "explained": 404,
+        "unexplained": 0,
+        "theta90_cell_doys_became_undefined": 18469
+      },
+      "wgoa": {
+        "cell_days_lost": 38,
+        "explained": 38,
+        "unexplained": 0,
+        "theta90_cell_doys_became_undefined": 156
+      },
+      "chukchi": {
+        "cell_days_lost": 0,
+        "explained": 0,
+        "unexplained": 0,
+        "theta90_cell_doys_became_undefined": 169645
+      },
+      "beaufort": {
+        "cell_days_lost": 0,
+        "explained": 0,
+        "unexplained": 0,
+        "theta90_cell_doys_became_undefined": 189059
+      },
+      "ebs": {
+        "cell_days_lost": 478,
+        "explained": 478,
+        "unexplained": 0,
+        "theta90_cell_doys_became_undefined": 18806
+      },
+      "goa": {
+        "cell_days_lost": 38,
+        "explained": 38,
+        "unexplained": 0,
+        "theta90_cell_doys_became_undefined": 156
+      }
+    },
+    "file": "theta90_undefined_mechanism.json"
   }
 }

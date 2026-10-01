@@ -1,0 +1,122 @@
+{
+ "sebs": {
+  "cell_days_lost_outside_outages": 82,
+  "explained_by_theta90_became_undefined": 82,
+  "unexplained": 0,
+  "days": 21,
+  "cell_days_gained": 0,
+  "theta90_cell_doys_became_undefined": 398,
+  "in_mask_days_outside_outages": 21,
+  "in_mask_cell_days_outside_outages": 74,
+  "in_mask_drop_range": [
+   1,
+   6
+  ],
+  "months": [
+   1,
+   2
+  ]
+ },
+ "nbs": {
+  "cell_days_lost_outside_outages": 404,
+  "explained_by_theta90_became_undefined": 404,
+  "unexplained": 0,
+  "days": 132,
+  "cell_days_gained": 0,
+  "theta90_cell_doys_became_undefined": 18469,
+  "in_mask_days_outside_outages": 121,
+  "in_mask_cell_days_outside_outages": 241,
+  "in_mask_drop_range": [
+   1,
+   14
+  ],
+  "months": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "wgoa": {
+  "cell_days_lost_outside_outages": 38,
+  "explained_by_theta90_became_undefined": 38,
+  "unexplained": 0,
+  "days": 17,
+  "cell_days_gained": 0,
+  "theta90_cell_doys_became_undefined": 156,
+  "in_mask_days_outside_outages": 0,
+  "in_mask_cell_days_outside_outages": 0,
+  "in_mask_drop_range": [
+   0,
+   0
+  ],
+  "months": []
+ },
+ "chukchi": {
+  "cell_days_lost_outside_outages": 0,
+  "explained_by_theta90_became_undefined": 0,
+  "unexplained": 0,
+  "days": 0,
+  "cell_days_gained": 0,
+  "theta90_cell_doys_became_undefined": 169645,
+  "in_mask_days_outside_outages": 0,
+  "in_mask_cell_days_outside_outages": 0,
+  "in_mask_drop_range": [
+   0,
+   0
+  ],
+  "months": []
+ },
+ "beaufort": {
+  "cell_days_lost_outside_outages": 0,
+  "explained_by_theta90_became_undefined": 0,
+  "unexplained": 0,
+  "days": 0,
+  "cell_days_gained": 0,
+  "theta90_cell_doys_became_undefined": 189059,
+  "in_mask_days_outside_outages": 0,
+  "in_mask_cell_days_outside_outages": 0,
+  "in_mask_drop_range": [
+   0,
+   0
+  ],
+  "months": []
+ },
+ "ebs": {
+  "cell_days_lost_outside_outages": 478,
+  "explained_by_theta90_became_undefined": 478,
+  "unexplained": 0,
+  "days": 142,
+  "cell_days_gained": 0,
+  "theta90_cell_doys_became_undefined": 18806,
+  "in_mask_days_outside_outages": 131,
+  "in_mask_cell_days_outside_outages": 315,
+  "in_mask_drop_range": [
+   1,
+   20
+  ],
+  "months": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "goa": {
+  "cell_days_lost_outside_outages": 38,
+  "explained_by_theta90_became_undefined": 38,
+  "unexplained": 0,
+  "days": 17,
+  "cell_days_gained": 0,
+  "theta90_cell_doys_became_undefined": 156,
+  "in_mask_days_outside_outages": 0,
+  "in_mask_cell_days_outside_outages": 0,
+  "in_mask_drop_range": [
+   0,
+   0
+  ],
+  "months": []
+ }
+}
