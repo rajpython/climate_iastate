@@ -23,6 +23,7 @@ br["supersedes"] = f"snap-{PREV} (vintage #2; stays registered and immutable). E
 br["reseal_class"] = "EXTENSION (2026-07-02..2026-08-31 appended from NCEI final per-day files). NOT a threshold reseal and NOT a rule change: theta90 byte-identical to #1/#2 in all 12 zones; the eight repaired days carried over unchanged; detection and aggregation algebra unchanged."
 br["why"] = "Col. Raj directed every input of the single rerun to reach 2026-08-31. NCEI lists 31/31 July and 31/31 August 2026 OISST v2.1 per-day files as FINAL (no _preliminary), so the condition holds on the producer side."
 br.pop("answers_to_mini_20261001_01_s4", None)
+br["definition_applied"]["series_span"] = "1982-01-01 to 2026-08-31"  # A2: never inherit the span from an older vintage
 br["series_end"] = "2026-08-31. No September days. July and August are complete months (monthly n_days = n_days_input = days_in_month = 31)."
 p = br["pipeline"]
 p["branch"] = "rebuild/input-gapfill-v35 (pushed)"

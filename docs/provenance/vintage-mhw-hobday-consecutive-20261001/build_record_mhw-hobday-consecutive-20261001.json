@@ -106,7 +106,7 @@
   "definition_applied": {
     "reference": "Hobday et al. (2016)",
     "baseline": "1991-2020 (30-year climate normal)",
-    "series_span": "1982-01-01 to 2026-07-01",
+    "series_span": "1982-01-01 to 2026-08-31",
     "grid": "OISST 0.25 deg",
     "climatology": {
       "step_1": "for each day-of-year d, pool SST from DOY in [d-5, d+5] (11-day window, wrap-around) across the 30 baseline years; mu(d) = mean, theta90(d) = 90th percentile",
@@ -127,7 +127,8 @@
       "I": "I = SST - mu, the SIGNED anomaly above the seasonal climatological mean (heatwaveR 'relSeas'), NOT clamped at 0 and NOT referenced to theta90",
       "note": "Hobday et al. (2016) Table 2 defines i_max / i_mean / i_cum relative to the seasonal mean. The clamp is omitted so i_mean, i_cum and the onset start-edge term match the reference implementation exactly."
     },
-    "_unchanged_note": "carried verbatim from build_record_vintage20260722.json: the definition did not change in this vintage (theta90 byte-identical; x -> A reproduces under consecutive_first with 0 disagreements)"
+    "_unchanged_note": "carried verbatim from build_record_vintage20260722.json: the definition did not change in this vintage (theta90 byte-identical; x -> A reproduces under consecutive_first with 0 disagreements)",
+    "_correction_20261001": "series_span corrected in this PRODUCER copy after sealing (admin ...-20261001-05, accepted finding A2). The sealed copy in snap-mhw-hobday-consecutive-20261001 still reads '1982-01-01 to 2026-07-01', carried over when definition_applied was copied verbatim from the 20260722 record; it is stale. The span of record is 1982-01-01..2026-08-31, as the CSVs and the manifest (vintage_end, period) state. The sealed copy is deliberately not rewritten."
   },
   "no_input_day_rule": "Engine rule for a day with no input, as it stands in code at d306292 (update_states.py), stated in words: run_state_engine pre-allocates its per-cell exceedance array over EVERY calendar day of the requested range and writes only the days present in the input, so a day with no input keeps x = 0 and is scored as a day on which no cell exceeded its threshold. Because the >=5-consecutive test is applied BEFORE gaps of <=2 days are bridged, such a day inside a run splits it; if both halves are shorter than 5 days the whole event is discarded, and if it falls inside a <=2-day gap it is absorbed as a bridged gap day (A = 1 with I never written: the area_frac > 0, Ibar = 0 signature). D, C and O then reset for the rest of that event. The engine still behaves this way; what changed is what the PRODUCT discloses. Since a672583 every daily row carries n_days_input (1 if that day's input was read, else 0) and n_cells_valid, and a row with n_days_input = 0 is written NaN in every value column (area_frac, Ibar, Dbar, Cbar, Obar) instead of zero. The monthly product averages over input days only and carries n_days (days aggregated), n_days_input and days_in_month (calendar length). In THIS vintage no row has n_days_input = 0: all eight missing days were obtained as real observations, so the NaN rule is in force but is not triggered. Event-level effects of a future no-input day (a run split by a zero-filled day) are therefore DISCLOSED by n_days_input, not repaired; a vintage with any n_days_input = 0 row should be read with that in mind.",
   "columns": {
