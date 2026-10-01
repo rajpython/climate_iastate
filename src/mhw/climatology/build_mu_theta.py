@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 import warnings
 from datetime import date, timedelta
@@ -90,6 +91,18 @@ def year_cache_stale(cache: Path, year: int, *, today: date | None = None) -> bo
     today = today or date.today()
     if not cache.exists():
         return True
+    # FROZEN INPUTS (MHW_FROZEN_INPUTS=1): the cache is the authority and is never
+    # re-fetched. Added 2026-09-30 for the gap-fill rebuild, because the upstream
+    # PFEG aggregate is itself missing 1,196 days of its own span -- a re-fetch
+    # would trade 8 holes for ~1,200 and corrupt the 1991-2020 baseline. In this
+    # mode a readable cache with both variables is always fresh; a MISSING cache
+    # still raises in fetch_year rather than silently going to the network.
+    if os.environ.get("MHW_FROZEN_INPUTS"):
+        try:
+            with xr.open_dataset(cache) as ds:
+                return not ("sst" in ds.data_vars and "ice" in ds.data_vars)
+        except Exception:
+            return True
     try:
         with xr.open_dataset(cache) as ds:
             if "sst" not in ds.data_vars or "ice" not in ds.data_vars:
@@ -146,6 +159,12 @@ def fetch_year(
         else:
             return xr.open_dataset(cache)
 
+    if os.environ.get("MHW_FROZEN_INPUTS"):
+        raise RuntimeError(
+            f"MHW_FROZEN_INPUTS is set but {cache.name} is missing or unusable. "
+            "Refusing to fetch: frozen-input runs must read the staged cache only."
+        )
+
     lon_min_360 = bbox["lon_min"] % 360
     lon_max_360 = bbox["lon_max"] % 360
 
@@ -170,6 +189,26 @@ def fetch_year(
     DATA_RAW.mkdir(parents=True, exist_ok=True)
     tmp = cache.with_suffix(".tmp.nc")
     sub.to_netcdf(tmp)        # write to temp first
+
+    # NEVER-SHRINK GUARD (2026-09-30). The upstream aggregate's gap set is
+    # time-varying: on 2026-09-30 it was missing 1,196 days that our cache held.
+    # A re-fetch that returns FEWER time steps than we already have is upstream
+    # degradation, not an update, and must not be allowed to overwrite the cache.
+    if cache.exists():
+        try:
+            with xr.open_dataset(cache) as old_ds:
+                n_old = int(old_ds["time"].size)
+        except Exception:
+            n_old = 0
+        n_new = int(sub["time"].size)
+        if n_new < n_old:
+            tmp.unlink(missing_ok=True)
+            raise RuntimeError(
+                f"refusing to overwrite {cache.name}: the fetch returned {n_new} days "
+                f"but the cache holds {n_old}. The upstream source has fewer time steps "
+                "than we already have; keeping the cache. Investigate before re-running."
+            )
+
     tmp.rename(cache)         # atomic rename on success
     return xr.open_dataset(cache)
 

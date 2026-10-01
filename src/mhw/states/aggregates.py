@@ -36,6 +36,7 @@ CLI:
 from __future__ import annotations
 
 import argparse
+import json
 import warnings
 from datetime import date
 from pathlib import Path
@@ -116,10 +117,27 @@ def _load_mask_weights(
 # ---------------------------------------------------------------------------
 # Core aggregation (Section 7 equations)
 # ---------------------------------------------------------------------------
+def load_filled_days() -> dict[str, str]:
+    """Map ``YYYY-MM-DD`` -> source string, from ``config/filled_days.json``.
+
+    A day listed there had no OISST input in the producer's own fetch and was
+    supplied from elsewhere. Missing file or unreadable JSON returns {} — the
+    registry is provenance, not a gate, so its absence must not stop a build.
+    """
+    path = PROJECT_ROOT / "config" / "filled_days.json"
+    try:
+        doc = json.loads(path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+    return {d: v.get("source", "filled") for d, v in doc.get("days", {}).items()}
+
+
 def aggregate_region(
     ds: xr.Dataset,
     mask: np.ndarray,
     weights: np.ndarray,
+    *,
+    filled_days: dict[str, str] | None = None,
 ) -> pd.DataFrame:
     """Compute daily region-level metrics from grid-level state arrays.
 
@@ -131,7 +149,28 @@ def aggregate_region(
 
     Returns
     -------
-    DataFrame with columns: date, area_frac, Ibar, Dbar, Cbar, Obar
+    DataFrame with columns: date, area_frac, Ibar, Dbar, Cbar, Obar, plus the QC
+    columns input_present, n_valid_cells, n_mask_cells, valid_frac when the state
+    store carries them (see below).
+
+    QC columns (added 2026-09-30)
+    -----------------------------
+    A metric alone cannot say how much real data stands behind it. Eight calendar
+    days were absent from the OISST inputs and the engine scored each as a day on
+    which no cell exceeded, which is indistinguishable in the output from a genuine
+    quiet day -- and a row-count completeness audit cannot see it, because the rows
+    are all present. These columns make it visible in the product itself:
+
+      input_present  1 if the input supplied a time step for this calendar day, else 0
+      n_valid_cells  mask cells with a usable observation (not ice-masked, finite
+                     SST and theta90) on this day
+      n_mask_cells   the zone's mask cell count (constant; the denominator)
+      valid_frac     cos(lat)-weighted share of the zone with a usable observation
+
+    A monthly n_input_days is just ``input_present`` summed over the calendar month.
+    State stores written before this change carry neither ``V`` nor ``input_present``;
+    for those the QC columns are emitted as NaN rather than guessed, so an old vintage
+    is never silently reported as complete.
     """
     # Load all variables to memory (GOA: 32×160×365 = ~7 MB per variable)
     A = ds["A"].values.astype(np.float32)   # (T, lat, lon)
@@ -175,7 +214,7 @@ def aggregate_region(
     Cbar = np.nan_to_num(_cond_mean(C), nan=0.0)
     Obar = np.nan_to_num(_cond_mean(O), nan=0.0)
 
-    return pd.DataFrame({
+    out = pd.DataFrame({
         "date":      times,
         "area_frac": area_frac,
         "Ibar":      Ibar,
@@ -183,6 +222,27 @@ def aggregate_region(
         "Cbar":      Cbar,
         "Obar":      Obar,
     })
+
+    # --- QC columns ---------------------------------------------------------
+    n_mask = int(mask.sum())
+    if "V" in ds.data_vars:
+        V = ds["V"].values.astype(bool)
+        m3 = mask.astype(bool)[np.newaxis, :, :]
+        out["n_valid_cells"] = (V & m3).sum(axis=(1, 2)).astype(np.int32)
+        out["valid_frac"] = (
+            np.sum(wm3 * (V & m3), axis=(1, 2)) / sum_wm
+        ).astype(np.float32)
+    else:
+        out["n_valid_cells"] = np.nan
+        out["valid_frac"] = np.nan
+    if "input_present" in ds.data_vars:
+        out["input_present"] = ds["input_present"].values.astype(np.int8)
+    else:
+        out["input_present"] = np.nan
+    out["n_mask_cells"] = np.int32(n_mask)
+    fd = filled_days or {}
+    out["filled"] = [fd.get(str(d), "") for d in out["date"]]
+    return out
 
 
 # ---------------------------------------------------------------------------

@@ -379,3 +379,96 @@ class TestFinalizeEventsGrid:
             x, I, confirm_days=5, gap_days=2, k_days=3, onset_ref="physical_start",
         )
         assert A.sum() == 0 and D.sum() == 0 and C.sum() == 0 and O.sum() == 0
+
+
+# ---------------------------------------------------------------------------
+# QC: validity helper + the missing-day defect it exists to expose (2026-09-30)
+# ---------------------------------------------------------------------------
+class TestValidCells:
+    def _arrs(self):
+        sst = np.array([[10.0, 10.0], [np.nan, 10.0]], dtype=np.float32)
+        ice = np.array([[0.0, 0.9], [0.0, 0.0]], dtype=np.float32)
+        th = np.array([[9.0, 9.0], [9.0, np.nan]], dtype=np.float32)
+        return sst, ice, th
+
+    def test_excludes_ice_nan_sst_and_nan_threshold(self):
+        from mhw.states.update_states import valid_cells
+        sst, ice, th = self._arrs()
+        v = valid_cells(sst, ice, th, apply_ice=True, ice_thresh=0.15)
+        # only (0,0) is valid: (0,1) iced, (1,0) NaN sst, (1,1) NaN theta90
+        assert v.tolist() == [[True, False], [False, False]]
+
+    def test_ice_ignored_when_masking_off(self):
+        from mhw.states.update_states import valid_cells
+        sst, ice, th = self._arrs()
+        v = valid_cells(sst, ice, th, apply_ice=False, ice_thresh=0.15)
+        assert v[0, 1]  # the iced cell is now valid
+
+    def test_matches_the_day_loop_definition(self):
+        """valid_cells must be the SAME rule _update_one_day applies, or the QC
+        column would describe something other than the data."""
+        from mhw.states.update_states import StateBuffer, _update_one_day, valid_cells
+        sst, ice, th = self._arrs()
+        mu = np.zeros_like(th)
+        v = valid_cells(sst, ice, th, apply_ice=True, ice_thresh=0.15)
+        x, *_ = _update_one_day(
+            sst, ice, th, mu, StateBuffer(2, 2, 5),
+            gap_days=2, confirm_days=5, int_ref="climatological_mean",
+            onset_ref="physical_start", k_days=3, apply_ice=True, ice_thresh=0.15,
+        )
+        # exceedance can only be positive where the cell is valid
+        assert not ((x > 0) & ~v).any()
+
+
+class TestMissingDayIsNotAZero:
+    """A calendar day with no input must not be reported as an observed quiet day.
+
+    This is the 2026-09-30 defect: 8 days were absent from the OISST inputs and
+    every cell read x=0, indistinguishable from a genuine no-exceedance day. The
+    engine still zero-fills x (it has nothing else to put there), so the contract
+    is that input_present marks the day and the QC columns carry it to the product.
+    """
+
+    def test_input_present_flags_the_gap(self):
+        import pandas as pd
+        import xarray as xr
+        from mhw.states.aggregates import aggregate_region
+        T, n_lat, n_lon = 3, 2, 2
+        present = np.array([1, 0, 1], dtype=np.uint8)
+        V = np.ones((T, n_lat, n_lon), dtype=np.uint8)
+        V[1] = 0                                     # the gap day observes nothing
+        z = np.zeros((T, n_lat, n_lon), dtype=np.float32)
+        ds = xr.Dataset(
+            {"A": (["time", "lat", "lon"], z.astype(np.uint8)),
+             "I": (["time", "lat", "lon"], z), "D": (["time", "lat", "lon"], z),
+             "C": (["time", "lat", "lon"], z), "O": (["time", "lat", "lon"], z),
+             "V": (["time", "lat", "lon"], V),
+             "input_present": (["time"], present)},
+            coords={"time": pd.date_range("2021-03-22", periods=T),
+                    "lat": [60.0, 60.25], "lon": [-170.0, -169.75]},
+        )
+        mask = np.ones((n_lat, n_lon), dtype=np.uint8)
+        w = np.full((n_lat, n_lon), 0.5, dtype=np.float32)
+        df = aggregate_region(ds, mask, w, filled_days={"2021-03-23": "NCEI"})
+        assert df["input_present"].tolist() == [1, 0, 1]
+        assert df["n_valid_cells"].tolist() == [4, 0, 4]
+        assert df["n_mask_cells"].tolist() == [4, 4, 4]
+        assert df["filled"].tolist() == ["", "NCEI", ""]
+
+    def test_old_store_reports_unknown_not_complete(self):
+        """A pre-QC state store must yield NaN, never a confident 'complete'."""
+        import pandas as pd
+        import xarray as xr
+        from mhw.states.aggregates import aggregate_region
+        T = 2
+        z = np.zeros((T, 1, 1), dtype=np.float32)
+        ds = xr.Dataset(
+            {"A": (["time", "lat", "lon"], z.astype(np.uint8)),
+             "I": (["time", "lat", "lon"], z), "D": (["time", "lat", "lon"], z),
+             "C": (["time", "lat", "lon"], z), "O": (["time", "lat", "lon"], z)},
+            coords={"time": pd.date_range("2000-01-01", periods=T),
+                    "lat": [60.0], "lon": [-170.0]},
+        )
+        df = aggregate_region(ds, np.ones((1, 1), np.uint8), np.ones((1, 1), np.float32))
+        assert df["input_present"].isna().all()
+        assert df["n_valid_cells"].isna().all()
