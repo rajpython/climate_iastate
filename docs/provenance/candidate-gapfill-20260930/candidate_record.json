@@ -1,0 +1,64 @@
+{
+  "candidate_id": "candidate-mhw-hobday-consecutive-gapfill-20260930",
+  "status": "VERIFICATION CANDIDATE \u2014 not adopted, not registered, no identity key claimed",
+  "supersedes_nothing": "snap-mhw-hobday-consecutive-20260722 remains the vintage of record and is untouched",
+  "adoption": "Col. Raj's decision, sequenced with the broad-field predictor rebuild (one rerun, not two)",
+  "built_from": {
+    "code_commit": "97714c7 plus the changes in records/code_changes.patch",
+    "branch": "rebuild/input-gapfill-v35 (worktree, own venv \u2014 PROJECT_ROOT isolated from the live tree)",
+    "inputs": "the 540-file producer cache (made read-only before the work) with 8 calendar days supplied from NCEI per-day OISST v2.1",
+    "theta90_mu": "UNCHANGED, byte-identical to the vintage of record (all 8 holes fall outside the 1991-2020 baseline)",
+    "masks_weights": "UNCHANGED, byte-identical",
+    "span": "1982-01-01 to 2026-07-01, 16,253 daily rows per zone, 12 zones"
+  },
+  "gates": [
+    {
+      "gate": "input_calendar_completeness",
+      "result": "PASS",
+      "measured": "all 540 staged input files, every calendar day 1982-01-01..2026-07-05",
+      "evidence": "0 missing days; and in the outputs, 0 rows with input_present==0 in any of 12 zones"
+    },
+    {
+      "gate": "theta90_mu_byte_identical",
+      "result": "PASS",
+      "measured": "sha256 over the whole climatology tree, before and after the run",
+      "evidence": "3f3c9b60899e560a\u2026 both sides"
+    },
+    {
+      "gate": "masks_byte_identical",
+      "result": "PASS",
+      "measured": "sha256 over the mask store",
+      "evidence": "e8b3ea94892ce271\u2026"
+    },
+    {
+      "gate": "change_confined",
+      "result": "PASS",
+      "measured": "area_frac, all 12 zones, all 16,253 days",
+      "evidence": "482 of 195,036 zone-days differ (0.25%); every one within 6 days of a filled day; none beyond 120 days"
+    },
+    {
+      "gate": "severity_blast_radius_characterised",
+      "result": "PASS",
+      "measured": "Ibar/Dbar/Cbar/Obar, all zones",
+      "evidence": "Ibar 484 zone-days (max 6 d from a hole); Dbar 1,326 (max 58 d); Cbar 1,850 (max 90 d); Obar 584 (max 60 d). Wider than area_frac because splitting an event resets the duration counter and the cumulative-intensity accumulator for the rest of that event."
+    },
+    {
+      "gate": "qc_columns_present",
+      "result": "PASS",
+      "measured": "schema of all 12 daily parquets",
+      "evidence": "input_present, n_valid_cells, n_mask_cells, valid_frac, filled"
+    },
+    {
+      "gate": "seal_of_record",
+      "result": "NOT ATTEMPTED",
+      "measured": "",
+      "evidence": "this is a candidate; sealing follows adoption"
+    }
+  ],
+  "known_limitations": [
+    "The 'ai' per-cell state tiles are produced here by ONE contiguous run, whereas the vintage of record's ai tiles sit on four distinct grids across the dateline (built over separate runs). The aggregates are comparable; the per-cell tile structure is not.",
+    "Risk percentile tables were rebuilt from this series' own distribution (frozen mode), so they are not comparable row-for-row with the vintage's risk tables.",
+    "Monthly series here are calendar-month means of the daily series, keyed on date as YYYY-MM-01, matching the vintage's convention."
+  ],
+  "interpolation_not_used": "All 8 days were obtained as REAL observations from NCEI. No value in this candidate is interpolated. The interpolation fallback was validated (73,360 held-out cell-days, SST MAE 0.067 degC, exceedance agreement 98.8%) but was not needed."
+}

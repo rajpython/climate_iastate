@@ -1,0 +1,18 @@
+{
+  "_comment": "Calendar days whose OISST input was not present in the producer's own fetch and was supplied from elsewhere. Read by mhw.states.aggregates.load_filled_days and stamped into the 'filled' column of every region_daily parquet, so a consumer can exclude or re-weight these days without consulting the inputs. A day absent from this file is an ordinary observed day.",
+  "_discovered": "2026-09-30, after lofra-mini found 7 days with area_frac > 0 and Ibar exactly 0; an 8th (1990-01-30) was found here by a calendar-completeness census of all 540 input files.",
+  "days": {
+    "1990-01-30": {"source": "NCEI per-day OISST v2.1 (oisst-avhrr-v02r01.19900130.nc)", "method": "substituted", "note": "absent from 10 of 12 zone files; present in chukchi/beaufort already"},
+    "2021-03-23": {"source": "NCEI per-day OISST v2.1 (oisst-avhrr-v02r01.20210323.nc)", "method": "substituted"},
+    "2021-09-07": {"source": "NCEI per-day OISST v2.1 (oisst-avhrr-v02r01.20210907.nc)", "method": "substituted"},
+    "2022-10-19": {"source": "NCEI per-day OISST v2.1 (oisst-avhrr-v02r01.20221019.nc)", "method": "substituted"},
+    "2023-02-01": {"source": "NCEI per-day OISST v2.1 (oisst-avhrr-v02r01.20230201.nc)", "method": "substituted"},
+    "2024-03-31": {"source": "NCEI per-day OISST v2.1 (oisst-avhrr-v02r01.20240331.nc)", "method": "substituted"},
+    "2025-06-22": {"source": "NCEI per-day OISST v2.1 (oisst-avhrr-v02r01.20250622.nc)", "method": "substituted"},
+    "2026-06-08": {"source": "NCEI per-day OISST v2.1 (oisst-avhrr-v02r01.20260608.nc)", "method": "substituted"}
+  },
+  "_method_values": {
+    "substituted": "the real observation for that day, taken from another distribution of the SAME product (NCEI per-day files; verified against PFEG on an overlapping day to 4.8e-07 degC). Not an estimate.",
+    "interpolated": "estimated from the adjacent days because the real observation could not be obtained. Validated on 73,360 held-out cell-days: SST MAE 0.067 degC, exceedance agreement 98.8%. None of the 8 days needed this."
+  }
+}
