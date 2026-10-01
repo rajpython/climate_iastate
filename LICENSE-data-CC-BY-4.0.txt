@@ -34,9 +34,18 @@ Required attribution
     (for example, version snap-mhw-hobday-consecutive-20260722-pkg2).
 
 Zone definitions
-    The nine zones are the ecosystem subareas of NOAA's Alaska Fisheries Science
-    Center Ecosystem Status Reports (Ortiz and Zador 2024). Zone definitions are
-    credited to that source and are not covered by this licence.
+    Seven of the nine zones (sebs, nbs, wgoa, egoa, ai_west, ai_central, ai_east) are
+    the ecosystem subareas of NOAA's Alaska Fisheries Science Center Ecosystem Status
+    Reports (Ortiz and Zador 2024). The remaining two (chukchi, beaufort) are the NPFMC
+    Arctic Management Area / U.S. EEZ north of 66.0 N (Marine Regions EEZ v12, record
+    8463), divided at 156.47 W; that division is the producers' own construction, not a
+    boundary defined by either source. Zone definitions are credited to those sources
+    and are not covered by this licence.
+
+    Corrected 2026-09-30: an earlier version of this block credited all nine zones to
+    the Ecosystem Status Reports, which is wrong for chukchi and beaufort. The copy
+    sealed inside dashboard-build-records-v34-20260930 carries the uncorrected wording
+    and is not rewritten; see docs/provenance/v34-build-records-20260930/WITHDRAWN-WORDING.md.
 
 Third-party terms (NOT merged into this licence)
     The inputs below are separately licensed or in the public domain, and their

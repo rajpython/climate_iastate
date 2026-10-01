@@ -52,3 +52,23 @@ Chukchi/Beaufort." The count is right but the form is ambiguous — it is a tota
 about a land mask. It comes from the *source polygons* being marine EEZ geometry, not from any masking step.
 That manifest was delivered and is immutable under the handoff convention, so it is not edited; the correction
 was made in `dashboard-to-mini-cc-admin-20260930-02` §4 and is recorded here.
+
+## 4. The licence file's "Zone definitions" block — CORRECTED (lofra-mini, `…-20260930-05`)
+
+The block as delivered read:
+
+> "The nine zones are the ecosystem subareas of NOAA's Alaska Fisheries Science Center Ecosystem Status Reports
+> (Ortiz and Zador 2024)."
+
+**Wrong for two of the nine.** Only the seven ESR subareas (sebs, nbs, wgoa, egoa, ai_west, ai_central, ai_east)
+come from that source. `chukchi` and `beaufort` are the NPFMC Arctic Management Area / U.S. EEZ north of 66.0°N
+(Marine Regions EEZ v12, record 8463), divided at 156.47°W — and **that division is our own construction**: the
+Arctic FMP supports only "Point Barrow is where the two seas meet", and no retrieved official document defines
+either the 156.47°W meridian or the 66.0°N cut. Mini's Cobra check established this independently.
+
+Note that `build_record_vintage20260722.json` → `zones.definition_credit` was **already correct** (it splits seven
+ESR / two Arctic Management Area); the error was confined to the licence file's prose.
+
+**Corrected at source** in `LICENSE-data-CC-BY-4.0.txt` (repo root), with the correction dated in the file. The copy
+sealed inside `dashboard-build-records-v34-20260930` keeps the uncorrected wording and is **not** rewritten, for the
+same reason as items 1–2: mini verified its byte-identity.
