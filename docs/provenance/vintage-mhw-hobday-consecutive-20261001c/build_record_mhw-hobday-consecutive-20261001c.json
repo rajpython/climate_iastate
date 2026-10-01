@@ -110,7 +110,7 @@
   },
   "input": {
     "dataset": "NOAA OISST v2.1 Final, AVHRR-Only (DOI 10.25921/RE9P-PT57)",
-    "zone_year_files": "540 = vintage #2's files with 2026-07-06..08-31 appended to the twelve 2026 files (57 days each, 684 zone-days). The other 528 are byte-identical to #2.",
+    "zone_year_files": "540 zone-year files. Relative to vintage #3: the twelve oisst_<zone>_2024.nc files changed (2024-04-22..26 replaced by NCEI's re-issued files); the other 528 are byte-identical to #3. #3's own 540 were #2's with 2026-07-06..08-31 appended to the twelve 2026 files.",
     "splice_verification": "vintage #2's eight days: records/verify_splice.py (unchanged, carried over)",
     "gapfill_source": "NCEI per-day files https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr/<YYYYMM>/oisst-avhrr-v02r01.<YYYYMMDD>.nc, fetched 2026-09-30 (records/input_day_inventory.csv, records/ncei_same_product_provenance.md)",
     "same_product_evidence": "1990-01-30, the one day both PFEG ncdcOisst21Agg and NCEI serve: sebs subgrid (25 x 91), max |delta SST| 4.8e-07 degC, identical NaN pattern, grid-identical after subsetting.",
@@ -126,7 +126,6 @@
       "already_present": "2026-07-02..07-05 (4 days) were already in the 2026 files from the 2026-07-21 PFEG pull (vintage #2 ended at 07-01 by its end date, not its inputs). KEPT, not replaced (append-only): checked against the NCEI final files, max |dSST| <= 1.9e-06 degC (1-2 float32 ulps) and |dice| <= 6e-08 in all 12 zones, identical NaN pattern (records/cached_20260702_0705_vs_ncei_final.json).",
       "verification": "records/verify_extend.py (independent of the splice module): in all 12 files every #2 day is bit-identical, the added days are exactly 2026-07-06..08-31, each is bit-identical to its NCEI file on the cache grid, and 2026-01-01..08-31 has no gap. PASS, 684 zone-days, 0 failures. Trip-tested (a wrong end date FAILs)."
     },
-    "vs_vintage_3": "IDENTICAL: the same 609 files and aggregate; no input was changed or re-fetched for #4",
     "ice_field_outages": {
       "config": "records/ice_outage_days.json",
       "global_evidence": "records/ice_outage_evidence_ncei_global_ice_counts.csv: NCEI per-day global files for all 702 days on which the Chukchi or Beaufort zone had no ice value; n80 = count of ice values north of 80N. 171 days have 0 (and 0 in both hemispheres); every other day has >= 1000. Clean split.",
@@ -419,5 +418,14 @@
       }
     },
     "summary": "248 values, all within 16 days of 2024-04-22..26 (egoa/goa run 2024-04-06..05-08); area_frac 44 values (16 on the five days), max |delta| 0.0306. chukchi, beaufort, wgoa, ai_east: no product change. Nothing else in the record moved."
+  },
+  "_correction_20261001_A3": {
+    "asked_by": "lofra-mini registration request mini-to-admin-cc-dashboard-m1-m4-20261001-07, finding A3",
+    "what": "two lines carried over from earlier vintages' records were stale: input.vs_vintage_3 ('IDENTICAL ... for #4', true of #4 but not of #5) is removed -- input.vs_vintage_3_4 states the change; input.zone_year_files rewritten relative to #3",
+    "stale_text": {
+      "vs_vintage_3": "IDENTICAL: the same 609 files and aggregate; no input was changed or re-fetched for #4",
+      "zone_year_files": "540 = vintage #2's files with 2026-07-06..08-31 appended to the twelve 2026 files (57 days each, 684 zone-days). The other 528 are byte-identical to #2."
+    },
+    "note": "PRODUCER copy corrected after sealing; the sealed copy (57f907f5 / snapshot 31652ca6) is deliberately not rewritten. Generator fixed so it does not recur."
   }
 }

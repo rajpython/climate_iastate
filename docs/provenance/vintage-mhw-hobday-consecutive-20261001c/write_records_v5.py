@@ -47,6 +47,8 @@ c["engine_and_inputs"]["what_ran"] = ("2026-10-01 -0500, MHW_FROZEN_INPUTS=1: mh
 c["engine_and_inputs"]["bytes_note"] = f"repo HEAD at packaging {HEAD[:7]}"
 br["pipeline"]["code_changed_since_vintage_4"] = {"src/mhw/fetch/ncei_daily.py": "--replace mode + day_sha256 (+3 tests)", "config/ice_outage_days.json": "regional 2024-04 entry withdrawn"}
 i = br["input"]
+i.pop("vs_vintage_3", None)  # A3: stale #4 line, never inherit
+i["zone_year_files"] = "540 zone-year files. Relative to vintage #3: the twelve oisst_<zone>_2024.nc files changed (2024-04-22..26 replaced by NCEI's re-issued files); the other 528 are byte-identical to #3."
 i["vs_vintage_3_4"] = "12 zone-year files changed (oisst_<zone>_2024.nc: the five re-issued days replaced); every other input byte-identical"
 i["reissue"] = {
   "days": "2024-04-22..26, re-issued by NCEI 2024-06-05 (Last-Modified 15:11:32-33 GMT); fetched 2026-10-01 (records/ncei_reissued_files_sha256.txt)",

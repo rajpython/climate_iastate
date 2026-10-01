@@ -1,0 +1,50 @@
+{
+ "sebs": {
+  "became_undefined": 398,
+  "became_defined": 0
+ },
+ "nbs": {
+  "became_undefined": 18469,
+  "became_defined": 0
+ },
+ "wgoa": {
+  "became_undefined": 156,
+  "became_defined": 0
+ },
+ "egoa": {
+  "became_undefined": 0,
+  "became_defined": 0
+ },
+ "ai_west": {
+  "became_undefined": 0,
+  "became_defined": 0
+ },
+ "ai_central": {
+  "became_undefined": 0,
+  "became_defined": 0
+ },
+ "ai_east": {
+  "became_undefined": 0,
+  "became_defined": 0
+ },
+ "chukchi": {
+  "became_undefined": 169645,
+  "became_defined": 0
+ },
+ "beaufort": {
+  "became_undefined": 189059,
+  "became_defined": 0
+ },
+ "ebs": {
+  "became_undefined": 18806,
+  "became_defined": 0
+ },
+ "goa": {
+  "became_undefined": 156,
+  "became_defined": 0
+ },
+ "ai": {
+  "became_undefined": 0,
+  "became_defined": 0
+ }
+}
