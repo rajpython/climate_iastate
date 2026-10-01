@@ -1,0 +1,86 @@
+{
+  "sebs": {
+    "theta_finite": 734492,
+    "borrowed": 819,
+    "share": 0.0011,
+    "window_1to3": 444,
+    "theta_eq_mu_single_sample": 58
+  },
+  "nbs": {
+    "theta_finite": 461781,
+    "borrowed": 22938,
+    "share": 0.0497,
+    "window_1to3": 8135,
+    "theta_eq_mu_single_sample": 1253
+  },
+  "wgoa": {
+    "theta_finite": 838335,
+    "borrowed": 363,
+    "share": 0.0004,
+    "window_1to3": 163,
+    "theta_eq_mu_single_sample": 50
+  },
+  "egoa": {
+    "theta_finite": 472140,
+    "borrowed": 0,
+    "share": 0.0,
+    "window_1to3": 0,
+    "theta_eq_mu_single_sample": 0
+  },
+  "ai_west": {
+    "theta_finite": 432612,
+    "borrowed": 0,
+    "share": 0.0,
+    "window_1to3": 0,
+    "theta_eq_mu_single_sample": 0
+  },
+  "ai_central": {
+    "theta_finite": 589992,
+    "borrowed": 0,
+    "share": 0.0,
+    "window_1to3": 0,
+    "theta_eq_mu_single_sample": 0
+  },
+  "ai_east": {
+    "theta_finite": 199104,
+    "borrowed": 0,
+    "share": 0.0,
+    "window_1to3": 0,
+    "theta_eq_mu_single_sample": 0
+  },
+  "chukchi": {
+    "theta_finite": 263105,
+    "borrowed": 35166,
+    "share": 0.1337,
+    "window_1to3": 6646,
+    "theta_eq_mu_single_sample": 2617
+  },
+  "beaufort": {
+    "theta_finite": 195273,
+    "borrowed": 32377,
+    "share": 0.1658,
+    "window_1to3": 8240,
+    "theta_eq_mu_single_sample": 3333
+  },
+  "ebs": {
+    "theta_finite": 1131924,
+    "borrowed": 23473,
+    "share": 0.0207,
+    "window_1to3": 8366,
+    "theta_eq_mu_single_sample": 1309
+  },
+  "goa": {
+    "theta_finite": 1605471,
+    "borrowed": 363,
+    "share": 0.0002,
+    "window_1to3": 163,
+    "theta_eq_mu_single_sample": 50
+  },
+  "ai": {
+    "theta_finite": 1361154,
+    "borrowed": 0,
+    "share": 0.0,
+    "window_1to3": 0,
+    "theta_eq_mu_single_sample": 0
+  }
+}
