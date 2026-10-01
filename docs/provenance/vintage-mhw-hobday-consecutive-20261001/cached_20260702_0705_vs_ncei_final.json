@@ -1,0 +1,134 @@
+{
+ "sebs": {
+  "days": [
+   "2026-07-02",
+   "2026-07-03",
+   "2026-07-04",
+   "2026-07-05"
+  ],
+  "max_abs_dsst": 9.5367431640625e-07,
+  "max_abs_dice": 0,
+  "nan_pattern_identical": true
+ },
+ "nbs": {
+  "days": [
+   "2026-07-02",
+   "2026-07-03",
+   "2026-07-04",
+   "2026-07-05"
+  ],
+  "max_abs_dsst": 1.9073486328125e-06,
+  "max_abs_dice": 0,
+  "nan_pattern_identical": true
+ },
+ "wgoa": {
+  "days": [
+   "2026-07-02",
+   "2026-07-03",
+   "2026-07-04",
+   "2026-07-05"
+  ],
+  "max_abs_dsst": 9.5367431640625e-07,
+  "max_abs_dice": 0,
+  "nan_pattern_identical": true
+ },
+ "egoa": {
+  "days": [
+   "2026-07-02",
+   "2026-07-03",
+   "2026-07-04",
+   "2026-07-05"
+  ],
+  "max_abs_dsst": 9.5367431640625e-07,
+  "max_abs_dice": 0,
+  "nan_pattern_identical": true
+ },
+ "ai_west": {
+  "days": [
+   "2026-07-02",
+   "2026-07-03",
+   "2026-07-04",
+   "2026-07-05"
+  ],
+  "max_abs_dsst": 9.5367431640625e-07,
+  "max_abs_dice": 0,
+  "nan_pattern_identical": true
+ },
+ "ai_central": {
+  "days": [
+   "2026-07-02",
+   "2026-07-03",
+   "2026-07-04",
+   "2026-07-05"
+  ],
+  "max_abs_dsst": 9.5367431640625e-07,
+  "max_abs_dice": 0,
+  "nan_pattern_identical": true
+ },
+ "ai_east": {
+  "days": [
+   "2026-07-02",
+   "2026-07-03",
+   "2026-07-04",
+   "2026-07-05"
+  ],
+  "max_abs_dsst": 9.5367431640625e-07,
+  "max_abs_dice": 0,
+  "nan_pattern_identical": true
+ },
+ "chukchi": {
+  "days": [
+   "2026-07-02",
+   "2026-07-03",
+   "2026-07-04",
+   "2026-07-05"
+  ],
+  "max_abs_dsst": 9.5367431640625e-07,
+  "max_abs_dice": 5.960464477539063e-08,
+  "nan_pattern_identical": true
+ },
+ "beaufort": {
+  "days": [
+   "2026-07-02",
+   "2026-07-03",
+   "2026-07-04",
+   "2026-07-05"
+  ],
+  "max_abs_dsst": 1.1920928955078125e-07,
+  "max_abs_dice": 5.960464477539063e-08,
+  "nan_pattern_identical": true
+ },
+ "ebs": {
+  "days": [
+   "2026-07-02",
+   "2026-07-03",
+   "2026-07-04",
+   "2026-07-05"
+  ],
+  "max_abs_dsst": 1.9073486328125e-06,
+  "max_abs_dice": 0,
+  "nan_pattern_identical": true
+ },
+ "goa": {
+  "days": [
+   "2026-07-02",
+   "2026-07-03",
+   "2026-07-04",
+   "2026-07-05"
+  ],
+  "max_abs_dsst": 9.5367431640625e-07,
+  "max_abs_dice": 0,
+  "nan_pattern_identical": true
+ },
+ "ai": {
+  "days": [
+   "2026-07-02",
+   "2026-07-03",
+   "2026-07-04",
+   "2026-07-05"
+  ],
+  "max_abs_dsst": 9.5367431640625e-07,
+  "max_abs_dice": 0,
+  "nan_pattern_identical": true
+ }
+}

@@ -1,0 +1,37 @@
+{
+  "seal": "dashboard-vintage-mhw-hobday-consecutive-20261001.tar.gz",
+  "outer_sha256": "4ac2c476218905b42617f1c7dafd272e01152b96b5d6b60520cff8d9bc29ec0b",
+  "verified_utc": "2026-10-01T13:43:07Z",
+  "gates": [
+    {
+      "gate": "no_appledouble_members",
+      "result": "PASS",
+      "measured_scope": "members of dashboard-vintage-mhw-hobday-consecutive-20261001.tar.gz read back out of the packed archive",
+      "evidence": "62 members scanned; junk found: none"
+    },
+    {
+      "gate": "required_records_present",
+      "result": "PASS",
+      "measured_scope": "members of dashboard-vintage-mhw-hobday-consecutive-20261001.tar.gz read back out of the packed archive",
+      "evidence": "SHA256SUMS.txt: present; vintage_manifest.json: present"
+    },
+    {
+      "gate": "payload_sha256_match",
+      "result": "PASS",
+      "measured_scope": "members of dashboard-vintage-mhw-hobday-consecutive-20261001.tar.gz read back out of the packed archive",
+      "evidence": "60 members re-hashed against 60 listed; mismatched: none; unlisted: none; listed-but-absent: none"
+    },
+    {
+      "gate": "manifest_file_list_matches_archive",
+      "result": "PASS",
+      "measured_scope": "members of dashboard-vintage-mhw-hobday-consecutive-20261001.tar.gz read back out of the packed archive",
+      "evidence": "manifest lists 61; archive ships 61; only-in-manifest: none; only-in-archive: none"
+    },
+    {
+      "gate": "source_attr_matches_declared_product",
+      "result": "SKIPPED",
+      "measured_scope": "not measured \u2014 gate skipped",
+      "evidence": "skipped: needs both attrs_verbatim.json in the archive and declared.provenance.product in the manifest; asserting nothing."
+    }
+  ]
+}

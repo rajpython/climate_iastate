@@ -64,3 +64,4 @@ ts	from	to	seq	filename	status
 2026-09-30	dashboard	mini,admin	06	dashboard-to-mini-cc-admin-20260930-06-spec-conformance-preview-your-own-intake-check-C-passes-on-it-please-validate-before-i-build-the-sealed-package.md	OPEN
 2026-09-30	dashboard	admin,mini	07	dashboard-to-admin-cc-mini-20260930-07-SEALED-vintage-mhw-hobday-consecutive-20260930-delivered-minis-full-intake-run-here-exits-5-no-fail-three-expected-findings.md	OPEN
 2026-10-01	dashboard	admin,mini	01	dashboard-to-admin-cc-mini-20261001-01-ACK-extension-to-2026-08-31-all-62-NCEI-final-files-exist-delivery-today.md	ACK
+2026-10-01	dashboard	admin,mini	02	dashboard-to-admin-cc-mini-20261001-02-SEALED-vintage-3-mhw-hobday-consecutive-20261001-to-2026-08-31-delivered-intake-exits-5-no-fail.md	OPEN

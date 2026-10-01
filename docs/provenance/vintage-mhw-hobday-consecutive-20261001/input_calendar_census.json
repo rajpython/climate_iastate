@@ -1,0 +1,17 @@
+{
+ "calendar": "1982-01-01..2026-08-31 (16,314 days)",
+ "missing_by_zone_rebuild_input": {
+  "sebs": [],
+  "nbs": [],
+  "wgoa": [],
+  "egoa": [],
+  "ai_west": [],
+  "ai_central": [],
+  "ai_east": [],
+  "chukchi": [],
+  "beaufort": [],
+  "ebs": [],
+  "goa": [],
+  "ai": []
+ }
+}
