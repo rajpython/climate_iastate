@@ -54,6 +54,7 @@ from dashboard.components.risk_gauge import (
 )
 from mhw.states.risk import compute_risk_table, save_risk_table
 
+from dashboard.components.mhw_revision_note import render_mhw_revision_note  # noqa: E402
 from dashboard.components.bottom_ui import (
     AMBER,
     BLUE,
@@ -103,6 +104,7 @@ def render() -> None:
                 f"{_REGION_NAMES.get(region, region.upper())} ({region.upper()})",
                 caption=("Today's and recent marine-heatwave state for the selected region — "
                          "the live map, event metrics, AO/PDO context, and a composite risk score."))
+    render_mhw_revision_note(region)
 
     # ---------------------------------------------------------------------------
     # Load data (all cached — fast after first run)

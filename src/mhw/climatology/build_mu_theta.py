@@ -1,7 +1,9 @@
 """Build mu[doy,lat,lon] and theta90[doy,lat,lon] climatology for a region.
 
 Data source : PFEG CoastWatch ERDDAP OPeNDAP (aggregated, 1981–present)
-  Dataset : ncdcOisst21Agg  (OISST v2.1 Final, AVHRR Only)
+  Dataset : ncdcOisst21Agg  (NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)
+  Canonical provenance string (adopted by lofra-admin 2026-08-17; seals enforce
+  stamped == declared): see mhw.seal.OISST_PROVENANCE — the single source of truth.
   URL     : https://coastwatch.pfeg.noaa.gov/erddap/griddap/ncdcOisst21Agg
   Variables: sst, ice  (ice is in fraction [0, 1])
   Config `ice_threshold_percent` (default 15) is divided by 100 for comparison.
@@ -14,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 import warnings
 from datetime import date, timedelta
@@ -21,9 +24,12 @@ from pathlib import Path
 
 import numpy as np
 import xarray as xr
+
+from mhw.climatology.ice_outage import apply_ice_outages
 import yaml
 
 from mhw.climatology.smooth_doy import compute_mu_theta, doy_window, smooth_doy_field
+from mhw.seal import OISST_PROVENANCE
 from mhw.climatology.storage import save_climatology
 
 # ---------------------------------------------------------------------------
@@ -87,6 +93,18 @@ def year_cache_stale(cache: Path, year: int, *, today: date | None = None) -> bo
     today = today or date.today()
     if not cache.exists():
         return True
+    # FROZEN INPUTS (MHW_FROZEN_INPUTS=1): the cache is the authority and is never
+    # re-fetched. Added 2026-09-30 for the gap-fill rebuild, because the upstream
+    # PFEG aggregate is itself missing 1,196 days of its own span -- a re-fetch
+    # would trade 8 holes for ~1,200 and corrupt the 1991-2020 baseline. In this
+    # mode a readable cache with both variables is always fresh; a MISSING cache
+    # still raises in fetch_year rather than silently going to the network.
+    if os.environ.get("MHW_FROZEN_INPUTS"):
+        try:
+            with xr.open_dataset(cache) as ds:
+                return not ("sst" in ds.data_vars and "ice" in ds.data_vars)
+        except Exception:
+            return True
     try:
         with xr.open_dataset(cache) as ds:
             if "sst" not in ds.data_vars or "ice" not in ds.data_vars:
@@ -143,6 +161,12 @@ def fetch_year(
         else:
             return xr.open_dataset(cache)
 
+    if os.environ.get("MHW_FROZEN_INPUTS"):
+        raise RuntimeError(
+            f"MHW_FROZEN_INPUTS is set but {cache.name} is missing or unusable. "
+            "Refusing to fetch: frozen-input runs must read the staged cache only."
+        )
+
     lon_min_360 = bbox["lon_min"] % 360
     lon_max_360 = bbox["lon_max"] % 360
 
@@ -167,6 +191,26 @@ def fetch_year(
     DATA_RAW.mkdir(parents=True, exist_ok=True)
     tmp = cache.with_suffix(".tmp.nc")
     sub.to_netcdf(tmp)        # write to temp first
+
+    # NEVER-SHRINK GUARD (2026-09-30). The upstream aggregate's gap set is
+    # time-varying: on 2026-09-30 it was missing 1,196 days that our cache held.
+    # A re-fetch that returns FEWER time steps than we already have is upstream
+    # degradation, not an update, and must not be allowed to overwrite the cache.
+    if cache.exists():
+        try:
+            with xr.open_dataset(cache) as old_ds:
+                n_old = int(old_ds["time"].size)
+        except Exception:
+            n_old = 0
+        n_new = int(sub["time"].size)
+        if n_new < n_old:
+            tmp.unlink(missing_ok=True)
+            raise RuntimeError(
+                f"refusing to overwrite {cache.name}: the fetch returned {n_new} days "
+                f"but the cache holds {n_old}. The upstream source has fewer time steps "
+                "than we already have; keeping the cache. Investigate before re-running."
+            )
+
     tmp.rename(cache)         # atomic rename on success
     return xr.open_dataset(cache)
 
@@ -210,8 +254,8 @@ def build_climatology(
     # -----------------------------------------------------------------------
     print(f"Baseline: {start_yr}–{end_yr} ({len(years)} years)")
     print(f"Ice masking: {'ON' if apply_mask else 'OFF'} (threshold {ice_thresh:.2f} fraction)")
-    print(f"Source: PFEG CoastWatch ERDDAP (ncdcOisst21Agg)\n")
-    print(f"Fetching / loading yearly cache …\n")
+    print("Source: PFEG CoastWatch ERDDAP (ncdcOisst21Agg)\n")
+    print("Fetching / loading yearly cache …\n")
 
     sst_arrays: list[np.ndarray] = []
     doy_arrays: list[np.ndarray] = []
@@ -224,9 +268,9 @@ def build_climatology(
     )
     remote_ds = None
     if need_remote:
-        print(f"  Opening PFEG ERDDAP connection …", flush=True)
+        print("  Opening PFEG ERDDAP connection …", flush=True)
         remote_ds = xr.open_dataset(PFEG_URL, engine="netcdf4")
-        print(f"  Connected.\n")
+        print("  Connected.\n")
 
     t0 = time.time()
     for i, year in enumerate(years, 1):
@@ -238,7 +282,8 @@ def build_climatology(
 
         ds = fetch_year(region_id, year, bbox, remote_ds, use_cache=use_cache)
         sst = ds["sst"].values.astype(np.float32)   # (days, lat, lon)
-        icec = ds["ice"].values.astype(np.float32)
+        # Ice-field outage days: blank ice means "unknown", not "open water" (ice_outage.py).
+        icec = apply_ice_outages(region_id, ds)
 
         if lats is None:
             lats = ds["lat"].values
@@ -524,7 +569,9 @@ def main(argv: list[str] | None = None) -> None:
         "region": args.region,
         "baseline_start": baseline["start_year"],
         "baseline_end": baseline["end_year"],
-        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg, OISST v2.1 Final)",
+        # Canonical form (lofra-admin ruling 2026-08-17): one string, one definition —
+        # mhw-seal's provenance gate holds stamped == declared, so drift here fails seals.
+        "source": OISST_PROVENANCE,
         "created": str(date.today()),
     }
 

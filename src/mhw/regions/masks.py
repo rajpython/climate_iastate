@@ -6,6 +6,15 @@ Reads paths and dtype from config/climatology.yml:
   regions.mask_dtype          → uint8
   weights.store_path          → data/derived/weights/weights.zarr
 
+No land mask is applied. The polygons are marine (EEZ / ESR) geometry, so a mask is a
+pure point-in-polygon rasterisation of them. **Cells inside a polygon that never carry
+valid SST are never flagged and remain in the area-fraction denominator** — they are not
+dropped anywhere downstream, because `aggregates.aggregate_region` computes that
+denominator once from this static mask. Wording of record, lofra-mini 2026-09-30; it
+replaces an earlier producer sentence ("land cells … drop out downstream") that was
+wrong about the denominator. Never-valid mask cells per zone: sebs 7, nbs 3, wgoa 24,
+egoa 56, ai_west 0, ai_central 0, ai_east 1, chukchi 13, beaufort 5.
+
 CLI: mhw-build-masks [--plot]
 """
 from __future__ import annotations

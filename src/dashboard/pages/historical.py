@@ -20,6 +20,7 @@ import streamlit as st
 import yaml
 from plotly.subplots import make_subplots
 
+from dashboard.components.mhw_revision_note import render_mhw_revision_note  # noqa: E402
 from dashboard.components.bottom_ui import (
     AMBER,
     BLUE,
@@ -182,6 +183,7 @@ def render() -> None:
                 f"{_REGION_NAMES.get(region, region.upper())} ({region.upper()})",
                 caption=("Year-by-year marine-heatwave activity over the full record — annual "
                          "burden, an event explorer, metric distributions, and AO/PDO regimes."))
+    render_mhw_revision_note(region)
     _parts = []
     if "agg" in _dates:
         _parts.append(f"📅 **MHW data through {_dates['agg'].strftime('%b %d, %Y')}**")

@@ -44,6 +44,7 @@ from mhw.climatology.build_mu_theta import (
     fetch_year,
     year_cache_stale,
 )
+from mhw.climatology.ice_outage import apply_ice_outages
 
 # ---------------------------------------------------------------------------
 # Derived paths
@@ -277,6 +278,26 @@ class StateBuffer:
 # ---------------------------------------------------------------------------
 # Per-day state update (Section 6 equations)
 # ---------------------------------------------------------------------------
+def valid_cells(
+    sst: np.ndarray,
+    ice: np.ndarray,
+    theta: np.ndarray,
+    *,
+    apply_ice: bool,
+    ice_thresh: float,
+) -> np.ndarray:
+    """Boolean mask of cells with a usable observation on one day.
+
+    A cell is valid when it is not ice-masked and both its SST and its θ₉₀ are
+    finite. This is the ONE definition of validity: the day loop uses it to
+    decide where exceedance can be computed, and the engine records it as ``V``
+    so the read layer can report how much real data stands behind each day
+    (QC columns). Keeping it here stops the two from drifting apart.
+    """
+    ice_mask = (ice > ice_thresh) if apply_ice else np.zeros_like(sst, dtype=bool)
+    return ~ice_mask & np.isfinite(sst) & np.isfinite(theta)
+
+
 def _update_one_day(
     sst:   np.ndarray,   # (n_lat, n_lon) — may contain NaN
     ice:   np.ndarray,   # (n_lat, n_lon) fraction [0, 1]
@@ -297,8 +318,7 @@ def _update_one_day(
     Returns (x, A, D, I, C, O) — all shape (n_lat, n_lon).
     """
     # ---- Valid mask ----
-    ice_mask = (ice > ice_thresh) if apply_ice else np.zeros_like(sst, dtype=bool)
-    valid    = ~ice_mask & np.isfinite(sst) & np.isfinite(theta)
+    valid = valid_cells(sst, ice, theta, apply_ice=apply_ice, ice_thresh=ice_thresh)
 
     # ---- 6.1  Threshold exceedance ----
     x   = np.where(valid, np.maximum(0.0, sst - theta), 0.0).astype(np.float32)
@@ -429,6 +449,11 @@ def run_state_engine(
     out_I = np.zeros((n_days, n_lat, n_lon), dtype=np.float32)
     out_C = np.zeros((n_days, n_lat, n_lon), dtype=np.float32)
     out_O = np.zeros((n_days, n_lat, n_lon), dtype=np.float32)
+    # QC: per-cell validity, and whether the day had an input time step at all.
+    # out_present stays 0 for a calendar day the input never supplied -- the
+    # defect that let 8 missing days read as "no exceedance anywhere" (2026-09-30).
+    out_V = np.zeros((n_days, n_lat, n_lon), dtype=np.uint8)
+    out_present = np.zeros(n_days, dtype=np.uint8)
 
     # --- Open remote connection if needed ---
     # Staleness rules live in year_cache_stale (shared with fetch_year) so this
@@ -461,7 +486,9 @@ def run_state_engine(
         yr_date_to_i = {d: i for i, d in enumerate(yr_dates)}
 
         sst_vals = ds_yr["sst"].values  # (n_time, n_lat, n_lon)
-        ice_vals = ds_yr["ice"].values
+        # Ice-field outage days: blank ice means "unknown", not "open water" -- the
+        # SAME substitution the baseline uses (mhw.climatology.ice_outage).
+        ice_vals = apply_ice_outages(region_id, ds_yr)
 
         # Verify grid alignment
         if sst_vals.shape[1:] != (n_lat, n_lon):
@@ -493,6 +520,11 @@ def run_state_engine(
             out_I[oi] = I
             out_C[oi] = C
             out_O[oi] = O
+            out_V[oi] = valid_cells(
+                sst_vals[yr_i], ice_vals[yr_i], theta90[doy - 1],
+                apply_ice=apply_ice, ice_thresh=ice_thresh,
+            ).astype(np.uint8)
+            out_present[oi] = 1
 
         ds_yr.close()
         if verbose and days_in_range:
@@ -542,6 +574,11 @@ def run_state_engine(
                   {"long_name": "Cumulative MHW intensity", "units": "degC days"}),
             "O": (["time", "lat", "lon"], out_O,
                   {"long_name": "Onset rate", "units": "degC/day"}),
+            "V": (["time", "lat", "lon"], out_V,
+                  {"long_name": "Cell has a usable observation (QC)", "units": "1"}),
+            "input_present": (["time"], out_present,
+                  {"long_name": "Input supplied a time step for this calendar day (QC)",
+                   "units": "1"}),
         },
         coords={
             "time": ("time", times),
@@ -976,7 +1013,8 @@ def backfill_main(argv: list[str] | None = None) -> None:
 
     # Lazy-import aggregation + risk helpers to avoid circular imports at module level
     from mhw.states.aggregates import (
-        AGGREGATES_DIR, _load_mask_weights, aggregate_region, save_aggregates,
+        AGGREGATES_DIR, _load_mask_weights, aggregate_region, load_filled_days,
+        save_aggregates,
     )
     from mhw.states.risk import compute_risk_table, save_risk_table
 
@@ -1014,7 +1052,7 @@ def backfill_main(argv: list[str] | None = None) -> None:
             save_states(ds_yr, out_zarr)
 
     # Aggregate the full series in one pass and upsert into region_daily parquet.
-    df = aggregate_region(ds, mask, weights)
+    df = aggregate_region(ds, mask, weights, filled_days=load_filled_days())
     save_aggregates(df, args.region)
     ds.close()
     completed = len(years)

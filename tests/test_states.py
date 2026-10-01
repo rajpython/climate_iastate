@@ -379,3 +379,176 @@ class TestFinalizeEventsGrid:
             x, I, confirm_days=5, gap_days=2, k_days=3, onset_ref="physical_start",
         )
         assert A.sum() == 0 and D.sum() == 0 and C.sum() == 0 and O.sum() == 0
+
+
+# ---------------------------------------------------------------------------
+# QC: validity helper + the missing-day defect it exists to expose (2026-09-30)
+# ---------------------------------------------------------------------------
+class TestValidCells:
+    def _arrs(self):
+        sst = np.array([[10.0, 10.0], [np.nan, 10.0]], dtype=np.float32)
+        ice = np.array([[0.0, 0.9], [0.0, 0.0]], dtype=np.float32)
+        th = np.array([[9.0, 9.0], [9.0, np.nan]], dtype=np.float32)
+        return sst, ice, th
+
+    def test_excludes_ice_nan_sst_and_nan_threshold(self):
+        from mhw.states.update_states import valid_cells
+        sst, ice, th = self._arrs()
+        v = valid_cells(sst, ice, th, apply_ice=True, ice_thresh=0.15)
+        # only (0,0) is valid: (0,1) iced, (1,0) NaN sst, (1,1) NaN theta90
+        assert v.tolist() == [[True, False], [False, False]]
+
+    def test_ice_ignored_when_masking_off(self):
+        from mhw.states.update_states import valid_cells
+        sst, ice, th = self._arrs()
+        v = valid_cells(sst, ice, th, apply_ice=False, ice_thresh=0.15)
+        assert v[0, 1]  # the iced cell is now valid
+
+    def test_matches_the_day_loop_definition(self):
+        """valid_cells must be the SAME rule _update_one_day applies, or the QC
+        column would describe something other than the data."""
+        from mhw.states.update_states import StateBuffer, _update_one_day, valid_cells
+        sst, ice, th = self._arrs()
+        mu = np.zeros_like(th)
+        v = valid_cells(sst, ice, th, apply_ice=True, ice_thresh=0.15)
+        x, *_ = _update_one_day(
+            sst, ice, th, mu, StateBuffer(2, 2, 5),
+            gap_days=2, confirm_days=5, int_ref="climatological_mean",
+            onset_ref="physical_start", k_days=3, apply_ice=True, ice_thresh=0.15,
+        )
+        # exceedance can only be positive where the cell is valid
+        assert not ((x > 0) & ~v).any()
+
+
+class TestMissingDayIsNotAZero:
+    """A calendar day with no input must not be reported as an observed quiet day.
+
+    This is the 2026-09-30 defect: 8 days were absent from the OISST inputs and
+    every cell read x=0, indistinguishable from a genuine no-exceedance day. The
+    engine still zero-fills x (it has nothing else to put there), so the contract
+    is that input_present marks the day, the QC columns carry it to the product as
+    n_days_input, and every value column on that row is NaN (delivery spec 2.4).
+    """
+
+    def test_input_present_flags_the_gap(self):
+        import pandas as pd
+        import xarray as xr
+        from mhw.states.aggregates import aggregate_region
+        T, n_lat, n_lon = 3, 2, 2
+        present = np.array([1, 0, 1], dtype=np.uint8)
+        V = np.ones((T, n_lat, n_lon), dtype=np.uint8)
+        V[1] = 0                                     # the gap day observes nothing
+        z = np.zeros((T, n_lat, n_lon), dtype=np.float32)
+        ds = xr.Dataset(
+            {"A": (["time", "lat", "lon"], z.astype(np.uint8)),
+             "I": (["time", "lat", "lon"], z), "D": (["time", "lat", "lon"], z),
+             "C": (["time", "lat", "lon"], z), "O": (["time", "lat", "lon"], z),
+             "V": (["time", "lat", "lon"], V),
+             "input_present": (["time"], present)},
+            coords={"time": pd.date_range("2021-03-22", periods=T),
+                    "lat": [60.0, 60.25], "lon": [-170.0, -169.75]},
+        )
+        mask = np.ones((n_lat, n_lon), dtype=np.uint8)
+        w = np.full((n_lat, n_lon), 0.5, dtype=np.float32)
+        df = aggregate_region(ds, mask, w, filled_days={"2021-03-23": "NCEI"})
+        assert df["n_days_input"].tolist() == [1, 0, 1]
+        assert df["n_cells_valid"].tolist() == [4, 0, 4]
+        assert df["n_mask_cells"].tolist() == [4, 4, 4]
+        assert df["filled"].tolist() == ["", "NCEI", ""]
+
+    def test_old_store_reports_unknown_not_complete(self):
+        """A pre-QC state store must yield NaN, never a confident 'complete'."""
+        import pandas as pd
+        import xarray as xr
+        from mhw.states.aggregates import aggregate_region
+        T = 2
+        z = np.zeros((T, 1, 1), dtype=np.float32)
+        ds = xr.Dataset(
+            {"A": (["time", "lat", "lon"], z.astype(np.uint8)),
+             "I": (["time", "lat", "lon"], z), "D": (["time", "lat", "lon"], z),
+             "C": (["time", "lat", "lon"], z), "O": (["time", "lat", "lon"], z)},
+            coords={"time": pd.date_range("2000-01-01", periods=T),
+                    "lat": [60.0], "lon": [-170.0]},
+        )
+        df = aggregate_region(ds, np.ones((1, 1), np.uint8), np.ones((1, 1), np.float32))
+        assert df["n_days_input"].isna().all()
+        assert df["n_cells_valid"].isna().all()
+        # no input information -> values are left as computed, never blanked
+        assert df["area_frac"].notna().all()
+
+    def test_no_input_day_is_nan_in_every_value_column(self):
+        """Delivery spec 2.4: a no-input row carries NaN values, not zeros, and
+        no count column is named with the gate's ``n_valid`` input-count prefix."""
+        import pandas as pd
+        import xarray as xr
+        from mhw.states.aggregates import VALUE_COLUMNS, aggregate_region
+        T = 3
+        A = np.ones((T, 1, 1), dtype=np.uint8)
+        f = np.ones((T, 1, 1), dtype=np.float32)
+        ds = xr.Dataset(
+            {"A": (["time", "lat", "lon"], A),
+             "I": (["time", "lat", "lon"], f), "D": (["time", "lat", "lon"], f),
+             "C": (["time", "lat", "lon"], f), "O": (["time", "lat", "lon"], f),
+             "V": (["time", "lat", "lon"], A),
+             "input_present": (["time"], np.array([1, 0, 1], dtype=np.uint8))},
+            coords={"time": pd.date_range("2021-03-22", periods=T),
+                    "lat": [60.0], "lon": [-170.0]},
+        )
+        df = aggregate_region(ds, np.ones((1, 1), np.uint8), np.ones((1, 1), np.float32))
+        for col in VALUE_COLUMNS:
+            assert df[col].isna().tolist() == [False, True, False], col
+        assert not [c for c in df.columns if c.startswith("n_valid")]
+
+
+class TestToMonthly:
+    """Monthly product: means over input days only, calendar-length days_in_month."""
+
+    @staticmethod
+    def _daily(dates, present, value=1.0):
+        import pandas as pd
+        from mhw.states.aggregates import VALUE_COLUMNS
+        df = pd.DataFrame({"date": pd.to_datetime(dates)})
+        for col in VALUE_COLUMNS:
+            df[col] = value
+        df["n_days_input"] = present
+        df.loc[df["n_days_input"] == 0, list(VALUE_COLUMNS)] = np.nan
+        return df
+
+    def test_partial_trailing_month_reads_1_of_31(self):
+        """The 2026-09-30 candidate's July row read 1 of 1 -- complete. Never again."""
+        import pandas as pd
+        from mhw.states.aggregates import to_monthly
+        dates = pd.date_range("2026-06-01", "2026-07-01")
+        m = to_monthly(self._daily(dates, [1] * len(dates)))
+        jul = m.iloc[-1]
+        assert str(jul["date"].date()) == "2026-07-01"
+        assert (jul["n_days"], jul["n_days_input"], jul["days_in_month"]) == (1, 1, 31)
+        jun = m.iloc[0]
+        assert (jun["n_days"], jun["n_days_input"], jun["days_in_month"]) == (30, 30, 30)
+
+    def test_mean_is_over_input_days_only(self):
+        import pandas as pd
+        from mhw.states.aggregates import to_monthly
+        dates = pd.date_range("2021-03-01", "2021-03-31")
+        present = [1] * 31
+        present[22] = 0                              # 2021-03-23
+        d = self._daily(dates, present, value=0.5)
+        m = to_monthly(d)
+        row = m.iloc[0]
+        assert row["area_frac"] == 0.5               # a zero-filled day would pull it down
+        assert (row["n_days"], row["n_days_input"], row["days_in_month"]) == (31, 30, 31)
+
+    def test_month_with_no_input_is_nan_not_zero(self):
+        import pandas as pd
+        from mhw.states.aggregates import VALUE_COLUMNS, to_monthly
+        dates = pd.date_range("2000-02-01", "2000-02-29")
+        m = to_monthly(self._daily(dates, [0] * len(dates)))
+        assert m[list(VALUE_COLUMNS)].isna().all().all()
+        assert (m.iloc[0]["n_days_input"], m.iloc[0]["days_in_month"]) == (0, 29)
+
+    def test_columns_match_the_delivery_spec(self):
+        import pandas as pd
+        from mhw.states.aggregates import to_monthly
+        m = to_monthly(self._daily(pd.date_range("2000-01-01", periods=3), [1, 1, 1]))
+        assert list(m.columns) == ["date", "area_frac", "Ibar", "Dbar", "Cbar", "Obar",
+                                   "n_days", "n_days_input", "days_in_month"]

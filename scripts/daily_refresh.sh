@@ -66,6 +66,16 @@ WARMUP_DAYS=150
 
 log "=== MHW daily refresh — ${TODAY} ==="
 
+# OISST inputs come from NCEI per-day files, appended to the cache (final, else preliminary;
+# preliminary days upgraded to final when published). The cache is the authority: nothing is
+# ever re-pulled from the PFEG aggregate, which is incomplete and serves superseded files.
+log "Updating OISST inputs from NCEI per-day files …"
+docker compose exec -T api mhw-update-ncei
+# The engine reads the cache only, and stops at the last day every zone holds -- never at a day
+# with no input (which would be written as a no-input row).
+END_DAY="$(docker compose exec -T api mhw-update-ncei --print-last-day | tr -d '\r')"
+log "Engine end date (last day held in every zone): ${END_DAY}"
+
 # --- Prior-year re-finalization (once per year, after ~Jan 15) --------------
 # OISST publishes each day as *preliminary* and finalizes it ~2 weeks later, so
 # when the year turns, the stored record for late December was computed from
@@ -95,12 +105,12 @@ if [[ "$MMDD" > "0114" && "$MMDD" < "0316" && ! -f "$SEAL_MARKER" ]]; then
         set -euo pipefail
         for region in "${REGIONS[@]}"; do
             log "[$region] ${PRIOR_YEAR} full-year states (warm-start ${WARMUP_DAYS}d) …"
-            docker compose exec -T api \
+            docker compose exec -T -e MHW_FROZEN_INPUTS=1 api \
                 mhw-run-states --region "$region" \
                     --start "${PRIOR_YEAR}-01-01" --end "${PRIOR_YEAR}-12-31" \
                     --warmup-days "$WARMUP_DAYS"
             log "[$region] ${PRIOR_YEAR} full-year aggregates …"
-            docker compose exec -T api \
+            docker compose exec -T -e MHW_FROZEN_INPUTS=1 api \
                 mhw-aggregate --region "$region" \
                     --start "${PRIOR_YEAR}-01-01" --end "${PRIOR_YEAR}-12-31"
         done
@@ -112,17 +122,23 @@ if [[ "$MMDD" > "0114" && "$MMDD" < "0316" && ! -f "$SEAL_MARKER" ]]; then
     fi
 fi
 
-for region in "${REGIONS[@]}"; do
-    log "[$region] Running state engine  ${YEAR_START} → ${TODAY} (warm-start ${WARMUP_DAYS}d) …"
-    docker compose exec -T api \
-        mhw-run-states --region "$region" --start "$YEAR_START" --end "$TODAY" --warmup-days "$WARMUP_DAYS"
+if [[ "$END_DAY" < "$YEAR_START" ]]; then
+    log "No ${YEAR} input held yet (cache ends ${END_DAY}); skipping the current-year run."
+    REGIONS_RUN=()
+else
+    REGIONS_RUN=("${REGIONS[@]}")
+fi
+for region in "${REGIONS_RUN[@]}"; do
+    log "[$region] Running state engine  ${YEAR_START} → ${END_DAY} (warm-start ${WARMUP_DAYS}d) …"
+    docker compose exec -T -e MHW_FROZEN_INPUTS=1 api \
+        mhw-run-states --region "$region" --start "$YEAR_START" --end "$END_DAY" --warmup-days "$WARMUP_DAYS"
 
     log "[$region] Aggregating …"
-    docker compose exec -T api \
-        mhw-aggregate --region "$region" --start "$YEAR_START" --end "$TODAY"
+    docker compose exec -T -e MHW_FROZEN_INPUTS=1 api \
+        mhw-aggregate --region "$region" --start "$YEAR_START" --end "$END_DAY"
 
     log "[$region] Recomputing risk scores …"
-    docker compose exec -T api \
+    docker compose exec -T -e MHW_FROZEN_INPUTS=1 api \
         mhw-compute-risk --region "$region"
 done
 
