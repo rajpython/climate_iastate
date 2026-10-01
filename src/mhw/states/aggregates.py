@@ -117,6 +117,9 @@ def _load_mask_weights(
 # ---------------------------------------------------------------------------
 # Core aggregation (Section 7 equations)
 # ---------------------------------------------------------------------------
+VALUE_COLUMNS = ("area_frac", "Ibar", "Dbar", "Cbar", "Obar")
+
+
 def load_filled_days() -> dict[str, str]:
     """Map ``YYYY-MM-DD`` -> source string, from ``config/filled_days.json``.
 
@@ -150,24 +153,32 @@ def aggregate_region(
     Returns
     -------
     DataFrame with columns: date, area_frac, Ibar, Dbar, Cbar, Obar, plus the QC
-    columns input_present, n_valid_cells, n_mask_cells, valid_frac when the state
+    columns n_days_input, n_cells_valid, n_mask_cells, valid_frac when the state
     store carries them (see below).
 
-    QC columns (added 2026-09-30)
-    -----------------------------
+    QC columns (added 2026-09-30; names per the LOFRA delivery spec, admin `…-18`)
+    -----------------------------------------------------------------------------
     A metric alone cannot say how much real data stands behind it. Eight calendar
     days were absent from the OISST inputs and the engine scored each as a day on
     which no cell exceeded, which is indistinguishable in the output from a genuine
     quiet day -- and a row-count completeness audit cannot see it, because the rows
     are all present. These columns make it visible in the product itself:
 
-      input_present  1 if the input supplied a time step for this calendar day, else 0
-      n_valid_cells  mask cells with a usable observation (not ice-masked, finite
+      n_days_input   1 if the input supplied a time step for this calendar day, else 0
+      n_cells_valid  mask cells with a usable observation (not ice-masked, finite
                      SST and theta90) on this day
       n_mask_cells   the zone's mask cell count (constant; the denominator)
       valid_frac     cos(lat)-weighted share of the zone with a usable observation
 
-    A monthly n_input_days is just ``input_present`` summed over the calendar month.
+    The names are not cosmetic: the sealing gate recognises count columns by the
+    prefixes ``n_days`` / ``n_obs`` / ``n_valid``. The valid-cell count must NOT
+    start ``n_valid`` -- Beaufort has thousands of days with zero ice-free cells,
+    which the gate would read as "a value from zero inputs" and hard-fail.
+
+    No-input rule: on a row with ``n_days_input == 0`` every value column
+    (area_frac, Ibar, Dbar, Cbar, Obar) is NaN, not zero -- absence of data is not
+    a measurement of zero. See :func:`to_monthly` for the monthly counterpart.
+
     State stores written before this change carry neither ``V`` nor ``input_present``;
     for those the QC columns are emitted as NaN rather than guessed, so an old vintage
     is never silently reported as complete.
@@ -228,21 +239,59 @@ def aggregate_region(
     if "V" in ds.data_vars:
         V = ds["V"].values.astype(bool)
         m3 = mask.astype(bool)[np.newaxis, :, :]
-        out["n_valid_cells"] = (V & m3).sum(axis=(1, 2)).astype(np.int32)
+        out["n_cells_valid"] = (V & m3).sum(axis=(1, 2)).astype(np.int32)
         out["valid_frac"] = (
             np.sum(wm3 * (V & m3), axis=(1, 2)) / sum_wm
         ).astype(np.float32)
     else:
-        out["n_valid_cells"] = np.nan
+        out["n_cells_valid"] = np.nan
         out["valid_frac"] = np.nan
+    # The state store keeps its own variable name (input_present); the product
+    # column follows the delivery spec.
     if "input_present" in ds.data_vars:
-        out["input_present"] = ds["input_present"].values.astype(np.int8)
+        out["n_days_input"] = ds["input_present"].values.astype(np.int8)
+        no_input = out["n_days_input"].to_numpy() == 0
+        out.loc[no_input, list(VALUE_COLUMNS)] = np.nan
     else:
-        out["input_present"] = np.nan
+        out["n_days_input"] = np.nan
     out["n_mask_cells"] = np.int32(n_mask)
     fd = filled_days or {}
     out["filled"] = [fd.get(str(d), "") for d in out["date"]]
     return out
+
+
+def to_monthly(daily: pd.DataFrame) -> pd.DataFrame:
+    """Calendar-month means of the daily product, with honest completeness counts.
+
+    Returns one row per month (``date`` = first of month) with the value columns
+    averaged over **input days only** (rows with ``n_days_input == 0`` are NaN in
+    the daily product and drop out of the mean), plus:
+
+      n_days         daily rows aggregated into the month
+      n_days_input   of those, days whose input was read (NaN if unknown)
+      days_in_month  the CALENDAR length of the month -- never the row count
+
+    ``days_in_month`` is what lets a reader see that a trailing partial month is
+    partial: the 2026-09-30 candidate closed on ``2026-07-01`` with
+    ``n_days_in_month = 1`` -- one day of 31 declaring itself complete. It carries
+    no ``n_`` prefix, so the sealing gate ignores it. A month whose every day lacks
+    input has NaN values, never zeros.
+    """
+    df = daily.copy()
+    df["date"] = pd.to_datetime(df["date"])
+    if "n_days_input" not in df:
+        df["n_days_input"] = np.nan
+    month = df["date"].dt.to_period("M")
+    g = df.groupby(month, sort=True)
+    out = g[list(VALUE_COLUMNS)].mean()          # pandas mean skips NaN rows
+    out["n_days"] = g.size()
+    out["n_days_input"] = g["n_days_input"].sum(min_count=1)
+    out.index = out.index.to_timestamp()
+    out = out.rename_axis("date").reset_index()
+    out["days_in_month"] = out["date"].dt.days_in_month.astype(np.int64)
+    if out["n_days_input"].notna().all():
+        out["n_days_input"] = out["n_days_input"].astype(np.int64)
+    return out[["date", *VALUE_COLUMNS, "n_days", "n_days_input", "days_in_month"]]
 
 
 # ---------------------------------------------------------------------------
