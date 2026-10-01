@@ -1,0 +1,283 @@
+{
+  "package": "per-cell theta90 + mu_clim for heatwave vintage #5 (snap-mhw-hobday-consecutive-20261001c), audit5 layout, all 12 zones",
+  "for": "lofra-mini S2 direct-threshold unit (admin ...-20261001-14); to be sealed as snap-audit5-theta90-percell-<date>-v5",
+  "mu_clim_provenance": {
+    "build": "the SAME mhw-build-climatology run that produced #5's theta90 (MHW_FROZEN_INPUTS=1, 2026-10-01): mu_<zone>.zarr and theta90_<zone>.zarr written seconds apart (e.g. sebs 10:46:10 / 10:46:11 -0500), after commit 26e91bc (10:44:22)",
+    "commits": {
+      "ice_outage_rule": "982fa7e -> f634e43",
+      "outage_list_revision_and_reissue_replacement": "26e91bc",
+      "engine_climatology_code": "src/mhw/climatology/build_mu_theta.py + smooth_doy.py as cited in #5's build record"
+    },
+    "recipe": "mu = nan-mean of the 11-day DOY window over the 1991-2020 baseline, then the same 31-day circular DOY smoothing as theta90; same 15% ice mask and the same ice-field-outage rule (interpolated ice, open above 2 degC) on the 171 outage days",
+    "baseline": "1991-2020"
+  },
+  "verification": {
+    "theta90_keys": "all 12 equal #5's manifest theta90_sha256 under the canonical recipe (THETA90-IDENTITY-VERIFICATION.json)",
+    "layout_reproduction": "the same builder, run on vintage #3's climatology (= 20260722's), reproduces the SEALED snap-audit5-theta90-percell-20260725 EXACTLY: theta90 and mu_clim arrays and doy/lat/lon coordinates equal in all 9 zones, and theta90_percell_long.parquet equal as a DataFrame (pandas .equals, 4,564,561 rows)",
+    "long_parquet_rule": "as audit5: one row per cell x doy with a finite value (theta90 and mu_clim are NaN on exactly the same cells); zone order sebs, nbs, wgoa, egoa, ai_west, ai_central, ai_east, chukchi, beaufort, ebs, goa, ai; then doy, lat, lon ascending",
+    "roll_ups": "ebs/goa/ai are included because admin asked for all 12; audit5 had the 9 leaves"
+  },
+  "changes_vs_vintage_3": {
+    "per_zone": {
+      "sebs": {
+        "mu_identical_to_v3": false,
+        "mu_became_undefined": 398,
+        "mu_became_defined": 0,
+        "mu_cell_doys_changed": 81882,
+        "mu_max_abs_change_degC": 2.023,
+        "theta90_became_undefined": 398,
+        "nan_pattern_mu_equals_theta90_v5": true
+      },
+      "nbs": {
+        "mu_identical_to_v3": false,
+        "mu_became_undefined": 18469,
+        "mu_became_defined": 0,
+        "mu_cell_doys_changed": 205030,
+        "mu_max_abs_change_degC": 2.8023,
+        "theta90_became_undefined": 18469,
+        "nan_pattern_mu_equals_theta90_v5": true
+      },
+      "wgoa": {
+        "mu_identical_to_v3": false,
+        "mu_became_undefined": 156,
+        "mu_became_defined": 0,
+        "mu_cell_doys_changed": 15693,
+        "mu_max_abs_change_degC": 1.6678,
+        "theta90_became_undefined": 156,
+        "nan_pattern_mu_equals_theta90_v5": true
+      },
+      "egoa": {
+        "mu_identical_to_v3": true,
+        "mu_became_undefined": 0,
+        "mu_became_defined": 0,
+        "mu_cell_doys_changed": 0,
+        "mu_max_abs_change_degC": 0.0,
+        "theta90_became_undefined": 0,
+        "nan_pattern_mu_equals_theta90_v5": true
+      },
+      "ai_west": {
+        "mu_identical_to_v3": true,
+        "mu_became_undefined": 0,
+        "mu_became_defined": 0,
+        "mu_cell_doys_changed": 0,
+        "mu_max_abs_change_degC": 0.0,
+        "theta90_became_undefined": 0,
+        "nan_pattern_mu_equals_theta90_v5": true
+      },
+      "ai_central": {
+        "mu_identical_to_v3": true,
+        "mu_became_undefined": 0,
+        "mu_became_defined": 0,
+        "mu_cell_doys_changed": 0,
+        "mu_max_abs_change_degC": 0.0,
+        "theta90_became_undefined": 0,
+        "nan_pattern_mu_equals_theta90_v5": true
+      },
+      "ai_east": {
+        "mu_identical_to_v3": true,
+        "mu_became_undefined": 0,
+        "mu_became_defined": 0,
+        "mu_cell_doys_changed": 0,
+        "mu_max_abs_change_degC": 0.0,
+        "theta90_became_undefined": 0,
+        "nan_pattern_mu_equals_theta90_v5": true
+      },
+      "chukchi": {
+        "mu_identical_to_v3": false,
+        "mu_became_undefined": 169645,
+        "mu_became_defined": 0,
+        "mu_cell_doys_changed": 106676,
+        "mu_max_abs_change_degC": 7.7713,
+        "theta90_became_undefined": 169645,
+        "nan_pattern_mu_equals_theta90_v5": true
+      },
+      "beaufort": {
+        "mu_identical_to_v3": false,
+        "mu_became_undefined": 189059,
+        "mu_became_defined": 0,
+        "mu_cell_doys_changed": 76207,
+        "mu_max_abs_change_degC": 6.1062,
+        "theta90_became_undefined": 189059,
+        "nan_pattern_mu_equals_theta90_v5": true
+      },
+      "ebs": {
+        "mu_identical_to_v3": false,
+        "mu_became_undefined": 18806,
+        "mu_became_defined": 0,
+        "mu_cell_doys_changed": 262620,
+        "mu_max_abs_change_degC": 2.8023,
+        "theta90_became_undefined": 18806,
+        "nan_pattern_mu_equals_theta90_v5": true
+      },
+      "goa": {
+        "mu_identical_to_v3": false,
+        "mu_became_undefined": 156,
+        "mu_became_defined": 0,
+        "mu_cell_doys_changed": 15693,
+        "mu_max_abs_change_degC": 1.6678,
+        "theta90_became_undefined": 156,
+        "nan_pattern_mu_equals_theta90_v5": true
+      },
+      "ai": {
+        "mu_identical_to_v3": true,
+        "mu_became_undefined": 0,
+        "mu_became_defined": 0,
+        "mu_cell_doys_changed": 0,
+        "mu_max_abs_change_degC": 0.0,
+        "theta90_became_undefined": 0,
+        "nan_pattern_mu_equals_theta90_v5": true
+      }
+    },
+    "summary": "mu_clim became undefined on EXACTLY the cell x doy where theta90 did (NaN patterns identical in all 12 zones): beaufort 189,059; chukchi 169,645; ebs 18,806; nbs 18,469; sebs 398; wgoa/goa 156; egoa and the Aleutians 0 (mu byte-identical to #3 there). 0 became defined."
+  },
+  "thin_baseline_disclosure": {
+    "per_zone": {
+      "sebs": {
+        "v3": {
+          "finite": 734890,
+          "theta90_eq_mu": 20,
+          "theta90_minus_mu_lt_0p1": 103
+        },
+        "v5": {
+          "finite": 734492,
+          "theta90_eq_mu": 58,
+          "theta90_minus_mu_lt_0p1": 257
+        }
+      },
+      "nbs": {
+        "v3": {
+          "finite": 480250,
+          "theta90_eq_mu": 829,
+          "theta90_minus_mu_lt_0p1": 18450
+        },
+        "v5": {
+          "finite": 461781,
+          "theta90_eq_mu": 1253,
+          "theta90_minus_mu_lt_0p1": 7901
+        }
+      },
+      "wgoa": {
+        "v3": {
+          "finite": 838491,
+          "theta90_eq_mu": 9,
+          "theta90_minus_mu_lt_0p1": 29
+        },
+        "v5": {
+          "finite": 838335,
+          "theta90_eq_mu": 50,
+          "theta90_minus_mu_lt_0p1": 133
+        }
+      },
+      "egoa": {
+        "v3": {
+          "finite": 472140,
+          "theta90_eq_mu": 0,
+          "theta90_minus_mu_lt_0p1": 0
+        },
+        "v5": {
+          "finite": 472140,
+          "theta90_eq_mu": 0,
+          "theta90_minus_mu_lt_0p1": 0
+        }
+      },
+      "ai_west": {
+        "v3": {
+          "finite": 432612,
+          "theta90_eq_mu": 0,
+          "theta90_minus_mu_lt_0p1": 0
+        },
+        "v5": {
+          "finite": 432612,
+          "theta90_eq_mu": 0,
+          "theta90_minus_mu_lt_0p1": 0
+        }
+      },
+      "ai_central": {
+        "v3": {
+          "finite": 589992,
+          "theta90_eq_mu": 0,
+          "theta90_minus_mu_lt_0p1": 0
+        },
+        "v5": {
+          "finite": 589992,
+          "theta90_eq_mu": 0,
+          "theta90_minus_mu_lt_0p1": 0
+        }
+      },
+      "ai_east": {
+        "v3": {
+          "finite": 199104,
+          "theta90_eq_mu": 0,
+          "theta90_minus_mu_lt_0p1": 0
+        },
+        "v5": {
+          "finite": 199104,
+          "theta90_eq_mu": 0,
+          "theta90_minus_mu_lt_0p1": 0
+        }
+      },
+      "chukchi": {
+        "v3": {
+          "finite": 432750,
+          "theta90_eq_mu": 10652,
+          "theta90_minus_mu_lt_0p1": 162820
+        },
+        "v5": {
+          "finite": 263105,
+          "theta90_eq_mu": 2617,
+          "theta90_minus_mu_lt_0p1": 9170
+        }
+      },
+      "beaufort": {
+        "v3": {
+          "finite": 384332,
+          "theta90_eq_mu": 15066,
+          "theta90_minus_mu_lt_0p1": 165416
+        },
+        "v5": {
+          "finite": 195273,
+          "theta90_eq_mu": 3333,
+          "theta90_minus_mu_lt_0p1": 10786
+        }
+      },
+      "ebs": {
+        "v3": {
+          "finite": 1150730,
+          "theta90_eq_mu": 844,
+          "theta90_minus_mu_lt_0p1": 18511
+        },
+        "v5": {
+          "finite": 1131924,
+          "theta90_eq_mu": 1309,
+          "theta90_minus_mu_lt_0p1": 8079
+        }
+      },
+      "goa": {
+        "v3": {
+          "finite": 1605627,
+          "theta90_eq_mu": 9,
+          "theta90_minus_mu_lt_0p1": 29
+        },
+        "v5": {
+          "finite": 1605471,
+          "theta90_eq_mu": 50,
+          "theta90_minus_mu_lt_0p1": 133
+        }
+      },
+      "ai": {
+        "v3": {
+          "finite": 1361154,
+          "theta90_eq_mu": 0,
+          "theta90_minus_mu_lt_0p1": 0
+        },
+        "v5": {
+          "finite": 1361154,
+          "theta90_eq_mu": 0,
+          "theta90_minus_mu_lt_0p1": 0
+        }
+      }
+    },
+    "what": "cell x doy where theta90 equals mu (the baseline rests on effectively one observation) or is within 0.1 degC of it",
+    "finding": "near-degenerate thresholds are FAR fewer in #5 than in #3 (chukchi within 0.1 degC: 162,820 -> 9,170; beaufort 165,416 -> 10,786): #3's were the frozen-water winter thresholds built from outage-day samples. #5 keeps a few thousand exact single-sample cell x doy at the ice edge (chukchi 2,617 = 1.0% of defined; beaufort 3,333 = 1.7%), e.g. chukchi 72.375N -164.125 doy 172: mu #3 -0.76 -> #5 7.01 = theta90 #5. Legitimate under the no-fallback/no-minimum-sample rule; a thin baseline, disclosed."
+  }
+}

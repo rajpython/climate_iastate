@@ -1,0 +1,271 @@
+{
+  "recipe": "transpose(doy,lat,lon);sortby asc;<f4 C-contiguous;sha256(values)",
+  "vintage_id": "mhw-hobday-consecutive-20261001c",
+  "zones": {
+    "sebs": {
+      "canonical_sha256": "4c229c8998be3464ccddaccf1da82657fc7e365d75aa63eef19308206d240b70",
+      "vintage_identity_sha256": "4c229c8998be3464ccddaccf1da82657fc7e365d75aa63eef19308206d240b70",
+      "match": true,
+      "shape_doy_lat_lon": [
+        366,
+        25,
+        91
+      ],
+      "nan_count": 98158,
+      "lat_min": 54.625,
+      "lat_max": 60.625,
+      "lon_min": -179.625,
+      "lon_max": -157.125,
+      "theta90_attrs": {
+        "region": "sebs",
+        "baseline_start": 1991,
+        "baseline_end": 2020,
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)",
+        "created": "2026-10-01"
+      }
+    },
+    "nbs": {
+      "canonical_sha256": "17c5f5f60bf0c64197b84d784078fadfd0d95b74b5305fcff51801b6cdf034b0",
+      "vintage_identity_sha256": "17c5f5f60bf0c64197b84d784078fadfd0d95b74b5305fcff51801b6cdf034b0",
+      "match": true,
+      "shape_doy_lat_lon": [
+        366,
+        23,
+        76
+      ],
+      "nan_count": 177987,
+      "lat_min": 60.125,
+      "lat_max": 65.625,
+      "lon_min": -179.625,
+      "lon_max": -160.875,
+      "theta90_attrs": {
+        "region": "nbs",
+        "baseline_start": 1991,
+        "baseline_end": 2020,
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)",
+        "created": "2026-10-01"
+      }
+    },
+    "wgoa": {
+      "canonical_sha256": "687ea36b3f5f57a42b3748df0fcc501fdb7c88a31b24e317745766b47dc38643",
+      "vintage_identity_sha256": "687ea36b3f5f57a42b3748df0fcc501fdb7c88a31b24e317745766b47dc38643",
+      "match": true,
+      "shape_doy_lat_lon": [
+        366,
+        44,
+        68
+      ],
+      "nan_count": 256737,
+      "lat_min": 50.625,
+      "lat_max": 61.375,
+      "lon_min": -163.875,
+      "lon_max": -147.125,
+      "theta90_attrs": {
+        "region": "wgoa",
+        "baseline_start": 1991,
+        "baseline_end": 2020,
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)",
+        "created": "2026-10-01"
+      }
+    },
+    "egoa": {
+      "canonical_sha256": "09569ea190adedcadb075e5044bafc8b3efef5f938a6b07aecc09f46f5acd2fc",
+      "vintage_identity_sha256": "09569ea190adedcadb075e5044bafc8b3efef5f938a6b07aecc09f46f5acd2fc",
+      "match": true,
+      "shape_doy_lat_lon": [
+        366,
+        31,
+        68
+      ],
+      "nan_count": 299388,
+      "lat_min": 53.625,
+      "lat_max": 61.125,
+      "lon_min": -146.875,
+      "lon_max": -130.125,
+      "theta90_attrs": {
+        "region": "egoa",
+        "baseline_start": 1991,
+        "baseline_end": 2020,
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)",
+        "created": "2026-10-01"
+      }
+    },
+    "ai_west": {
+      "canonical_sha256": "b61ac63e4f5d161c207bdbb80087603fda1a962b6d847441b709ec4480d61dd8",
+      "vintage_identity_sha256": "b61ac63e4f5d161c207bdbb80087603fda1a962b6d847441b709ec4480d61dd8",
+      "match": true,
+      "shape_doy_lat_lon": [
+        366,
+        32,
+        37
+      ],
+      "nan_count": 732,
+      "lat_min": 48.375,
+      "lat_max": 56.125,
+      "lon_min": 167.875,
+      "lon_max": 176.875,
+      "theta90_attrs": {
+        "region": "ai_west",
+        "baseline_start": 1991,
+        "baseline_end": 2020,
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)",
+        "created": "2026-10-01"
+      }
+    },
+    "ai_central": {
+      "canonical_sha256": "d919bd84e746da61f6b539cd48944e09afe745b87db84aacfa4d45ebc37b4374",
+      "vintage_identity_sha256": "d919bd84e746da61f6b539cd48944e09afe745b87db84aacfa4d45ebc37b4374",
+      "match": true,
+      "shape_doy_lat_lon": [
+        366,
+        31,
+        52
+      ],
+      "nan_count": 0,
+      "lat_min": 48.125,
+      "lat_max": 55.625,
+      "lon_min": -179.875,
+      "lon_max": 179.875,
+      "theta90_attrs": {
+        "region": "ai_central",
+        "baseline_start": 1991,
+        "baseline_end": 2020,
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)",
+        "created": "2026-10-01"
+      }
+    },
+    "ai_east": {
+      "canonical_sha256": "45445ad987a838f332f2c33d720e9dd101b7344f4861277d94b904449d746ae2",
+      "vintage_identity_sha256": "45445ad987a838f332f2c33d720e9dd101b7344f4861277d94b904449d746ae2",
+      "match": true,
+      "shape_doy_lat_lon": [
+        366,
+        23,
+        24
+      ],
+      "nan_count": 2928,
+      "lat_min": 49.375,
+      "lat_max": 54.875,
+      "lon_min": -169.875,
+      "lon_max": -164.125,
+      "theta90_attrs": {
+        "region": "ai_east",
+        "baseline_start": 1991,
+        "baseline_end": 2020,
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)",
+        "created": "2026-10-01"
+      }
+    },
+    "chukchi": {
+      "canonical_sha256": "a5fd7255c7e67f10ae75c304a636e0dfd3ee2ff75d9c40e2e0e7284d80dde0c6",
+      "vintage_identity_sha256": "a5fd7255c7e67f10ae75c304a636e0dfd3ee2ff75d9c40e2e0e7284d80dde0c6",
+      "match": true,
+      "shape_doy_lat_lon": [
+        366,
+        35,
+        50
+      ],
+      "nan_count": 377395,
+      "lat_min": 66.125,
+      "lat_max": 74.625,
+      "lon_min": -168.875,
+      "lon_max": -156.625,
+      "theta90_attrs": {
+        "region": "chukchi",
+        "baseline_start": 1991,
+        "baseline_end": 2020,
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)",
+        "created": "2026-10-01"
+      }
+    },
+    "beaufort": {
+      "canonical_sha256": "85efbb6c365ef56aae64def884c1db30133edf7142439b37d601d3b799517104",
+      "vintage_identity_sha256": "85efbb6c365ef56aae64def884c1db30133edf7142439b37d601d3b799517104",
+      "match": true,
+      "shape_doy_lat_lon": [
+        366,
+        20,
+        62
+      ],
+      "nan_count": 258567,
+      "lat_min": 69.875,
+      "lat_max": 74.625,
+      "lon_min": -156.375,
+      "lon_max": -141.125,
+      "theta90_attrs": {
+        "region": "beaufort",
+        "baseline_start": 1991,
+        "baseline_end": 2020,
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)",
+        "created": "2026-10-01"
+      }
+    },
+    "ebs": {
+      "canonical_sha256": "5f18123faf625cb23353d6ac1f9b7eabdb934b0e20f00455f65cf38d63d14130",
+      "vintage_identity_sha256": "5f18123faf625cb23353d6ac1f9b7eabdb934b0e20f00455f65cf38d63d14130",
+      "match": true,
+      "shape_doy_lat_lon": [
+        366,
+        45,
+        91
+      ],
+      "nan_count": 366846,
+      "lat_min": 54.625,
+      "lat_max": 65.625,
+      "lon_min": -179.625,
+      "lon_max": -157.125,
+      "theta90_attrs": {
+        "region": "ebs",
+        "baseline_start": 1991,
+        "baseline_end": 2020,
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)",
+        "created": "2026-10-01"
+      }
+    },
+    "goa": {
+      "canonical_sha256": "b8869f1b48be9a5298dda63c1ed2278903f8c60fe50d034a2e282a2b3f17a4cb",
+      "vintage_identity_sha256": "b8869f1b48be9a5298dda63c1ed2278903f8c60fe50d034a2e282a2b3f17a4cb",
+      "match": true,
+      "shape_doy_lat_lon": [
+        366,
+        44,
+        136
+      ],
+      "nan_count": 584673,
+      "lat_min": 50.625,
+      "lat_max": 61.375,
+      "lon_min": -163.875,
+      "lon_max": -130.125,
+      "theta90_attrs": {
+        "region": "goa",
+        "baseline_start": 1991,
+        "baseline_end": 2020,
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)",
+        "created": "2026-10-01"
+      }
+    },
+    "ai": {
+      "canonical_sha256": "07d4e2ba809f9c5d93d7ed47e8607173be631d0d91abdba3bcbadef6a7a481a5",
+      "vintage_identity_sha256": "07d4e2ba809f9c5d93d7ed47e8607173be631d0d91abdba3bcbadef6a7a481a5",
+      "match": true,
+      "shape_doy_lat_lon": [
+        366,
+        33,
+        113
+      ],
+      "nan_count": 3660,
+      "lat_min": 48.125,
+      "lat_max": 56.125,
+      "lon_min": -179.875,
+      "lon_max": 179.875,
+      "theta90_attrs": {
+        "region": "ai",
+        "baseline_start": 1991,
+        "baseline_end": 2020,
+        "source": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57)",
+        "created": "2026-10-01"
+      }
+    }
+  },
+  "all_zones_match_vintage_identity": true
+}
