@@ -1,0 +1,75 @@
+intake_check: vintage mhw-hobday-consecutive-20260930  ->  results/heatwave-vintage-intake-prep-20261001/records/intake-mhw-hobday-consecutive-20260930-20261001T040620Z  
+  [0] PASS         tarball SHA-256 vs sidecar (4c8a26d0b6c3...)
+  [0] PASS         tarball SHA-256 vs the sending handoff
+  [0] PASS         extracted 59 members; 0 AppleDouble sidecars removed and logged
+  [0] PASS         producer SHA256SUMS: 57/57 match
+repaired days (results/heatwave-vintage-intake-prep-20261001/deliveries/mhw-hobday-consecutive-20260930/records/input_day_inventory.csv): ['1990-01-30', '2021-03-23', '2021-09-07', '2022-10-19', '2023-02-01', '2024-03-31', '2025-06-22', '2026-06-08']
+[A] identity
+  [A] PASS         vintage_id = 'mhw-hobday-consecutive-20260930' (must be NEW, not 'mhw-hobday-consecutive-20260722')
+  [A] PASS         supersedes names the 20260722 vintage: 'mhw-hobday-consecutive-20260722 (snap-mhw-hobday-consecutive-20260722 stays registered and'
+  [A] PASS         theta90_sha256 identity keys equal 20260722 in all 12 zones (threshold unchanged)
+  [A] PASS         repaired days inside the 1991-2020 baseline: none (the 7 a02 days are 2021-2026)
+  [A] PASS         per-cell theta90 not shipped (not required if keys are unchanged; the sealed audit5 theta90 then still applies)
+  [A] PASS         new theta90 keys == the sealed snap-audit5-theta90-percell-20260725 (9 leaves)
+  [A] PASS         recipe block (theta90, event_rule, intensity/onset reference, rule_version) unchanged
+  [A] PASS         build record definition_applied (baseline 1991-2020, detection, climatology, intensity) unchanged
+  [A] PASS         baseline declared '1991-2020 (30-year climate normal)'
+  [A] FINDING      engine / climatology / aggregation / mask code identical to the 20260722 build (commit + file SHAs) -- CHANGED: a code change is a scientific reseal class; LOFRA to read
+  [A] PASS         licence 'CC BY 4.0', licensor 'Singh, R. (Alaska Marine Heatwave Data Project)' unchanged
+  [A] PASS         attribution/citation line identical except the version identifier
+  [A] PASS         licence file shipped with CC BY 4.0 legal code: results/heatwave-vintage-intake-prep-20261001/deliveries/mhw-hobday-consecutive-20260930/LICENSE-data-CC-BY-4.0.txt
+  [A] PASS         OISST aggregate SHA recomputed from the per-file list (548 files) == manifest (94fd2d917045...)
+  [A] PASS         input files vs 20260722: 82 changed, 8 added, 0 dropped (expected: changes only in years holding repaired days)
+  [A] PASS         changed input files outside the repaired years ['1990', '2021', '2022', '2023', '2024', '2025', '2026']: 0
+[D] structure
+  [D] PASS         24 zone files present (9 leaves + 3 roll-ups x daily/monthly); missing: none
+  [D] PASS         daily: >= 16253 rows, 1982-01-01..2026-07-01 contiguous, no duplicates, ordered (12 zones)
+  [D] PASS         daily carries area_frac, Ibar, Dbar, Cbar, Obar (signature needs Ibar)
+  [D] PASS         area_frac within [0, 1]
+  [D] PASS         zone-days with area_frac > 0 and Ibar == 0 (the hole signature) anywhere 1982-2026: 0
+  [D] PASS         monthly: one first-of-month row per calendar month to the end month
+  [D] PASS         monthly = calendar-month mean of daily, all value columns (worst |diff| / (1e-6 + 2e-6 max|col|) = 0.05; <= 1 passes)
+[B] repaired days
+  [B] PASS         inventory (results/heatwave-vintage-intake-prep-20261001/deliveries/mhw-hobday-consecutive-20260930/records/input_day_inventory.csv) declares all 7 a02 days re-obtained
+  [B] PASS         inventory date column is 'input_date'
+  [B] PASS         inventory days still missing: none
+  [B] PASS         repaired days beyond the a02 seven: ['1990-01-30'] (commission speaks of eight; candidates ['1990-01-30', '2026-06-03'])
+  [B] PASS         every repaired day names its source (ERDDAP/NCEI file + sha)
+  [B] PASS         input presence = 1 on every repaired day in every zone
+  [B] PASS         a02 signature (area_frac>0, Ibar==0) on the repaired days: 0 leaf + 0 roll-up zone-days (20260722: 24 leaf + 14 roll-up)
+  [B] FINDING      daily area_frac changes: 482 zone-days; classes {'within_a02_bracket': 422, 'near_a02_day_outside_bracket': 60, 'unchanged': 20} -- 60 outside the a02 bracket (bracket = persistence estimate)
+  [B] PASS         Ibar/Dbar/Cbar/Obar changes not attributable to a repaired day or its active span: 0
+  [B] PASS         days beyond the old end 2026-07-01 (extension, not compared): 0 zone-days
+  [B] FINDING      monthly area_frac: 72 zone-months changed (47 leaf; a02 bracket predicted 49 leaf zone-months in 9 months) in 9 months ['2021-03', '2021-09', '2022-10', '2023-01', '2023-02', '2024-03', '2024-04', '2025-06', '2026-06']; classes {'within_a02_bracket': 66, 'a02_month_outside_bracket': 6, 'unchanged_though_bracketed': 2}
+  [B] PASS         downward monthly changes (a02 predicted all upward): 0
+[C] counts + gate
+  [C] PASS         daily per-day input-presence column in every daily file (n_days | n_days_input; candidate input_present read)
+  [C] PASS         daily per-day valid-cell count in every daily file (valid_cells | n_cells_valid; candidate n_valid_cells read)
+  [C] PASS         count-column names are the agreed set (primary: daily n_days + valid_cells, monthly n_days + n_days_in_month; spec alias: n_days_input + n_cells_valid, monthly n_days + n_days_input)
+  [C] PASS         gate check 9 can SEE the daily presence column 'n_days_input'
+  [C] PASS         daily valid-cell count 'n_cells_valid' is NOT read by gate check 9 as a completeness count
+  [C] PASS         presence column is 0/1 on every row
+  [C] PASS         values are NaN exactly where input is absent (a missing day is written as missing, not as 'no heatwave')
+  [C] PASS         valid-cell count is an integer in [0, mask cells], and 0 on input-absent days
+  [C] PASS         days still without input after the rebuild: none
+  [C] PASS         monthly input count (n_days | n_days_input | candidate n_input_days) = sum of daily presence; spec alias also n_days = days aggregated
+  [C] PASS         monthly calendar-length column (n_days_in_month | days_in_month) present: missing in none
+  [C] PASS         monthly calendar column equals the CALENDAR month length in every row: 0 row(s) in 0 file(s) do not
+  [C] PASS         canonical seal_snapshot + qa_gate on a scratch rehearsal: seal exit 0, gate exit 0
+  [C] PASS         gate check 9 could verify completeness on every zone file (0 files 'NOT verifiable')
+  [C] PASS         gate check 9 INCOMPLETE disclosures: 24 file(s); explained by the terminal partial month and declared input-absent days except: none
+  [C] PASS         rehearsal copy removed after recording (manifest + log kept in the record)
+[E] per-cell
+  [E] PASS         per-cell A re-hash == manifest A_sha256 (mismatch: none)
+  [E] PASS         per-cell x re-hash == manifest x_sha256 (mismatch: none)
+  [E] PASS         A == consecutive_first(x > 0): disagreeing cell-days 0 (9 zones)
+  [E] PASS         pooled (9 zones) zero-exceedance days between neighbours with >= 100 exceeding cells: none
+  [E] PASS         pooled zero-exceedance days with 30-100-cell neighbours (a02, nine zones: 0 of 2,155): none
+  [E] PASS         per-zone zero-exceedance days with >= 100-cell neighbours (information): none
+[G] denominator
+  [G] PASS         area_frac == sum(cos(lat) A)/sum(cos(lat)) over ALL mask cells, 9 leaves (max |diff| 6.10e-08; s16d 6.0e-8)
+  [G] PASS         ebs/goa/ai = cos-lat-weighted leaves under the union masks (max |diff| 7.30e-08; s19b 7.3e-8)
+  [G] PASS         mask store per-file SHA-256 == snap-region-masks-oisst025-20260930 (differ: none)
+
+RESULT {'0': 'PASS', 'A': 'FINDING', 'D': 'PASS', 'B': 'FINDING', 'C': 'PASS', 'E': 'PASS', 'G': 'PASS'}  ->  exit 5: NO FAIL, FINDINGS -- LOFRA reads them before sealing
+record: results/heatwave-vintage-intake-prep-20261001/records/intake-mhw-hobday-consecutive-20260930-20261001T040620Z/intake_result.json

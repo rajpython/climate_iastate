@@ -1,0 +1,131 @@
+{
+  "vintage_id": "mhw-hobday-consecutive-20260930",
+  "produced_by": "dashboard (climate_iastate)",
+  "produced_utc": "2026-09-30",
+  "supersedes": "mhw-hobday-consecutive-20260722 (snap-mhw-hobday-consecutive-20260722 stays registered and immutable)",
+  "reseal_class": "INPUT COMPLETENESS (8 missing OISST input days recovered as real observations). NOT a threshold reseal and NOT a rule change: theta90/mu byte-identical in all 12 zones; detection and aggregation algebra unchanged.",
+  "vintage_end": "2026-07-01",
+  "period": "1982-01-01..2026-07-01",
+  "code_commits": {
+    "engine": "d306292c260e6e5870450a2f995295d53ba54640",
+    "aggregation_packaging": "a6725836d3195d88d9f258d689cbe95d16d87fd0",
+    "seal_tool": "49c075793ec66b77fe7178d50a4c48214f5f56ea",
+    "branch": "rebuild/input-gapfill-v35 (pushed)"
+  },
+  "identity_keys": {
+    "theta90_sha256": {
+      "sebs": "f79023eeae233e0e4941cf3a2fe06f83ea33fadff6130aac8a9adbb5f269af58",
+      "nbs": "1273b02b7c6f55d27c5c293976101c6af05c6f12eb20ddaa2ed645ed6e4035ca",
+      "wgoa": "2dcc1bf0cb728d37559a6ede8f2b4894626ab2db7f150b5d152665c154504a69",
+      "egoa": "09569ea190adedcadb075e5044bafc8b3efef5f938a6b07aecc09f46f5acd2fc",
+      "ai_west": "b61ac63e4f5d161c207bdbb80087603fda1a962b6d847441b709ec4480d61dd8",
+      "ai_central": "d919bd84e746da61f6b539cd48944e09afe745b87db84aacfa4d45ebc37b4374",
+      "ai_east": "45445ad987a838f332f2c33d720e9dd101b7344f4861277d94b904449d746ae2",
+      "chukchi": "94a3d793cc2846b2307261c91b110a7f91e076b6e74ea60123e6e116a5f8ddb9",
+      "beaufort": "e420a2e34650179b5bd3d1f97b0169350fb07d66eabce4850876ba9ee027dad6",
+      "ebs": "18c9bcd31827f4064bcd93676edb646804d31dff3cb02b56f7fa7f8bf6f38bd2",
+      "goa": "367168a95ed40526c83d383d0fe4ee0bfbcdbe5147accfde4b82c8903a4fe158",
+      "ai": "07d4e2ba809f9c5d93d7ed47e8607173be631d0d91abdba3bcbadef6a7a481a5"
+    },
+    "x_sha256": {
+      "sebs": "38c7177d0d7bfcf45e339c2c525b2f95c7eb78ac4d5cd504885b2a969d882268",
+      "nbs": "af274026abd0b11ab78f9f709a459c812987899b6d96c6c5d7c8da6a93e4e979",
+      "wgoa": "dac2cabb93e01599623606d0d66f1c367f34158b14e89d1e9b803e65bd4cb99a",
+      "egoa": "b3a0b39f6503739fe6a1b8f4b793c8ec952223cff6135b57639c68883ea2c501",
+      "ai_west": "a1d0004fd86d03927a494f6d0db69eb3089e09b81aca4947204d9b1982ee86c5",
+      "ai_central": "bc29cc54400fe2b66c36a3709cfedb359606e7584bc70d5ff4f4593bad1aa41d",
+      "ai_east": "06c77fa20b698cc239d40ee17da82c50efe0135c393d2c6a4cf0117a46135435",
+      "chukchi": "7d2453ec98e40dc155c57131563c590453663c9f258d59af48bacf4df4604e57",
+      "beaufort": "8cba7615b7cf6a91f9ff250f34b4517c27b74ae67f737b606448772540e2510d",
+      "ebs": "79a8dbe89c0ecfbf6100df563c2a1c91bb78c669923cb31b4efbd438cc00263c",
+      "goa": "e9f387b78bf98e5b78834776a48ba53968ea46a834ca0e34ba6cec3154b636bc",
+      "ai": "672e10329dea93d61b0db9d41316705b1f6c8f9c0f3f93f9aa3b02a4cca3f14a"
+    },
+    "A_sha256": {
+      "sebs": "0fb74c577fa3c1773602de071e23321d9f4921011eaa00d72b86413a72eb3d91",
+      "nbs": "a30210d439478bb8286f419c2e58e1d0b818362f1eb4a76dd88441603642562b",
+      "wgoa": "07891986776fcf027cafe673191030f7709b08fd5e4bf3726889996899384c24",
+      "egoa": "729c0c83009cf4e81bc8fedd7740020a31d3294f43c6ac8da4ab5d436026cfb8",
+      "ai_west": "ef992609129026effa26f9b9cf5327e838d1e8476c5c7db368268cbd71ad2a91",
+      "ai_central": "e6ef1f22b4ee7c7e26abbe5159853d25a9c448ac425dd6fa7f0ed7de506752f1",
+      "ai_east": "8a40e79f0837195b61bafea5c8fa59c2edf5d95b62ebf17f44020159587f8310",
+      "chukchi": "abede92ef2989a5d812e9c7c68f2991ee370595b649d6f1d07eb94e27242a117",
+      "beaufort": "c8227894fbde4c18a383825b8808099453d2fdb02eaaeabff1668076a62680a8",
+      "ebs": "224a317e8ba6e127db6a1f1811a22c255af1011da46efee1dac5b486b878cbad",
+      "goa": "930ffa12f871546a0aee70f16110634248b77cd9cb2116f5690b9f5cf056afb1",
+      "ai": "2d53a657c037c62f2d1ce67529f873970facd3cd6ef24a9a75508d3650597580"
+    },
+    "recipe": {
+      "theta90": "theta90 (doy, lat, lon) ascending, '<f4', C-contiguous, NaN PRESERVED; sha256 of the raw buffer",
+      "x": "x (time, lat, lon) ascending, NaN -> 0.0, '<f4', C-contiguous; sha256 of the raw buffer",
+      "A": "A (time, lat, lon) ascending, '<u1', C-contiguous; sha256 of the raw buffer",
+      "code": "records/keys.py"
+    },
+    "note_ai": "ai x/A were published null in 20260722 (dateline multi-grid); given here from the ai state store under the same recipe. The shipped per-cell npz cover the 9 leaves; ai x/A are for identity only.",
+    "theta90_vs_20260722": "byte-identical in all 12 zones"
+  },
+  "previous_identity_keys_20260722": {
+    "theta90_sha256": {
+      "sebs": "f79023eeae233e0e4941cf3a2fe06f83ea33fadff6130aac8a9adbb5f269af58",
+      "nbs": "1273b02b7c6f55d27c5c293976101c6af05c6f12eb20ddaa2ed645ed6e4035ca",
+      "wgoa": "2dcc1bf0cb728d37559a6ede8f2b4894626ab2db7f150b5d152665c154504a69",
+      "egoa": "09569ea190adedcadb075e5044bafc8b3efef5f938a6b07aecc09f46f5acd2fc",
+      "ai_west": "b61ac63e4f5d161c207bdbb80087603fda1a962b6d847441b709ec4480d61dd8",
+      "ai_central": "d919bd84e746da61f6b539cd48944e09afe745b87db84aacfa4d45ebc37b4374",
+      "ai_east": "45445ad987a838f332f2c33d720e9dd101b7344f4861277d94b904449d746ae2",
+      "chukchi": "94a3d793cc2846b2307261c91b110a7f91e076b6e74ea60123e6e116a5f8ddb9",
+      "beaufort": "e420a2e34650179b5bd3d1f97b0169350fb07d66eabce4850876ba9ee027dad6",
+      "ebs": "18c9bcd31827f4064bcd93676edb646804d31dff3cb02b56f7fa7f8bf6f38bd2",
+      "goa": "367168a95ed40526c83d383d0fe4ee0bfbcdbe5147accfde4b82c8903a4fe158",
+      "ai": "07d4e2ba809f9c5d93d7ed47e8607173be631d0d91abdba3bcbadef6a7a481a5"
+    },
+    "x_sha256": {
+      "sebs": "73bd73ebfef4b6117c5839b2d3fdf1e34e69ff6ca3c6e930899b8ddda58adabe",
+      "nbs": "dbe342f4f8f16564ec65ae50ae8063d26c65a9e402d812078357208cbc30d724",
+      "wgoa": "2db8a045925cfe6fd2aa7eb2fde9f726b82e069a1517fabac4dc3cdbf9d76701",
+      "egoa": "86326d74eb150498fa0c74ef3e56f8ba3bc6b81e552fe81ed49553b71753d79d",
+      "ai_west": "fabdee0089818e242e1a8807484ffa1c355dd675d677e9af08bdc7ad6a57bf56",
+      "ai_central": "6e7f6274e66b98c7b68fc1e978e0797582bb32977fa11b7771b9f80dd6a9486f",
+      "ai_east": "66d404379faf731f19764cbdae91ae8a3ba98539c8fcc742ed0e1544a3c6152d",
+      "chukchi": "89a578376bec6ba4674fc942ed76ee03d1205521522a0c9366839a55d54bdd7d",
+      "beaufort": "fc10c62347fabfce73aa1925660a1fa49591f9d717db2758ecff53be5c7fd74d",
+      "ebs": "6ceb8ecb304c1f88b12e7faeac8df2b1ea68a45e85c094f7ff6da1e1540671a1",
+      "goa": "3a554f7aba2181af43ae166a266a7d6fa27e442ddc33a25c38b13577b5605ce0",
+      "ai": null
+    },
+    "A_sha256": {
+      "sebs": "62d56a30948aa5e64e0fd5878c17a682ceb942192f929c1fa3465033abf17a2b",
+      "nbs": "8887507f3e1ce31da89ac76c9930aa043c5920a5aeb476aa38d5cce6e0ad1f1a",
+      "wgoa": "fa9f23bf1fd92c0cb37d41c53a199f1376d46356d592c6a843eb0cb1a4fd3cdf",
+      "egoa": "ef88ec0c348e268522e6fdb75e6711c51e95e494cbc493cf4c44092caf68f198",
+      "ai_west": "43578a17a862271ed30649310f2b29a75310f418172007320a12562d5eae979c",
+      "ai_central": "108da3fd81ca9b25efd1a69863c8861f9d448298a3b6b8618088c2ee2e048adb",
+      "ai_east": "1e64ff3550ad8e5dc1fd9d50b1b75af8f91e1db8f16f472b70f7058fb40391fb",
+      "chukchi": "cb27fa9fe6c5dbd86c09cf355289e4f6399daf6ae1d0b2f93a7d2b3a50eaaed3",
+      "beaufort": "4c6d486ec383dd560cda4df17f92103a3c994fe81fd84bfa9cb45bdea3b8ab18",
+      "ebs": "b1de5f3d99b4b227a033fb062b56a57c182ef98273709f004b1888fcd9abe5cd",
+      "goa": "f37edfa7dcc4cfa0e71d4f56a52af0fb5918ab522f7a9bd27e77f94e5f980338",
+      "ai": null
+    }
+  },
+  "oisst_provenance": {
+    "product": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg; NOAA OISST v2.1 Final, AVHRR-Only; DOI 10.25921/RE9P-PT57) + 8 days from NCEI per-day OISST v2.1 (same product)",
+    "historical_pull": "2026-06-29; current-year pull 2026-07-21T22:14:39Z (as 20260722)",
+    "gapfill_pull": "2026-09-30 (NCEI)",
+    "final_through": "2026-07-01",
+    "oisst_input_files": 548,
+    "oisst_input_sha256": "94fd2d917045ff6a60a57142dba1df628ca4dad67ecc13ce88fd00aa01dd4261",
+    "oisst_input_sha256_540_zone_year_files": "00ac6b9abfa991f5bb859779d27aee112a7ae6f88d38ede7eb505a5774b403dd",
+    "file_list": "records/oisst_input_file_shas_mhw-hobday-consecutive-20260930.txt"
+  },
+  "recipe": {
+    "theta90": "baseline 1991-2020; 90th percentile; 11-day window; 31-day DOY smoothing (wrap-around, nan-aware); 15% ice mask on baseline+detection; no detrend; chukchi/beaufort on corrected Arctic baseline (2015-2020 re-fetched)",
+    "event_rule": "confirm_days=5, gap_days=2, qualification_mode=consecutive_first (>=5 CONSECUTIVE exceedance days, THEN bridge <=2-day gaps) \u2014 Hobday et al. (2016)/heatwaveR faithful",
+    "intensity_reference": "climatological_mean (signed T-mu relSeas, unclamped)",
+    "onset_reference": "physical_start (start->peak, +0.5 half-day; keyed to event start ts)",
+    "rule_version": "PR#41 consecutive_first / climatological_mean"
+  },
+  "no_input_day_rule": "Engine rule for a day with no input, as it stands in code at d306292 (update_states.py), stated in words: run_state_engine pre-allocates its per-cell exceedance array over EVERY calendar day of the requested range and writes only the days present in the input, so a day with no input keeps x = 0 and is scored as a day on which no cell exceeded its threshold. Because the >=5-consecutive test is applied BEFORE gaps of <=2 days are bridged, such a day inside a run splits it; if both halves are shorter than 5 days the whole event is discarded, and if it falls inside a <=2-day gap it is absorbed as a bridged gap day (A = 1 with I never written: the area_frac > 0, Ibar = 0 signature). D, C and O then reset for the rest of that event. The engine still behaves this way; what changed is what the PRODUCT discloses. Since a672583 every daily row carries n_days_input (1 if that day's input was read, else 0) and n_cells_valid, and a row with n_days_input = 0 is written NaN in every value column (area_frac, Ibar, Dbar, Cbar, Obar) instead of zero. The monthly product averages over input days only and carries n_days (days aggregated), n_days_input and days_in_month (calendar length). In THIS vintage no row has n_days_input = 0: all eight missing days were obtained as real observations, so the NaN rule is in force but is not triggered. Event-level effects of a future no-input day (a run split by a zero-filled day) are therefore DISCLOSED by n_days_input, not repaired; a vintage with any n_days_input = 0 row should be read with that in mind.",
+  "contents": "predictand/ 24 CSVs (daily + monthly x 9 leaves + ebs/goa/ai); percell/ A_<leaf>.npz + x_<leaf>.npz (keys A|x, lat, lon, time; full series); records/ build record, input inventory, input SHA list, calendar census, splice verifier, diff tables, same-product evidence, mask provenance, filled_days.json, the scripts that produced the package; LICENSE-data-CC-BY-4.0.txt",
+  "aggregation_contract": "area_frac[t] = sum_g(w_g*A_g[t]) / sum_g(w_g) over ALL mask cells; monthly = calendar-month mean of daily over input days"
+}

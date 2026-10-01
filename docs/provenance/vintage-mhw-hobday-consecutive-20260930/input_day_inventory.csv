@@ -1,0 +1,9 @@
+input_date,status,source,sha256
+1990-01-30,re-obtained,https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr/199001/oisst-avhrr-v02r01.19900130.nc,007aa0dd983ac9fa370591d8d0fccb5f535d025f5fa623403aafcafd0719586d
+2021-03-23,re-obtained,https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr/202103/oisst-avhrr-v02r01.20210323.nc,1599954967de3381fb889f8596fc70e27fa689de2d223d15ed4e01d851f253e2
+2021-09-07,re-obtained,https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr/202109/oisst-avhrr-v02r01.20210907.nc,d9eeb2f60ff534dda99c94888c89acadf9c182f8f4cc9fb3d7de4e0d2179a061
+2022-10-19,re-obtained,https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr/202210/oisst-avhrr-v02r01.20221019.nc,87b2644d10ff4b02efb8360d079cdb73a5f60a8eaf0d6b5874754725160a103b
+2023-02-01,re-obtained,https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr/202302/oisst-avhrr-v02r01.20230201.nc,60d945f04153176521d9fe622e7ad86fbf06ebb8a354648bb110f28e74c6ec68
+2024-03-31,re-obtained,https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr/202403/oisst-avhrr-v02r01.20240331.nc,39fb9f399fdf2f7f7595ae7c176f515cec29d00e9cbab22aebadf603416d0576
+2025-06-22,re-obtained,https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr/202506/oisst-avhrr-v02r01.20250622.nc,95ea1473bb50f7c286f2c2c917eb3a40e428a9a002c518809adbe8877b226bd6
+2026-06-08,re-obtained,https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr/202606/oisst-avhrr-v02r01.20260608.nc,9ef5c436ff53587756b3121b22f6ee09e44b3f17b7604be2dda56d4599d10fd3

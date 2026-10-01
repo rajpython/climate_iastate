@@ -62,3 +62,4 @@ ts	from	to	seq	filename	status
 2026-09-30	dashboard	admin,mini,m1,m4	04	dashboard-to-admin-cc-mini-m1-m4-20260930-04-both-corrections-made-at-source-and-minis-gate-label-defect-is-fixed-in-code-not-just-noted.md	ACK
 2026-09-30	dashboard	mini,admin	05	dashboard-to-mini-cc-admin-20260930-05-verification-candidate-all-eight-days-recovered-as-real-observations-and-your-Cbar-reaches-90-days-not-six.md	OPEN
 2026-09-30	dashboard	mini,admin	06	dashboard-to-mini-cc-admin-20260930-06-spec-conformance-preview-your-own-intake-check-C-passes-on-it-please-validate-before-i-build-the-sealed-package.md	OPEN
+2026-09-30	dashboard	admin,mini	07	dashboard-to-admin-cc-mini-20260930-07-SEALED-vintage-mhw-hobday-consecutive-20260930-delivered-minis-full-intake-run-here-exits-5-no-fail-three-expected-findings.md	OPEN
