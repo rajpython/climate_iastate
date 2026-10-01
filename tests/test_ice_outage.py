@@ -3,7 +3,14 @@ from datetime import date
 
 import numpy as np
 
-from mhw.climatology.ice_outage import bracket_ice, outage_days_for, runs, substitute
+from mhw.climatology.ice_outage import (
+    SST_OPEN_WATER,
+    effective_field,
+    interpolated_ice,
+    outage_days_for,
+    runs,
+    substitute,
+)
 from mhw.states.update_states import valid_cells
 
 DOC = {"global": {"days": ["2017-02-01", "2017-02-02", "2017-02-04"]},
@@ -21,10 +28,17 @@ def test_runs_groups_consecutive_days():
     assert r == [(date(2017, 2, 1), date(2017, 2, 2)), (date(2017, 2, 4), date(2017, 2, 4))]
 
 
-def test_bracket_ice_takes_the_larger_side_and_blank_is_zero():
-    before = np.array([[0.9, np.nan, np.nan, 0.10]], np.float32)
-    after = np.array([[np.nan, 0.8, np.nan, 0.12]], np.float32)
-    assert bracket_ice(before, after).tolist() == [[np.float32(0.9), np.float32(0.8), 0.0, np.float32(0.12)]]
+def test_interpolation_is_linear_and_blank_counts_as_zero():
+    before = np.array([[1.0, np.nan]], np.float32)
+    after = np.array([[0.0, 0.8]], np.float32)
+    out = interpolated_ice(before, after, 0.25)
+    assert np.allclose(out, [[0.75, 0.2]])
+
+
+def test_warm_water_is_open_whatever_the_interpolation_says():
+    before = after = np.array([[0.9, 0.9]], np.float32)
+    sst = np.array([[-1.7, SST_OPEN_WATER + 0.5]], np.float32)   # frozen | melted during the outage
+    assert effective_field(before, after, 0.5, sst).tolist() == [[np.float32(0.9), 0.0]]
 
 
 def test_substitute_fills_blank_cells_only_and_only_on_outage_days():
@@ -38,12 +52,13 @@ def test_substitute_fills_blank_cells_only_and_only_on_outage_days():
 
 
 def test_the_defect_and_the_fix_through_the_engine_validity_rule():
-    """Frozen water with a BLANK ice field is valid under the old reading (the defect);
-    with the bracket substitution it is masked like any ice-covered cell."""
-    sst = np.array([[-1.7, 4.0]], np.float32)     # ice-covered cell, open-water cell
+    """Frozen water with a BLANK ice field is valid under the old reading (the defect); with the
+    outage substitution it is masked like any ice-covered cell, while warm open water stays valid."""
+    sst = np.array([[-1.7, 4.0]], np.float32)     # ice-covered cell, melted cell
     theta = np.array([[-1.75, 3.0]], np.float32)
     blank = np.full((1, 2), np.nan, np.float32)
     assert valid_cells(sst, blank, theta, apply_ice=True, ice_thresh=0.15).tolist() == [[True, True]]
-    eff = bracket_ice(np.array([[0.95, np.nan]], np.float32), np.array([[0.97, np.nan]], np.float32))
+    icy = np.array([[0.95, 0.95]], np.float32)
+    eff = effective_field(icy, icy, 0.5, sst)
     fixed = substitute(blank[None], [date(2017, 2, 1)], {date(2017, 2, 1): eff})[0]
     assert valid_cells(sst, fixed, theta, apply_ice=True, ice_thresh=0.15).tolist() == [[False, True]]

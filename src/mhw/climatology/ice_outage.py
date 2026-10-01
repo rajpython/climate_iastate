@@ -15,13 +15,21 @@ heatwave area of 0.256 against <= 0.015 in every other year.
 
 The rule (applied identically in the baseline and in detection)
 ---------------------------------------------------------------
-On an outage day a cell's ice status is UNKNOWN. It is taken from the zone's last non-outage day
-before the outage and its first non-outage day after it: the effective ice is the larger of the two
-(no value = 0). The existing ``ice > threshold`` test then masks the cell unless it was ice-free on
-BOTH sides. Only BLANK cells are substituted; a cell with an observed ice value keeps it. Consequences: cells that never carry ice (GOA, Aleutians, the open southern shelf) are
-untouched; a cell ice-covered on either side is treated as missing, which is what "ice-covered cells
-are treated as missing" has always meant. Inputs are never altered -- the substitution happens in
-memory, after reading.
+On an outage day a BLANK cell's ice status is unknown. Its effective ice is interpolated linearly in
+time between the zone's last non-outage day before the outage and its first non-outage day after
+it (no value = 0), EXCEPT that a cell whose SST that day is above 2 degC is taken as open water
+(ice 0): water under consolidated ice cannot be that warm. The existing ``ice > threshold`` test
+then does the rest. A cell carrying an observed ice value keeps it. Inputs are never altered -- the
+substitution happens in memory, after reading.
+
+Chosen by back-test, not by argument (2026-10-01): hiding the ice field over outage-shaped windows
+(Apr 18-Jun 30, Jan 7-Feb 28, Dec 6-Jan 10) in normal years of sebs/nbs/chukchi/beaufort and scoring
+against the real field, this rule catches >= 97% of ice cells in every season while wrongly masking
+12% of open water in the melt season (5.5% in winter). The first candidate -- the larger of the two
+bracketing days -- caught 99.6% but discarded 39% of melt-season open water (it masked nbs/sebs for
+all of Apr-Jun 2016 though 74-91% of those cells were above 0 degC); an SST-only cutoff missed
+15-22% of ice. The cells this rule lets through are > 2 degC, so the defect's mechanism -- frozen
+water at -1.7 degC scored as open sea -- is closed completely.
 
 The outage list is ``config/ice_outage_days.json`` (dates, scope, evidence). Global days apply to
 every zone; regional days to the zones listed.
@@ -69,9 +77,21 @@ def runs(days: set[date]) -> list[tuple[date, date]]:
     return out
 
 
-def bracket_ice(before: np.ndarray, after: np.ndarray) -> np.ndarray:
-    """Effective ice for an outage day: max of the bracketing days, a missing value counting as 0."""
-    return np.fmax(np.nan_to_num(before, nan=0.0), np.nan_to_num(after, nan=0.0)).astype(np.float32)
+SST_OPEN_WATER = 2.0   # degC: above this a cell is open water whatever the interpolated ice says
+
+
+def interpolated_ice(before: np.ndarray, after: np.ndarray, frac: float) -> np.ndarray:
+    """Ice linearly interpolated between the bracketing days; frac in (0, 1); a missing value counts as 0."""
+    b = np.nan_to_num(before, nan=0.0)
+    a = np.nan_to_num(after, nan=0.0)
+    return ((1.0 - frac) * b + frac * a).astype(np.float32)
+
+
+def effective_field(before: np.ndarray, after: np.ndarray, frac: float, sst: np.ndarray) -> np.ndarray:
+    """Effective ice on an outage day: interpolated ice, zeroed where SST > SST_OPEN_WATER."""
+    eff = interpolated_ice(before, after, frac)
+    eff[np.nan_to_num(sst, nan=-99.0) > SST_OPEN_WATER] = 0.0
+    return eff
 
 
 def substitute(ice: np.ndarray, times: list[date], effective: dict[date, np.ndarray]) -> np.ndarray:
@@ -119,32 +139,33 @@ def _nearest_good(region_id: str, start: date, step: int, bad: set[date], raw_di
 
 
 @lru_cache(maxsize=64)
-def effective_ice_fields(region_id: str, raw_dir: str = str(DATA_RAW),
-                         config: str = str(OUTAGE_CONFIG)) -> dict[date, np.ndarray]:
-    """{outage day: effective ice field} for *region_id*, bracketing each run of outage days."""
+def outage_brackets(region_id: str, raw_dir: str = str(DATA_RAW),
+                    config: str = str(OUTAGE_CONFIG)) -> dict[date, tuple[np.ndarray, np.ndarray, float]]:
+    """{outage day: (ice before, ice after, interpolation fraction)} for *region_id*."""
     bad = outage_days_for(load_outage_doc(config), region_id)
-    eff: dict[date, np.ndarray] = {}
+    out: dict[date, tuple[np.ndarray, np.ndarray, float]] = {}
     for first, last in runs(bad):
         before = _nearest_good(region_id, first, -1, bad, Path(raw_dir))
         after = _nearest_good(region_id, last, +1, bad, Path(raw_dir))
-        field = bracket_ice(before, after)
-        d = first
-        while d <= last:
-            eff[d] = field
-            d += timedelta(days=1)
-    return eff
+        n = (last - first).days + 1
+        for k in range(n):
+            out[first + timedelta(days=k)] = (before, after, (k + 1) / (n + 1))
+    return out
 
 
 def apply_ice_outages(region_id: str, ds: xr.Dataset, raw_dir: Path = DATA_RAW,
                       config: Path = OUTAGE_CONFIG) -> np.ndarray:
-    """The ice array of a zone-year dataset with outage days replaced by their effective fields."""
+    """The ice array of a zone-year dataset with outage days' blank cells given their effective ice."""
     times = pd.DatetimeIndex(ds["time"].values).normalize().date.tolist()
     ice = ds["ice"].values
     if not Path(config).exists():
         return np.asarray(ice, dtype=np.float32)
-    eff = effective_ice_fields(region_id, str(raw_dir), str(config))
-    if not any(t in eff for t in times):
+    br = outage_brackets(region_id, str(raw_dir), str(config))
+    hits = [(i, t) for i, t in enumerate(times) if t in br]
+    if not hits:
         return np.asarray(ice, dtype=np.float32)
+    sst = ds["sst"].values
+    eff = {t: effective_field(*br[t], sst[i]) for i, t in hits}
     return substitute(ice, times, eff)
 
 
@@ -161,9 +182,13 @@ def main(argv: list[str] | None = None) -> int:
     zones = a.region or sorted({p.name.split("_", 1)[1].rsplit("_", 1)[0] for p in DATA_RAW.glob("oisst_*_*.nc")})
     for z in zones:
         days = outage_days_for(doc, z)
-        eff = effective_ice_fields(z)
-        masked = sum(int((f > a.threshold).sum()) for f in eff.values())
-        print(f"  {z}: {len(days)} outage days; cell-days masked by the bracket rule: {masked}")
+        masked = 0
+        for y in sorted({d.year for d in days}):
+            with xr.open_dataset(DATA_RAW / f"oisst_{z}_{y}.nc") as ds:
+                eff = apply_ice_outages(z, ds)
+                blank = np.isnan(ds["ice"].values) & np.isfinite(ds["sst"].values)
+                masked += int((blank & (eff > a.threshold)).sum())
+        print(f"  {z}: {len(days)} outage days; blank SST cell-days masked by the rule: {masked}")
     return 0
 
 
