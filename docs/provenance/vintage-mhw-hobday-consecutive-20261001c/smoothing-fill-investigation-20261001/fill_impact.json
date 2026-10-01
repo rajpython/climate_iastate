@@ -1,0 +1,65 @@
+{
+ "chukchi": {
+  "valid_cell_days_on_fill_thresholds": 121,
+  "share_of_all_valid": 0.0,
+  "exceedance_cell_days_on_fill": 0,
+  "active_A_cell_days_on_fill": 0,
+  "exceedances_by_year": {}
+ },
+ "beaufort": {
+  "valid_cell_days_on_fill_thresholds": 360,
+  "share_of_all_valid": 0.0002,
+  "exceedance_cell_days_on_fill": 6,
+  "active_A_cell_days_on_fill": 4,
+  "exceedances_by_year": {
+   "2025": 6
+  }
+ },
+ "nbs": {
+  "valid_cell_days_on_fill_thresholds": 2109,
+  "share_of_all_valid": 0.0002,
+  "exceedance_cell_days_on_fill": 339,
+  "active_A_cell_days_on_fill": 158,
+  "exceedances_by_year": {
+   "1985": 301,
+   "1982": 20,
+   "1989": 7,
+   "2022": 4,
+   "1984": 3,
+   "1986": 2
+  }
+ },
+ "ebs": {
+  "valid_cell_days_on_fill_thresholds": 2404,
+  "share_of_all_valid": 0.0001,
+  "exceedance_cell_days_on_fill": 370,
+  "active_A_cell_days_on_fill": 158,
+  "exceedances_by_year": {
+   "1985": 312,
+   "1982": 20,
+   "1983": 13,
+   "1987": 7,
+   "1989": 7,
+   "1986": 4
+  }
+ },
+ "sebs": {
+  "valid_cell_days_on_fill_thresholds": 295,
+  "share_of_all_valid": 0.0,
+  "exceedance_cell_days_on_fill": 31,
+  "active_A_cell_days_on_fill": 0,
+  "exceedances_by_year": {
+   "1983": 12,
+   "1985": 11,
+   "1987": 6,
+   "1986": 2
+  }
+ },
+ "wgoa": {
+  "valid_cell_days_on_fill_thresholds": 0,
+  "share_of_all_valid": 0.0,
+  "exceedance_cell_days_on_fill": 0,
+  "active_A_cell_days_on_fill": 0,
+  "exceedances_by_year": {}
+ }
+}
