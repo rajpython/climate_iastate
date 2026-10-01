@@ -132,8 +132,20 @@ def build_manifest(
     created_utc: str,
 ) -> dict:
     """The manifest that ships INSIDE the archive. Contains no gates block — verdicts
-    about the packed bytes are computed after packing and live in the sidecar."""
+    about the packed bytes are computed after packing and live in the sidecar.
+
+    The declared block is ALSO hoisted to the top level, so a vintage manifest keeps the
+    shape consumers already read (``vintage_id``, ``identity_keys``, ``recipe`` at the
+    root, as in the 20260722 vintage); LOFRA's intake reads those keys there. The nested
+    ``declared`` copy stays for the source-attr gate. A declared key may not shadow a
+    seal-computed one — that would let a hand-typed value masquerade as a measurement.
+    """
+    reserved = {"seal_name", "created_utc", "computed", "declared", "gates_note", "gates"}
+    clash = sorted(reserved & set(declared or {}))
+    if clash:
+        raise SystemExit(f"mhw-seal: declared block uses reserved manifest keys {clash}")
     return {
+        **(declared or {}),
         "seal_name": name,
         "created_utc": created_utc,
         "computed": {

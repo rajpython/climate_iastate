@@ -181,3 +181,22 @@ def test_corrupt_gzip_raises(payload, tmp_path):
     tar.write_bytes(tar.read_bytes()[: tar.stat().st_size // 2])
     with pytest.raises((tarfile.ReadError, gzip.BadGzipFile, EOFError)):
         verify_sealed(tar)
+
+
+def test_declared_block_is_hoisted_to_manifest_root(payload, tmp_path):
+    """Consumers read vintage_id / identity_keys at the manifest ROOT (20260722 shape)."""
+    out = tmp_path / "out"
+    declared = {"vintage_id": "v-test", "identity_keys": {"theta90_sha256": {"sebs": "ab"}},
+                "provenance": {"product": "PFEG CoastWatch ERDDAP (ncdcOisst21Agg)"}}
+    assert seal(payload, "hoist", out, declared) == 0
+    with tarfile.open(out / "hoist.tar.gz") as tf:
+        m = json.load(tf.extractfile(MANIFEST_NAME))
+    assert m["vintage_id"] == "v-test"
+    assert m["identity_keys"]["theta90_sha256"]["sebs"] == "ab"
+    assert m["declared"]["vintage_id"] == "v-test"
+    assert "computed" in m and "gates" not in m
+
+
+def test_declared_block_cannot_shadow_computed_keys(payload, tmp_path):
+    with pytest.raises(SystemExit):
+        seal(payload, "shadow", tmp_path / "out", {"computed": {"n_files": 1}})
