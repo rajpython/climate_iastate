@@ -30,6 +30,12 @@ climatology:
       method: "rolling_mean_doy"
       window_days: 31
       wrap_around_year: true
+      # Data-availability rule (vintage #6, Col. Raj approved; admin ...-20261001-17): after the
+      # unchanged smoothing, a doy x cell whose OWN 11-day baseline window held zero usable
+      # observations gets no theta90 and no mu (the cell is invalid that day). An explicit rule of
+      # this implementation, not a Hobday (2016) requirement. Without it the NaN-aware smoothing
+      # creates such values from observations up to 20 days away.
+      mask_unsupported: true
 
   threshold:
     percentile: 0.90

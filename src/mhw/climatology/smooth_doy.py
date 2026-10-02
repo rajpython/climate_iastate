@@ -81,3 +81,46 @@ def smooth_doy_field(field: np.ndarray, window_days: int = 31) -> np.ndarray:
         for d in range(n):
             out[d] = np.nanmean(padded[d:d + window_days], axis=0)
     return out.astype(field.dtype)
+
+
+def support_counts(valid: np.ndarray, doy: np.ndarray, year: np.ndarray, half_window: int = 5,
+                   post_window: int = 31, n_doys: int = 366) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """How many baseline observations stand behind each (doy, cell) threshold.
+
+    valid : (n_days, n_lat, n_lon) bool -- a usable baseline observation (finite SST, not ice-masked)
+    doy   : (n_days,) 1..366 ; year : (n_days,)
+
+    Returns (n_raw_window, n_support_obs, n_support_years), each (n_doys, n_lat, n_lon) int32:
+      n_raw_window    -- observations in the doy's OWN 11-day window (what the raw percentile is computed from)
+      n_support_obs   -- DISTINCT observations behind the SMOOTHED value: the post-smoothing window reaches
+                         +-(post_window//2) raw days, each reaching +-half_window, so every observation within
+                         +-(half_window + post_window//2) days of the doy feeds it, each counted once
+      n_support_years -- distinct baseline years among those observations (observations in one year are not
+                         independent; this is the better reliability count)
+    """
+    reach = half_window + post_window // 2
+    shape = (n_doys,) + valid.shape[1:]
+    per_doy = np.zeros(shape, np.int32)
+    np.add.at(per_doy, doy - 1, valid.astype(np.int32))
+    def circ_sum(a, h):
+        return sum(np.roll(a, k, axis=0) for k in range(-h, h + 1))
+    n_raw = circ_sum(per_doy, half_window)
+    n_obs = circ_sum(per_doy, reach)
+    n_years = np.zeros(shape, np.int32)
+    for y in np.unique(year):
+        sel = year == y
+        pres = np.zeros(shape, np.int32)
+        np.add.at(pres, doy[sel] - 1, valid[sel].astype(np.int32))
+        n_years += (circ_sum((pres > 0).astype(np.int32), reach) > 0).astype(np.int32)
+    return n_raw.astype(np.int32), n_obs.astype(np.int32), n_years
+
+
+def mask_unsupported(field: np.ndarray, n_raw_window: np.ndarray) -> np.ndarray:
+    """Data-availability rule (vintage #6): NaN wherever the doy's own window held zero observations.
+
+    Applied AFTER the unchanged 31-day smoothing, so every supported value is untouched; only values the
+    NaN-aware smoothing would otherwise create from neighbouring days (up to 20 days away) are removed.
+    """
+    out = np.array(field, copy=True)
+    out[n_raw_window == 0] = np.nan
+    return out
