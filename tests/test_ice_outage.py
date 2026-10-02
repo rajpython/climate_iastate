@@ -62,3 +62,23 @@ def test_the_defect_and_the_fix_through_the_engine_validity_rule():
     eff = effective_field(icy, icy, 0.5, sst)
     fixed = substitute(blank[None], [date(2017, 2, 1)], {date(2017, 2, 1): eff})[0]
     assert valid_cells(sst, fixed, theta, apply_ice=True, ice_thresh=0.15).tolist() == [[False, True]]
+
+
+def test_no_outage_day_needs_no_raw_files(tmp_path):
+    """A year with no outage day must not read bracketing raw files (the VM holds only recent years)."""
+    import json
+
+    import pandas as pd
+    import xarray as xr
+
+    from mhw.climatology.ice_outage import apply_ice_outages, load_outage_doc
+
+    cfg = tmp_path / "outages.json"
+    cfg.write_text(json.dumps(DOC))
+    load_outage_doc.cache_clear()
+    t = pd.date_range("2026-01-01", periods=3)
+    ice = np.array([[[np.nan, 0.5]]] * 3, dtype=np.float32)
+    ds = xr.Dataset({"ice": (("time", "lat", "lon"), ice),
+                     "sst": (("time", "lat", "lon"), np.zeros_like(ice))}, coords={"time": t})
+    out = apply_ice_outages("beaufort", ds, raw_dir=tmp_path / "empty", config=cfg)
+    np.testing.assert_array_equal(out, ice)

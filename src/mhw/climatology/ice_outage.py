@@ -160,6 +160,10 @@ def apply_ice_outages(region_id: str, ds: xr.Dataset, raw_dir: Path = DATA_RAW,
     ice = ds["ice"].values
     if not Path(config).exists():
         return np.asarray(ice, dtype=np.float32)
+    # Bracketing reads raw files around EVERY outage run; skip it when this dataset has no outage
+    # day, so a host holding only recent years (the VM caches 2025-26) never needs 1987 on disk.
+    if not set(times) & outage_days_for(load_outage_doc(str(config)), region_id):
+        return np.asarray(ice, dtype=np.float32)
     br = outage_brackets(region_id, str(raw_dir), str(config))
     hits = [(i, t) for i, t in enumerate(times) if t in br]
     if not hits:
