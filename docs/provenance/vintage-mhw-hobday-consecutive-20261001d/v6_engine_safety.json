@@ -1,0 +1,98 @@
+{
+ "sebs": {
+  "event_unscorable": 7,
+  "of_which_theta_undefined": 0,
+  "of_which_ice_or_sst": 7,
+  "valid_gap_days_counted": 18070,
+  "max_abs_identity_err": 2.9797561085231905e-08,
+  "days": 7
+ },
+ "nbs": {
+  "event_unscorable": 0,
+  "of_which_theta_undefined": 0,
+  "of_which_ice_or_sst": 0,
+  "valid_gap_days_counted": 6976,
+  "max_abs_identity_err": 2.9759991360123195e-08,
+  "days": 0
+ },
+ "wgoa": {
+  "event_unscorable": 5,
+  "of_which_theta_undefined": 0,
+  "of_which_ice_or_sst": 5,
+  "valid_gap_days_counted": 27306,
+  "max_abs_identity_err": 2.9801874301682574e-08,
+  "days": 5
+ },
+ "egoa": {
+  "event_unscorable": 7,
+  "of_which_theta_undefined": 0,
+  "of_which_ice_or_sst": 7,
+  "valid_gap_days_counted": 15836,
+  "max_abs_identity_err": 2.9742009632904853e-08,
+  "days": 7
+ },
+ "ai_west": {
+  "event_unscorable": 0,
+  "of_which_theta_undefined": 0,
+  "of_which_ice_or_sst": 0,
+  "valid_gap_days_counted": 14618,
+  "max_abs_identity_err": 2.97965464524097e-08,
+  "days": 0
+ },
+ "ai_central": {
+  "event_unscorable": 0,
+  "of_which_theta_undefined": 0,
+  "of_which_ice_or_sst": 0,
+  "valid_gap_days_counted": 26521,
+  "max_abs_identity_err": 2.973272517081682e-08,
+  "days": 0
+ },
+ "ai_east": {
+  "event_unscorable": 5,
+  "of_which_theta_undefined": 0,
+  "of_which_ice_or_sst": 5,
+  "valid_gap_days_counted": 8315,
+  "max_abs_identity_err": 2.979756408283407e-08,
+  "days": 5
+ },
+ "chukchi": {
+  "event_unscorable": 11,
+  "of_which_theta_undefined": 0,
+  "of_which_ice_or_sst": 11,
+  "valid_gap_days_counted": 4165,
+  "max_abs_identity_err": 2.9674443347005308e-08,
+  "days": 4
+ },
+ "beaufort": {
+  "event_unscorable": 8,
+  "of_which_theta_undefined": 0,
+  "of_which_ice_or_sst": 8,
+  "valid_gap_days_counted": 2658,
+  "max_abs_identity_err": 2.9576581517254397e-08,
+  "days": 5
+ },
+ "ebs": {
+  "event_unscorable": 7,
+  "of_which_theta_undefined": 0,
+  "of_which_ice_or_sst": 7,
+  "valid_gap_days_counted": 25046,
+  "max_abs_identity_err": 2.9778754462306267e-08,
+  "days": 7
+ },
+ "goa": {
+  "event_unscorable": 12,
+  "of_which_theta_undefined": 0,
+  "of_which_ice_or_sst": 12,
+  "valid_gap_days_counted": 43142,
+  "max_abs_identity_err": 2.978743296466746e-08,
+  "days": 12
+ },
+ "ai": {
+  "event_unscorable": 5,
+  "of_which_theta_undefined": 0,
+  "of_which_ice_or_sst": 5,
+  "valid_gap_days_counted": 49454,
+  "max_abs_identity_err": 2.9788987832013447e-08,
+  "days": 5
+ }
+}

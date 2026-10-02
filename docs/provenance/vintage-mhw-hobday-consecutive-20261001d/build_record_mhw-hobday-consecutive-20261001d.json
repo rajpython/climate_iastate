@@ -1,0 +1,636 @@
+{
+  "record_type": "producer build record",
+  "producer": "Alaska Marine Heatwave Data Project (dashboard cell; repo climate_iastate)",
+  "written": "2026-10-01",
+  "vintage_id": "mhw-hobday-consecutive-20261001d",
+  "register_as": "snap-mhw-hobday-consecutive-20261001d",
+  "supersedes": "snap-mhw-hobday-consecutive-20261001c (vintage #5; stays registered and immutable)",
+  "reseal_class": "THRESHOLD RESEAL (data-availability rule): theta90/mu values with zero support in their own 11-day window removed in sebs, nbs, wgoa, chukchi, beaufort, ebs, goa; byte-identical to #5 in egoa and the four Aleutian zones; every supported value bit-identical to #5. Plus the detected-area rule in the aggregation. Inputs identical to #5.",
+  "why": "Data-availability rule (vintage #6; joint lofra-admin + lofra-mini decision approved by Col. Raj, admin ...-20261001-17; outside advice concurred). The 11-day window and the 31-day smoothing are unchanged. AFTER the smoothing, theta90 and mu are set NaN at every cell x day-of-year whose OWN 11-day baseline window (1991-2020) held zero usable observations (SST present, not ice-masked, ice-outage rule applied). Without it the NaN-aware smoothing creates such values from observations up to 20 days away (e.g. a 7.01 degC 11 July 2019 value as the 21-June threshold at 72.375N -164.125 in the Chukchi). A masked cell-day is invalid and stays in the fixed whole-zone denominator. This is an explicit data-availability rule of this implementation, not a requirement of Hobday et al. (2016). Every supported value is bit-identical to #5.",
+  "pipeline": {
+    "identifier": "mhw-state-dashboard",
+    "version": "0.1.0",
+    "repo": "climate_iastate (github.com/rajpython/climate_iastate)",
+    "branch": "rebuild/input-gapfill-v35 (pushed)",
+    "commits_of_record": {
+      "detection_engine": {
+        "commit": "f634e437f0bbccff29216106b9d8a2340e275c09",
+        "src/mhw/states/update_states.py": "36df62dbf5e7b3e9a5b2aa1ed870a7587e930f15b1f626426cbf8d6ec610907d",
+        "config/climatology.yml": "2be665701e7b2a9fa60c86c435a6b80c98b766d48225e4a5d4b6f2656cce518c",
+        "note": "CHANGED vs #3: reads ice through apply_ice_outages (one line); algebra untouched"
+      },
+      "climatology_smoothing": {
+        "commit": "6cad427e4a262b6d49925d8cea511af2bc4f2bd8",
+        "src/mhw/climatology/build_mu_theta.py": "ec9ecd7778d531489cae037284f974850ccc875183ae3efc57e17fa940dae87e",
+        "src/mhw/climatology/smooth_doy.py": "5596ab9c9ce621e46124235978791a51a4f26fd993c63357c734474fc65ceaf9",
+        "note": "CHANGED vs #5: support_counts() + mask_unsupported() after the unchanged smoothing (config post_smoothing.mask_unsupported: true)",
+        "config/climatology.yml": "0095eff60a1ae45a8aca1ebcc67e2c9a93b2169655688ea5bb236d9605d1e521"
+      },
+      "aggregation": {
+        "commit": "6cad427e4a262b6d49925d8cea511af2bc4f2bd8",
+        "src/mhw/states/aggregates.py": "2e75760b6c3abd0537816d0b4d89564efa7361f20146a5717bd65c3f18264902",
+        "note": "CHANGED vs #5: detected area = A x V; QC column n_cells_event_unscorable"
+      },
+      "masks": {
+        "commit": "74176b3 (config/regions.geojson, 2026-07-01, last geometry change)",
+        "src/mhw/regions/masks.py": "c8fe9f0fc50c21c511c8a574a29d8f121651ecf9448b4e4c61bb522bc7636342",
+        "src/mhw/regions/weights.py": "b5cd63bf141f35e9ef1357298a92120ac0be5b98d0d33c24b43c18e1cb758041",
+        "note": "masks.py CHANGED vs 20260722 in its docstring only (corrected land wording); store not rebuilt, matches snap-region-masks-oisst025-20260930 31/31"
+      },
+      "engine_and_inputs": {
+        "commit": "d306292c260e6e5870450a2f995295d53ba54640",
+        "what_ran": "2026-10-01, isolated checkout of 6cad427 with cloned inputs (the board's data untouched), MHW_FROZEN_INPUTS=1: mhw-build-climatology for all 12 zones, then mhw-backfill 1982-01-01..2026-08-31 for all 12; no network fetch",
+        "bytes_note": "repo HEAD at packaging 26e91bc",
+        "determinism_check": "with config/ice_outage_days.json moved aside, mhw-build-climatology --region chukchi reproduced the registered theta90 94a3d793... byte-for-byte; so every theta90 change in #4 is the outage rule's"
+      },
+      "aggregation_and_packaging": {
+        "commit": "a6725836d3195d88d9f258d689cbe95d16d87fd0",
+        "what_ran": "records/build_predictand_csv.py -> aggregate_region + to_monthly from the committed code; records/write_percell.py -> x/A npz",
+        "change_vs_d306292": "aggregates.py only: delivery-spec count-column names, NaN on no-input rows, to_monthly() with calendar days_in_month. No value algebra changed (0 float32 differences vs the d306292 working files admin validated)."
+      },
+      "seal_tool": {
+        "commit": "49c075793ec66b77fe7178d50a4c48214f5f56ea",
+        "what_ran": "mhw-seal; declared block hoisted to the manifest root"
+      },
+      "file_sha256_at_both_commits": {
+        "src/mhw/states/update_states.py": "ae7a418e35b1512358bf8ce094baaa32adfa70132ee2f30b8aa4c882b573776d",
+        "src/mhw/climatology/build_mu_theta.py": "7458475d934283d14f04f73e0ceae2a8f686bbd2b478ed437bf716ea9acdf49b",
+        "src/mhw/climatology/smooth_doy.py": "b16f58045cd2c988781cfdcd722410a9df1495bfa7c392d1efe398a0949f33ca",
+        "src/mhw/regions/masks.py": "c8fe9f0fc50c21c511c8a574a29d8f121651ecf9448b4e4c61bb522bc7636342",
+        "src/mhw/regions/weights.py": "b5cd63bf141f35e9ef1357298a92120ac0be5b98d0d33c24b43c18e1cb758041",
+        "config/climatology.yml": "2be665701e7b2a9fa60c86c435a6b80c98b766d48225e4a5d4b6f2656cce518c",
+        "config/filled_days.json": "ad236c9a6236bc248ec74f5142dde11de56dd94ad96261c057aa5daac1dd1dca",
+        "config/regions.geojson": "5038762ed69802d1365938d00eeb36dce115efe0ec04660c386c3c79d2fcc8a8"
+      },
+      "src/mhw/states/aggregates.py": {
+        "d306292": "a181bdd3a1a9c12b1eedcf378f1ba8d7a9dbcf594e300041ad585bc7f2ae2310",
+        "a672583": "1a4f2a57c921566a5184fd118b9755661ef8b67f84d7d271c21cefe7e6a18a30"
+      },
+      "input_splice": {
+        "commit": "30b3cb571882d08f895eeb8c043d12392223925d",
+        "src/mhw/fetch/ncei_daily.py": "87c10b26ddf96cf8cebec957d8704bfc6a0f7108235d65716085103722fd4d69",
+        "what_ran": "mhw-splice-ncei --start 2026-07-02 --end 2026-08-31 into the 12 oisst_<zone>_2026.nc files (append-only, never-shrink, final files only, subset on each file's own grid). The same module reproduces vintage #2's eight-day splice bit-for-bit (188/188 zone-day-vars).",
+        "note": "NEW in #3: the splice is now committed code (in #2 it was an inline script, independently verified)"
+      },
+      "ice_outage": {
+        "commit": "f634e437f0bbccff29216106b9d8a2340e275c09",
+        "first_version": "982fa7eb6fdb431bb1d8aac62e3cad480226c77d",
+        "src/mhw/climatology/ice_outage.py": "9ecf2bced13af83780f778c10f16025faf481b4d86d5f6b3bd410b0f391c43fd",
+        "config/ice_outage_days.json": "0cbbc9412f25135aa5931b8b4b4981258be300bf56261af28493753649263ba5",
+        "note": "NEW in #4. The first version (982fa7e: larger of the two bracketing days) over-masked melt-season open water (39% in back-test) and was replaced by f634e43 before any data was packaged. Config revised in 26e91bc: regional 2024-04 entry withdrawn (171 days)."
+      },
+      "input_replacement": {
+        "commit": "26e91bc306abff7a693dc417a73e267bf0ccfb2b",
+        "src/mhw/fetch/ncei_daily.py": "7371d0bcdb1ebf87e5916b4853ffc233284abafbcf9bcb2961fa7db5a24146df",
+        "config/ice_outage_days.json": "0cbbc9412f25135aa5931b8b4b4981258be300bf56261af28493753649263ba5",
+        "what_ran": "mhw-splice-ncei --replace 2024-04-22 ... 2024-04-26 into the 12 oisst_<zone>_2024.nc files",
+        "how_the_never_shrink_guard_allows_it": "replacement is a separate, explicit mode (--replace) for days named one by one; each must already be held; the time axis and day count must come out identical and every other day bit-identical, checked on the WRITTEN bytes before the atomic rename. Append mode is unchanged and still refuses any held day."
+      },
+      "vintage6_rules": {
+        "commit": "6cad427e4a262b6d49925d8cea511af2bc4f2bd8",
+        "tests": "tests/test_support_mask.py (+3, incl. the 7.01 case in miniature)"
+      }
+    },
+    "code_changed_since_20260722": {
+      "update_states.py": "records per-cell validity V and per-day input_present; adds the valid_cells() helper; the exceedance / event / intensity algebra is untouched (x and A reproduce under mini's flag_from_exceed with 0 disagreements, below)",
+      "build_mu_theta.py": "two input-cache guards: MHW_FROZEN_INPUTS (a missing cache raises instead of reaching the network) and never-shrink (a fetch with fewer time steps than the cache is refused). Climatology algebra untouched; theta90 byte-identical.",
+      "aggregates.py": "QC columns, the no-input NaN rule, to_monthly(). Weighted-mean equations untouched.",
+      "masks.py": "docstring only (the corrected land wording of record); mask store not rebuilt \u2014 it matches the sealed union store snap-region-masks-oisst025-20260930 31/31 by file SHA-256"
+    },
+    "code_changed_since_vintage_2": {
+      "src/mhw/fetch/ncei_daily.py": "NEW (the splice, as code)",
+      "run_rebuild.sh": "committed; end date is an argument",
+      "everything else": "byte-identical to #2's commits (engine d306292, aggregation a672583, seal 49c0757)"
+    },
+    "code_changed_since_vintage_3": {
+      "src/mhw/climatology/ice_outage.py": "NEW",
+      "config/ice_outage_days.json": "NEW",
+      "build_mu_theta.py / update_states.py": "one line each: ice read through apply_ice_outages",
+      "scripts/ice_outage_rule_backtest.py": "NEW (evidence for the rule choice)"
+    },
+    "code_changed_since_vintage_4": {
+      "src/mhw/fetch/ncei_daily.py": "--replace mode + day_sha256 (+3 tests)",
+      "config/ice_outage_days.json": "regional 2024-04 entry withdrawn"
+    },
+    "code_changed_since_vintage_5": {
+      "src/mhw/climatology/smooth_doy.py": "support_counts, mask_unsupported",
+      "src/mhw/climatology/build_mu_theta.py": "applies the rule; writes support_<zone>.zarr",
+      "src/mhw/states/aggregates.py": "detected area A x V; n_cells_event_unscorable",
+      "config/climatology.yml": "post_smoothing.mask_unsupported: true"
+    }
+  },
+  "input": {
+    "dataset": "NOAA OISST v2.1 Final, AVHRR-Only (DOI 10.25921/RE9P-PT57)",
+    "zone_year_files": "540 zone-year files. Relative to vintage #3: the twelve oisst_<zone>_2024.nc files changed (2024-04-22..26 replaced by NCEI's re-issued files); the other 528 are byte-identical to #3. #3's own 540 were #2's with 2026-07-06..08-31 appended to the twelve 2026 files.",
+    "splice_verification": "vintage #2's eight days: records/verify_splice.py (unchanged, carried over)",
+    "gapfill_source": "NCEI per-day files https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr/<YYYYMM>/oisst-avhrr-v02r01.<YYYYMMDD>.nc, fetched 2026-09-30 (records/input_day_inventory.csv, records/ncei_same_product_provenance.md)",
+    "same_product_evidence": "1990-01-30, the one day both PFEG ncdcOisst21Agg and NCEI serve: sebs subgrid (25 x 91), max |delta SST| 4.8e-07 degC, identical NaN pattern, grid-identical after subsetting.",
+    "never_refetch_from_pfeg": "the PFEG aggregate is itself missing 1,196 days (7.3% of its span), 1,188 of which this cache holds, inside the 1991-2020 baseline. The cache is the authority; MHW_FROZEN_INPUTS enforces it.",
+    "file_list": "records/oisst_input_file_shas_mhw-hobday-consecutive-20261001d.txt",
+    "aggregate_sha256_540_zone_year_files": "38c7d85f94a35c211c1e839afb86cb4607e19908bdd169d40ceecd0364576f5f",
+    "aggregate_sha256_recipe": "sha256( '\\n'.join(sorted('<basename>:<sha256>')) ), no trailing newline",
+    "calendar_census": "records/input_calendar_census.json \u2014 rebuild input 1982-01-01..2026-08-31: 0 missing days in all 12 zones",
+    "final_through": "2026-08-31",
+    "extension": {
+      "days": "2026-07-02..2026-08-31 (61 days)",
+      "from_ncei": "2026-07-06..2026-08-31 (57 days), NCEI final per-day files fetched 2026-10-01 (records/ncei_extension_files_sha256.txt)",
+      "already_present": "2026-07-02..07-05 (4 days) were already in the 2026 files from the 2026-07-21 PFEG pull (vintage #2 ended at 07-01 by its end date, not its inputs). KEPT, not replaced (append-only): checked against the NCEI final files, max |dSST| <= 1.9e-06 degC (1-2 float32 ulps) and |dice| <= 6e-08 in all 12 zones, identical NaN pattern (records/cached_20260702_0705_vs_ncei_final.json).",
+      "verification": "records/verify_extend.py (independent of the splice module): in all 12 files every #2 day is bit-identical, the added days are exactly 2026-07-06..08-31, each is bit-identical to its NCEI file on the cache grid, and 2026-01-01..08-31 has no gap. PASS, 684 zone-days, 0 failures. Trip-tested (a wrong end date FAILs)."
+    },
+    "ice_field_outages": {
+      "config": "records/ice_outage_days.json",
+      "global_evidence": "records/ice_outage_evidence_ncei_global_ice_counts.csv: NCEI per-day global files for all 702 days on which the Chukchi or Beaufort zone had no ice value; n80 = count of ice values north of 80N. 171 days have 0 (and 0 in both hemispheres); every other day has >= 1000. Clean split.",
+      "regional_evidence": "WITHDRAWN in #5: 2024-04-22..26 were re-issued files, not an outage",
+      "partial_blanks": "records/ice_partial_blank_scan.json: outside the 176 days, cells blank yet > 0.5 ice on both neighbouring days: at most 9 cell-days in any zone (isolated; e.g. Chukchi Aug 1987 on alternate days, the every-other-day SMMR era). Not treated; disclosed.",
+      "not_outages": "late-summer/autumn ice-free Beaufort/Chukchi spells (e.g. Sep-Oct 2025, Sep 2017/2019/2023/2024): the global field is present; genuine open water; left as observed",
+      "rule_choice": "records/ice_outage_rule_backtest_results.txt (script records/ice_outage_rule_backtest.py): candidate rules scored against the real ice field hidden over outage-shaped windows in normal years"
+    },
+    "reissue": {
+      "days": "2024-04-22..26, re-issued by NCEI 2024-06-05 (Last-Modified 15:11:32-33 GMT); fetched 2026-10-01 (records/ncei_reissued_files_sha256.txt)",
+      "magnitude": "max |dSST| per day 1.5-3.0 degC in nbs/sebs/ebs, 0.15-1.5 degC in the Gulf and Aleutians; the re-issued files carry the ice field (the superseded version had none)",
+      "record": "records/reissue_replacement_record.json: per zone and day, old/new day-content sha256 and max |dSST|; old/new sha256 of each oisst_<zone>_2024.nc",
+      "verification": "records/verify_replace.py (does not import the splice module): same time axis; every other 2024 day bit-identical to the pre-replacement file; each of the five bit-identical to NCEI on the cache grid and different from before. PASS, 12 files, 60 zone-days; trip-tested (FAIL when pointed at the unreplaced file).",
+      "census": "NCEI directory Last-Modified for all 16,314 days (records/ncei_directory_listing_20261001.csv): 13,968 written in the 2020-05 bulk v2.1 release; since then each final file ~15 days after its date (95% within 23). 100 files fall outside that pattern (pre-2020 days modified after the bulk, or > 30 days after their date); each was compared with the cache in all 12 zones, with 80 random control days (records/reissue_census_compare.csv). STALE: 5 -- exactly 2024-04-22..26. The other 95 candidates and all 80 controls agree to <= 1.9e-06 degC. Scope: a re-issue written inside the 2020-05 bulk or with a normal lag would not be flagged by the date screen; the 80 random controls are the evidence against that."
+    },
+    "aggregate_sha256_all_614": "5e5c2cf7aadb2e9f8797448681d86d147179f69336ce613873a1864e1b9805e8",
+    "vs_vintage_5": "IDENTICAL: the same 614 files and aggregate; nothing re-fetched"
+  },
+  "definition_applied": {
+    "reference": "Hobday et al. (2016)",
+    "baseline": "1991-2020 (30-year climate normal)",
+    "series_span": "1982-01-01 to 2026-08-31",
+    "grid": "OISST 0.25 deg",
+    "climatology": {
+      "step_1": "for each day-of-year d, pool SST from DOY in [d-5, d+5] (11-day window, wrap-around) across the 30 baseline years; mu(d) = mean, theta90(d) = 90th percentile",
+      "step_2": "smooth BOTH mu(d) and theta90(d) with a 31-day centred day-of-year rolling mean (wrap-around)",
+      "leap_day": "DOY 366 kept; stabilised by the smoothing window",
+      "ice_masking": "SST set NaN where the OISST ice fraction exceeds 0.15, applied identically when building the baseline and when detecting daily exceedance; on ice-field-outage days the ice fraction of a blank cell is taken from the outage rule (below) instead of being read as open water",
+      "data_availability_rule": "theta90/mu NaN where the doy's own 11-day baseline window held zero usable observations (after the unchanged smoothing)"
+    },
+    "detection": {
+      "exceedance": "x = max(0, SST - theta90); exceedance day iff x > 0",
+      "qualification_mode": "consecutive_first",
+      "step_1": "keep runs of >= 5 CONSECUTIVE exceedance days",
+      "step_2": "then merge two kept events separated by a gap of <= 2 days; absorbed gap days become part of the event",
+      "note": "the >= 5 test applies to consecutive exceedance BEFORE any bridging. This is the letter of Hobday et al. (2016) and what heatwaveR / Oliver's marineHeatWaves implement. The legacy 'bridged_run' mode, which let events confirm on as few as 2 consecutive days, was corrected 2026-07-20 and no shipped result uses it.",
+      "A": "1 on every day of a confirmed (possibly merged) event, counted from the event's physical start"
+    },
+    "intensity_reference": {
+      "mode": "climatological_mean",
+      "I": "I = SST - mu, the SIGNED anomaly above the seasonal climatological mean (heatwaveR 'relSeas'), NOT clamped at 0 and NOT referenced to theta90",
+      "note": "Hobday et al. (2016) Table 2 defines i_max / i_mean / i_cum relative to the seasonal mean. The clamp is omitted so i_mean, i_cum and the onset start-edge term match the reference implementation exactly."
+    },
+    "_unchanged_note": "carried verbatim from build_record_vintage20260722.json: the definition did not change in this vintage (theta90 byte-identical; x -> A reproduces under consecutive_first with 0 disagreements)",
+    "_changed_in_this_vintage": "climatology.data_availability_rule added; aggregation counts detected area only on scorable cell-days"
+  },
+  "no_input_day_rule": "Engine rule for a day with no input, as it stands in code at d306292 (update_states.py), stated in words: run_state_engine pre-allocates its per-cell exceedance array over EVERY calendar day of the requested range and writes only the days present in the input, so a day with no input keeps x = 0 and is scored as a day on which no cell exceeded its threshold. Because the >=5-consecutive test is applied BEFORE gaps of <=2 days are bridged, such a day inside a run splits it; if both halves are shorter than 5 days the whole event is discarded, and if it falls inside a <=2-day gap it is absorbed as a bridged gap day (A = 1 with I never written: the area_frac > 0, Ibar = 0 signature). D, C and O then reset for the rest of that event. The engine still behaves this way; what changed is what the PRODUCT discloses. Since a672583 every daily row carries n_days_input (1 if that day's input was read, else 0) and n_cells_valid, and a row with n_days_input = 0 is written NaN in every value column (area_frac, Ibar, Dbar, Cbar, Obar) instead of zero. The monthly product averages over input days only and carries n_days (days aggregated), n_days_input and days_in_month (calendar length). In THIS vintage no row has n_days_input = 0: all eight missing days were obtained as real observations, so the NaN rule is in force but is not triggered. Event-level effects of a future no-input day (a run split by a zero-filled day) are therefore DISCLOSED by n_days_input, not repaired; a vintage with any n_days_input = 0 row should be read with that in mind.",
+  "columns": {
+    "daily": "date, area_frac, Ibar, Dbar, Cbar, Obar, n_days_input, n_cells_valid",
+    "monthly": "date, area_frac, Ibar, Dbar, Cbar, Obar, n_days, n_days_input, days_in_month",
+    "n_days_input": "daily: 1 if that day's OISST input was read, else 0. monthly: days with input in the month",
+    "n_cells_valid": "daily: mask cells with a usable observation (not ice-masked, finite SST and theta90). Deliberately NOT n_valid* (gate check 9 prefix)",
+    "n_days": "monthly: daily rows aggregated",
+    "days_in_month": "monthly: calendar length of the month; every month is complete through 2026-08 (no partial terminal month)",
+    "monthly_rule": "calendar-month mean of the daily series over input days only (every day has input in this vintage, so identical to the plain calendar mean)",
+    "value_column_definitions": "unchanged from build_record_vintage20260722.json columns{}",
+    "names_settled_by": "admin ...-18 (final; every earlier naming message void)"
+  },
+  "caveats": {
+    "beaufort_zero_valid_cell_days": "4,930 Beaufort days have input present but n_cells_valid = 0 (every mask cell ice-masked; values 0 mean 'no measurable ocean', not 'measured and quiet'). Up from 4,831 in #3: the outage days in ice season are now masked as they should be. No other zone has such a day.",
+    "obar_signed": "Obar is signed and unclamped: 4 negative daily values (chukchi 2, beaufort 2) + 1 negative monthly (beaufort); most negative daily -0.0248. Unchanged from #1/#2.",
+    "terminal_month": "None: the series ends on the last day of August, so the last monthly row is a complete month. The July-excluded derivative is retired (admin ...-20261001-02).",
+    "ice_outage_days": "On the 171 outage days ice status is inferred (interpolated; open above 2 degC), not observed. Back-test: >= 97% of ice cells caught pooled; sebs 84-90% (sparse ice edge).",
+    "bering_jan_2017": "nbs January 2017 (0.250 vs <= 0.094 in other Januaries) is a real event observed on both sides of the outage (0.44-0.45 on Jan 3-6, continuing the record Dec 2016); within the outage the TIMING of its decay comes from interpolated ice, not observation.",
+    "thin_support": "Supported thresholds can still rest on few observations: defined theta90 whose smoothed value rests on ONE baseline year: sebs 329, nbs 5,976, wgoa 89, chukchi 355, beaufort 2,722, ebs 6,090, goa 89. No minimum-count rule this round (admin ...-17); the 1-3-observation sensitivity is mini's."
+  },
+  "verification_by_producer": {
+    "theta90_equal_to_vintage_4": "all 12 zones",
+    "theta90_vs_vintage_3": [
+      "sebs",
+      "nbs",
+      "wgoa",
+      "chukchi",
+      "beaufort",
+      "ebs",
+      "goa"
+    ],
+    "no_input_signature": "0 rows with area_frac > 0 and Ibar == 0",
+    "x_to_A_rule_check": "in the full intake"
+  },
+  "licence": {
+    "licence": "CC BY 4.0",
+    "licensor": "Singh, R. (Alaska Marine Heatwave Data Project)",
+    "citation": "Singh, R. (2026). Nine-zone Alaska marine-heatwave series. Alaska Marine Heatwave Data Project. Derived from NOAA OISST v2.1 under the Hobday et al. (2016) definition. Version snap-mhw-hobday-consecutive-20261001d. Licensed CC BY 4.0.",
+    "doi": null,
+    "licence_file": "LICENSE-data-CC-BY-4.0.txt (identical to #5's except the version id and one added line listing this vintage)"
+  },
+  "zones": {
+    "partition": [
+      "sebs",
+      "nbs",
+      "wgoa",
+      "egoa",
+      "ai_west",
+      "ai_central",
+      "ai_east",
+      "chukchi",
+      "beaufort"
+    ],
+    "rollups_not_partition_members": {
+      "ebs": [
+        "sebs",
+        "nbs"
+      ],
+      "goa": [
+        "wgoa",
+        "egoa"
+      ],
+      "ai": [
+        "ai_west",
+        "ai_central",
+        "ai_east"
+      ]
+    },
+    "masks": "records/region_masks_provenance.json (the union store; rebuild's copy matches it 31/31)"
+  },
+  "series_end": "2026-08-31 (unchanged from #3)",
+  "ice_outage_rule": "Ice-field outage rule (mhw.climatology.ice_outage; config/ice_outage_days.json). OISST writes no ice value over open water, so a blank ice cell normally means ice-free. On 171 days the ice field is absent from the product (171 global days with not one ice value on Earth, in 6 runs: 1987-12-06..1988-01-10, 2016-01 (3 days), 2016-04-18..06-30, 2017-01-07..02-28, 2020-08 (2 days), 2020-12 (3 days)). The 2024-04-22..26 'regional outage' of #4 is WITHDRAWN: those files were re-issued by NCEI and are now replaced. Outages are detected at the DAY level only (zero ice values on the globe); autumn zone-wide blank days (e.g. Sep-Oct 2025) are open water and are untouched. On those days a BLANK cell's ice is interpolated linearly in time between the zone's last non-outage day before and first non-outage day after, and set to 0 where SST > 2 degC; the unchanged threshold test (ice > 0.15 -> treated as missing) then applies. Identical in the 1991-2020 baseline and in detection; observed ice values are kept; inputs are not altered. Before this vintage, such cells were scored as open water: frozen water at about -1.7 degC entered the baseline and detection, and Beaufort/Chukchi February 2017 read heatwave areas of 0.256/0.192 against <= 0.017 in every other year.",
+  "theta90_undefined": {
+    "ruling": "Col. Raj (admin ...-09): fixed-mask denominator, NO fallback threshold -- a cell with no theta90 for a day of year is invalid that day, contributes no heatwave area, and stays in the denominator.",
+    "mechanism": "some cells' theta90 for a day of year was defined ONLY by outage-day frozen-water samples; with those masked it is undefined, so the same calendar day in other years cannot be scored there.",
+    "counts_unchanged_from_vintage_4": "theta90 is byte-identical to #4, so the undefined cell-DOYs are unchanged: sebs 398, nbs 18,469, wgoa 156, chukchi 169,645, beaufort 189,059, ebs 18,806, goa 156",
+    "file": "records/theta90_undefined_mechanism.json"
+  },
+  "data_availability_rule": "Data-availability rule (vintage #6; joint lofra-admin + lofra-mini decision approved by Col. Raj, admin ...-20261001-17; outside advice concurred). The 11-day window and the 31-day smoothing are unchanged. AFTER the smoothing, theta90 and mu are set NaN at every cell x day-of-year whose OWN 11-day baseline window (1991-2020) held zero usable observations (SST present, not ice-masked, ice-outage rule applied). Without it the NaN-aware smoothing creates such values from observations up to 20 days away (e.g. a 7.01 degC 11 July 2019 value as the 21-June threshold at 72.375N -164.125 in the Chukchi). A masked cell-day is invalid and stays in the fixed whole-zone denominator. This is an explicit data-availability rule of this implementation, not a requirement of Hobday et al. (2016). Every supported value is bit-identical to #5.",
+  "detected_area_rule": "Detected area (admin ...-20261001-17 item v): area_frac and the conditional means Ibar/Dbar/Cbar/Obar count a cell on day d only if it is in a qualifying event (A, Hobday: >=5 consecutive exceedance days, gaps <=2 days bridged) AND scorable that day (V: SST present, not ice-masked, theta90 defined). An unscorable day inside a bridged gap keeps event continuity (A, D, C as the engine writes them) but is never detected area. Valid (scorable) bridged gap days still count, as part of the Hobday event.",
+  "valid_frac_confirmation": "valid_frac = sum(w * (V AND mask)) / sum(w * mask), w = cos(lat): AREA-WEIGHTED. V = valid_cells(sst, ice, theta) = not ice-masked AND finite SST AND finite theta90: it INCLUDES threshold availability, not only SST presence (src/mhw/states/update_states.py valid_cells; aggregates.py). No corrected column needed.",
+  "engine_safety_detected_area": {
+    "rule": "Detected area (admin ...-20261001-17 item v): area_frac and the conditional means Ibar/Dbar/Cbar/Obar count a cell on day d only if it is in a qualifying event (A, Hobday: >=5 consecutive exceedance days, gaps <=2 days bridged) AND scorable that day (V: SST present, not ice-masked, theta90 defined). An unscorable day inside a bridged gap keeps event continuity (A, D, C as the engine writes them) but is never detected area. Valid (scorable) bridged gap days still count, as part of the Hobday event.",
+    "per_zone": {
+      "sebs": {
+        "event_unscorable": 7,
+        "of_which_theta_undefined": 0,
+        "of_which_ice_or_sst": 7,
+        "valid_gap_days_counted": 18070,
+        "max_abs_identity_err": 2.9797561085231905e-08,
+        "days": 7
+      },
+      "nbs": {
+        "event_unscorable": 0,
+        "of_which_theta_undefined": 0,
+        "of_which_ice_or_sst": 0,
+        "valid_gap_days_counted": 6976,
+        "max_abs_identity_err": 2.9759991360123195e-08,
+        "days": 0
+      },
+      "wgoa": {
+        "event_unscorable": 5,
+        "of_which_theta_undefined": 0,
+        "of_which_ice_or_sst": 5,
+        "valid_gap_days_counted": 27306,
+        "max_abs_identity_err": 2.9801874301682574e-08,
+        "days": 5
+      },
+      "egoa": {
+        "event_unscorable": 7,
+        "of_which_theta_undefined": 0,
+        "of_which_ice_or_sst": 7,
+        "valid_gap_days_counted": 15836,
+        "max_abs_identity_err": 2.9742009632904853e-08,
+        "days": 7
+      },
+      "ai_west": {
+        "event_unscorable": 0,
+        "of_which_theta_undefined": 0,
+        "of_which_ice_or_sst": 0,
+        "valid_gap_days_counted": 14618,
+        "max_abs_identity_err": 2.97965464524097e-08,
+        "days": 0
+      },
+      "ai_central": {
+        "event_unscorable": 0,
+        "of_which_theta_undefined": 0,
+        "of_which_ice_or_sst": 0,
+        "valid_gap_days_counted": 26521,
+        "max_abs_identity_err": 2.973272517081682e-08,
+        "days": 0
+      },
+      "ai_east": {
+        "event_unscorable": 5,
+        "of_which_theta_undefined": 0,
+        "of_which_ice_or_sst": 5,
+        "valid_gap_days_counted": 8315,
+        "max_abs_identity_err": 2.979756408283407e-08,
+        "days": 5
+      },
+      "chukchi": {
+        "event_unscorable": 11,
+        "of_which_theta_undefined": 0,
+        "of_which_ice_or_sst": 11,
+        "valid_gap_days_counted": 4165,
+        "max_abs_identity_err": 2.9674443347005308e-08,
+        "days": 4
+      },
+      "beaufort": {
+        "event_unscorable": 8,
+        "of_which_theta_undefined": 0,
+        "of_which_ice_or_sst": 8,
+        "valid_gap_days_counted": 2658,
+        "max_abs_identity_err": 2.9576581517254397e-08,
+        "days": 5
+      },
+      "ebs": {
+        "event_unscorable": 7,
+        "of_which_theta_undefined": 0,
+        "of_which_ice_or_sst": 7,
+        "valid_gap_days_counted": 25046,
+        "max_abs_identity_err": 2.9778754462306267e-08,
+        "days": 7
+      },
+      "goa": {
+        "event_unscorable": 12,
+        "of_which_theta_undefined": 0,
+        "of_which_ice_or_sst": 12,
+        "valid_gap_days_counted": 43142,
+        "max_abs_identity_err": 2.978743296466746e-08,
+        "days": 12
+      },
+      "ai": {
+        "event_unscorable": 5,
+        "of_which_theta_undefined": 0,
+        "of_which_ice_or_sst": 5,
+        "valid_gap_days_counted": 49454,
+        "max_abs_identity_err": 2.9788987832013447e-08,
+        "days": 5
+      }
+    },
+    "summary": "Recomputed from the per-cell state arrays: area_frac == sum(w*A*V)/sum(w) on every day of every zone (max |diff| <= 3.0e-08, float32). Unscorable cell-days inside events (excluded from area): 43 across the nine leaves (more counting the roll-ups), ALL from ice or missing SST, NONE from a masked threshold. Valid bridged gap days still counted (Hobday event membership): see valid_gap_days_counted.",
+    "interpretation_asked_of_admin": "admin ...-17 (v) first sentence read literally ('only cells that are exceedance days') would also drop VALID bridged gap days; implemented: only unscorable days are excluded. Confirm."
+  },
+  "support_counts": {
+    "files": "support/support_counts_<zone>.nc (audit5 layout)",
+    "per_zone": {
+      "sebs": {
+        "theta_defined": 733673,
+        "masked_zero_raw_window": 819,
+        "defined_with_raw_1to3": 444,
+        "defined_with_support_years_1": 329,
+        "defined_with_support_years_2to3": 1633
+      },
+      "nbs": {
+        "theta_defined": 438843,
+        "masked_zero_raw_window": 22938,
+        "defined_with_raw_1to3": 8135,
+        "defined_with_support_years_1": 5976,
+        "defined_with_support_years_2to3": 22063
+      },
+      "wgoa": {
+        "theta_defined": 837972,
+        "masked_zero_raw_window": 363,
+        "defined_with_raw_1to3": 163,
+        "defined_with_support_years_1": 89,
+        "defined_with_support_years_2to3": 409
+      },
+      "egoa": {
+        "theta_defined": 472140,
+        "masked_zero_raw_window": 0,
+        "defined_with_raw_1to3": 0,
+        "defined_with_support_years_1": 0,
+        "defined_with_support_years_2to3": 0
+      },
+      "ai_west": {
+        "theta_defined": 432612,
+        "masked_zero_raw_window": 0,
+        "defined_with_raw_1to3": 0,
+        "defined_with_support_years_1": 0,
+        "defined_with_support_years_2to3": 0
+      },
+      "ai_central": {
+        "theta_defined": 589992,
+        "masked_zero_raw_window": 0,
+        "defined_with_raw_1to3": 0,
+        "defined_with_support_years_1": 0,
+        "defined_with_support_years_2to3": 0
+      },
+      "ai_east": {
+        "theta_defined": 199104,
+        "masked_zero_raw_window": 0,
+        "defined_with_raw_1to3": 0,
+        "defined_with_support_years_1": 0,
+        "defined_with_support_years_2to3": 0
+      },
+      "chukchi": {
+        "theta_defined": 227939,
+        "masked_zero_raw_window": 35166,
+        "defined_with_raw_1to3": 6646,
+        "defined_with_support_years_1": 355,
+        "defined_with_support_years_2to3": 3267
+      },
+      "beaufort": {
+        "theta_defined": 162896,
+        "masked_zero_raw_window": 32377,
+        "defined_with_raw_1to3": 8240,
+        "defined_with_support_years_1": 2722,
+        "defined_with_support_years_2to3": 6852
+      },
+      "ebs": {
+        "theta_defined": 1108451,
+        "masked_zero_raw_window": 23473,
+        "defined_with_raw_1to3": 8366,
+        "defined_with_support_years_1": 6090,
+        "defined_with_support_years_2to3": 22738
+      },
+      "goa": {
+        "theta_defined": 1605108,
+        "masked_zero_raw_window": 363,
+        "defined_with_raw_1to3": 163,
+        "defined_with_support_years_1": 89,
+        "defined_with_support_years_2to3": 409
+      },
+      "ai": {
+        "theta_defined": 1361154,
+        "masked_zero_raw_window": 0,
+        "defined_with_raw_1to3": 0,
+        "defined_with_support_years_1": 0,
+        "defined_with_support_years_2to3": 0
+      }
+    },
+    "which_count": "n_raw_window = the doy's OWN 11-day window (the raw percentile's sample); n_support_obs / n_support_years = DISTINCT observations / years behind the SMOOTHED value (+-20 days). The earlier '1-3 values' figures were n_raw_window."
+  },
+  "change_vs_vintage_5": {
+    "tolerance": "ZERO",
+    "daily_table": "records/diff_daily_vs_vintage5_20261001c.csv (column rule = mask | detected_area | both)",
+    "monthly_table": "records/diff_monthly_vs_vintage5_20261001c.csv",
+    "area_frac_by_zone": {
+      "sebs": {
+        "area_days": 7,
+        "by_rule": {
+          "detected_area": 7
+        },
+        "max_daily_down": -0.0008,
+        "max_daily_down_date": "2003-11-08",
+        "max_monthly_down": -0.0001,
+        "any_increase": false
+      },
+      "nbs": {
+        "area_days": 34,
+        "by_rule": {
+          "mask": 34
+        },
+        "max_daily_down": -0.0271,
+        "max_daily_down_date": "1985-02-01",
+        "max_monthly_down": -0.0038,
+        "any_increase": false
+      },
+      "wgoa": {
+        "area_days": 5,
+        "by_rule": {
+          "detected_area": 5
+        },
+        "max_daily_down": -0.0007,
+        "max_daily_down_date": "2003-02-06",
+        "max_monthly_down": -0.0,
+        "any_increase": false
+      },
+      "egoa": {
+        "area_days": 7,
+        "by_rule": {
+          "detected_area": 7
+        },
+        "max_daily_down": -0.0011,
+        "max_daily_down_date": "1998-02-17",
+        "max_monthly_down": -0.0001,
+        "any_increase": false
+      },
+      "ai_west": {
+        "area_days": 0,
+        "by_rule": {},
+        "max_daily_down": 0.0,
+        "max_daily_down_date": null,
+        "max_monthly_down": 0.0,
+        "any_increase": false
+      },
+      "ai_central": {
+        "area_days": 0,
+        "by_rule": {},
+        "max_daily_down": 0.0,
+        "max_daily_down_date": null,
+        "max_monthly_down": 0.0,
+        "any_increase": false
+      },
+      "ai_east": {
+        "area_days": 5,
+        "by_rule": {
+          "detected_area": 5
+        },
+        "max_daily_down": -0.0022,
+        "max_daily_down_date": "2003-03-12",
+        "max_monthly_down": -0.0001,
+        "any_increase": false
+      },
+      "chukchi": {
+        "area_days": 4,
+        "by_rule": {
+          "detected_area": 4
+        },
+        "max_daily_down": -0.0037,
+        "max_daily_down_date": "2019-08-10",
+        "max_monthly_down": -0.0002,
+        "any_increase": false
+      },
+      "beaufort": {
+        "area_days": 10,
+        "by_rule": {
+          "detected_area": 5,
+          "mask": 5
+        },
+        "max_daily_down": -0.0024,
+        "max_daily_down_date": "2021-10-18",
+        "max_monthly_down": -0.0002,
+        "any_increase": false
+      },
+      "ebs": {
+        "area_days": 41,
+        "by_rule": {
+          "mask": 34,
+          "detected_area": 7
+        },
+        "max_daily_down": -0.0097,
+        "max_daily_down_date": "1985-02-01",
+        "max_monthly_down": -0.0014,
+        "any_increase": false
+      },
+      "goa": {
+        "area_days": 12,
+        "by_rule": {
+          "detected_area": 12
+        },
+        "max_daily_down": -0.0004,
+        "max_daily_down_date": "1998-02-17",
+        "max_monthly_down": -0.0001,
+        "any_increase": false
+      },
+      "ai": {
+        "area_days": 5,
+        "by_rule": {
+          "detected_area": 5
+        },
+        "max_daily_down": -0.0004,
+        "max_daily_down_date": "2003-03-12",
+        "max_monthly_down": -0.0,
+        "any_increase": false
+      }
+    },
+    "mask_rule_maxima_vs_dry_run": {
+      "sebs": {
+        "v6_mask_rule_max_daily_down": 0.0,
+        "dry_run": 0.0
+      },
+      "nbs": {
+        "v6_mask_rule_max_daily_down": -0.0271,
+        "dry_run": 0.0271
+      },
+      "wgoa": {
+        "v6_mask_rule_max_daily_down": 0.0,
+        "dry_run": 0.0
+      },
+      "egoa": {
+        "v6_mask_rule_max_daily_down": 0.0,
+        "dry_run": null
+      },
+      "ai_west": {
+        "v6_mask_rule_max_daily_down": 0.0,
+        "dry_run": null
+      },
+      "ai_central": {
+        "v6_mask_rule_max_daily_down": 0.0,
+        "dry_run": null
+      },
+      "ai_east": {
+        "v6_mask_rule_max_daily_down": 0.0,
+        "dry_run": null
+      },
+      "chukchi": {
+        "v6_mask_rule_max_daily_down": 0.0,
+        "dry_run": 0.0
+      },
+      "beaufort": {
+        "v6_mask_rule_max_daily_down": -0.0012,
+        "dry_run": 0.0012
+      },
+      "ebs": {
+        "v6_mask_rule_max_daily_down": -0.0097,
+        "dry_run": 0.0097
+      },
+      "goa": {
+        "v6_mask_rule_max_daily_down": 0.0,
+        "dry_run": 0.0
+      },
+      "ai": {
+        "v6_mask_rule_max_daily_down": 0.0,
+        "dry_run": null
+      }
+    },
+    "summary": "Every area_frac change is a REDUCTION. Mask-rule lines reproduce the dry run (0cdb112) exactly: nbs -0.0271 (1985-02-01), monthly -0.0038; ebs -0.0097/-0.0014; beaufort -0.0012/-0.0002. Detected-area lines are a separate small channel (max -0.0037 chukchi 2019-08-10), which is why beaufort's overall daily max is -0.0024 (2021-10-18)."
+  }
+}

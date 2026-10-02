@@ -1,0 +1,86 @@
+{
+  "sebs": {
+    "theta_defined": 733673,
+    "masked_zero_raw_window": 819,
+    "defined_with_raw_1to3": 444,
+    "defined_with_support_years_1": 329,
+    "defined_with_support_years_2to3": 1633
+  },
+  "nbs": {
+    "theta_defined": 438843,
+    "masked_zero_raw_window": 22938,
+    "defined_with_raw_1to3": 8135,
+    "defined_with_support_years_1": 5976,
+    "defined_with_support_years_2to3": 22063
+  },
+  "wgoa": {
+    "theta_defined": 837972,
+    "masked_zero_raw_window": 363,
+    "defined_with_raw_1to3": 163,
+    "defined_with_support_years_1": 89,
+    "defined_with_support_years_2to3": 409
+  },
+  "egoa": {
+    "theta_defined": 472140,
+    "masked_zero_raw_window": 0,
+    "defined_with_raw_1to3": 0,
+    "defined_with_support_years_1": 0,
+    "defined_with_support_years_2to3": 0
+  },
+  "ai_west": {
+    "theta_defined": 432612,
+    "masked_zero_raw_window": 0,
+    "defined_with_raw_1to3": 0,
+    "defined_with_support_years_1": 0,
+    "defined_with_support_years_2to3": 0
+  },
+  "ai_central": {
+    "theta_defined": 589992,
+    "masked_zero_raw_window": 0,
+    "defined_with_raw_1to3": 0,
+    "defined_with_support_years_1": 0,
+    "defined_with_support_years_2to3": 0
+  },
+  "ai_east": {
+    "theta_defined": 199104,
+    "masked_zero_raw_window": 0,
+    "defined_with_raw_1to3": 0,
+    "defined_with_support_years_1": 0,
+    "defined_with_support_years_2to3": 0
+  },
+  "chukchi": {
+    "theta_defined": 227939,
+    "masked_zero_raw_window": 35166,
+    "defined_with_raw_1to3": 6646,
+    "defined_with_support_years_1": 355,
+    "defined_with_support_years_2to3": 3267
+  },
+  "beaufort": {
+    "theta_defined": 162896,
+    "masked_zero_raw_window": 32377,
+    "defined_with_raw_1to3": 8240,
+    "defined_with_support_years_1": 2722,
+    "defined_with_support_years_2to3": 6852
+  },
+  "ebs": {
+    "theta_defined": 1108451,
+    "masked_zero_raw_window": 23473,
+    "defined_with_raw_1to3": 8366,
+    "defined_with_support_years_1": 6090,
+    "defined_with_support_years_2to3": 22738
+  },
+  "goa": {
+    "theta_defined": 1605108,
+    "masked_zero_raw_window": 363,
+    "defined_with_raw_1to3": 163,
+    "defined_with_support_years_1": 89,
+    "defined_with_support_years_2to3": 409
+  },
+  "ai": {
+    "theta_defined": 1361154,
+    "masked_zero_raw_window": 0,
+    "defined_with_raw_1to3": 0,
+    "defined_with_support_years_1": 0,
+    "defined_with_support_years_2to3": 0
+  }
+}

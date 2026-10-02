@@ -1,0 +1,96 @@
+{
+ "sebs": {
+  "daily_area_changed": 0,
+  "up": 0,
+  "down": 0,
+  "max_abs_daily": 0.0,
+  "max_day": "1982-01-01",
+  "months_changed": 0,
+  "max_abs_monthly": 0.0,
+  "max_month": "1982-01",
+  "cells_valid_lost": 295,
+  "years": []
+ },
+ "nbs": {
+  "daily_area_changed": 34,
+  "up": 0,
+  "down": 34,
+  "max_abs_daily": 0.0271,
+  "max_day": "1985-02-01",
+  "months_changed": 4,
+  "max_abs_monthly": 0.0038,
+  "max_month": "1985-02",
+  "cells_valid_lost": 2109,
+  "years": [
+   1982,
+   1984,
+   1985
+  ]
+ },
+ "wgoa": {
+  "daily_area_changed": 0,
+  "up": 0,
+  "down": 0,
+  "max_abs_daily": 0.0,
+  "max_day": "1982-01-01",
+  "months_changed": 0,
+  "max_abs_monthly": 0.0,
+  "max_month": "1982-01",
+  "cells_valid_lost": 0,
+  "years": []
+ },
+ "chukchi": {
+  "daily_area_changed": 0,
+  "up": 0,
+  "down": 0,
+  "max_abs_daily": 0.0,
+  "max_day": "1982-01-01",
+  "months_changed": 0,
+  "max_abs_monthly": 0.0,
+  "max_month": "1982-01",
+  "cells_valid_lost": 121,
+  "years": []
+ },
+ "beaufort": {
+  "daily_area_changed": 5,
+  "up": 0,
+  "down": 5,
+  "max_abs_daily": 0.0012,
+  "max_day": "2025-11-08",
+  "months_changed": 1,
+  "max_abs_monthly": 0.0002,
+  "max_month": "2025-11",
+  "cells_valid_lost": 360,
+  "years": [
+   2025
+  ]
+ },
+ "ebs": {
+  "daily_area_changed": 34,
+  "up": 0,
+  "down": 34,
+  "max_abs_daily": 0.0097,
+  "max_day": "1985-02-01",
+  "months_changed": 4,
+  "max_abs_monthly": 0.0014,
+  "max_month": "1985-02",
+  "cells_valid_lost": 2404,
+  "years": [
+   1982,
+   1984,
+   1985
+  ]
+ },
+ "goa": {
+  "daily_area_changed": 0,
+  "up": 0,
+  "down": 0,
+  "max_abs_daily": 0.0,
+  "max_day": "1982-01-01",
+  "months_changed": 0,
+  "max_abs_monthly": 0.0,
+  "max_month": "1982-01",
+  "cells_valid_lost": 0,
+  "years": []
+ }
+}
