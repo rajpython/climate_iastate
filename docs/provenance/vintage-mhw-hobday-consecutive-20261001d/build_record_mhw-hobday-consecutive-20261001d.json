@@ -108,15 +108,17 @@
       "build_mu_theta.py / update_states.py": "one line each: ice read through apply_ice_outages",
       "scripts/ice_outage_rule_backtest.py": "NEW (evidence for the rule choice)"
     },
-    "code_changed_since_vintage_4": {
-      "src/mhw/fetch/ncei_daily.py": "--replace mode + day_sha256 (+3 tests)",
-      "config/ice_outage_days.json": "regional 2024-04 entry withdrawn"
-    },
     "code_changed_since_vintage_5": {
       "src/mhw/climatology/smooth_doy.py": "support_counts, mask_unsupported",
       "src/mhw/climatology/build_mu_theta.py": "applies the rule; writes support_<zone>.zarr",
       "src/mhw/states/aggregates.py": "detected area A x V; n_cells_event_unscorable",
       "config/climatology.yml": "post_smoothing.mask_unsupported: true"
+    },
+    "history": {
+      "code_changed_in_vintage_5_since_4": {
+        "src/mhw/fetch/ncei_daily.py": "--replace mode + day_sha256 (+3 tests)",
+        "config/ice_outage_days.json": "regional 2024-04 entry withdrawn"
+      }
     }
   },
   "input": {
@@ -204,7 +206,6 @@
     "thin_support": "Supported thresholds can still rest on few observations: defined theta90 whose smoothed value rests on ONE baseline year: sebs 329, nbs 5,976, wgoa 89, chukchi 355, beaufort 2,722, ebs 6,090, goa 89. No minimum-count rule this round (admin ...-17); the 1-3-observation sensitivity is mini's."
   },
   "verification_by_producer": {
-    "theta90_equal_to_vintage_4": "all 12 zones",
     "theta90_vs_vintage_3": [
       "sebs",
       "nbs",
@@ -215,7 +216,8 @@
       "goa"
     ],
     "no_input_signature": "0 rows with area_frac > 0 and Ibar == 0",
-    "x_to_A_rule_check": "in the full intake"
+    "x_to_A_rule_check": "in the full intake",
+    "theta90_vs_vintage_5": "bit-identical wherever kept (all 12 zones); removed exactly the zero-support cell x doy; keys equal #5 in egoa, ai_west, ai_central, ai_east, ai"
   },
   "licence": {
     "licence": "CC BY 4.0",
@@ -258,8 +260,45 @@
   "theta90_undefined": {
     "ruling": "Col. Raj (admin ...-09): fixed-mask denominator, NO fallback threshold -- a cell with no theta90 for a day of year is invalid that day, contributes no heatwave area, and stays in the denominator.",
     "mechanism": "some cells' theta90 for a day of year was defined ONLY by outage-day frozen-water samples; with those masked it is undefined, so the same calendar day in other years cannot be scored there.",
-    "counts_unchanged_from_vintage_4": "theta90 is byte-identical to #4, so the undefined cell-DOYs are unchanged: sebs 398, nbs 18,469, wgoa 156, chukchi 169,645, beaufort 189,059, ebs 18,806, goa 156",
-    "file": "records/theta90_undefined_mechanism.json"
+    "file": "records/theta90_undefined_mechanism.json",
+    "counts_vs_vintage_3": {
+      "sebs": {
+        "ice_outage_rule_in_v5": 398,
+        "data_availability_rule_in_v6": 819,
+        "total": 1217
+      },
+      "nbs": {
+        "ice_outage_rule_in_v5": 18469,
+        "data_availability_rule_in_v6": 22938,
+        "total": 41407
+      },
+      "wgoa": {
+        "ice_outage_rule_in_v5": 156,
+        "data_availability_rule_in_v6": 363,
+        "total": 519
+      },
+      "chukchi": {
+        "ice_outage_rule_in_v5": 169645,
+        "data_availability_rule_in_v6": 35166,
+        "total": 204811
+      },
+      "beaufort": {
+        "ice_outage_rule_in_v5": 189059,
+        "data_availability_rule_in_v6": 32377,
+        "total": 221436
+      },
+      "ebs": {
+        "ice_outage_rule_in_v5": 18806,
+        "data_availability_rule_in_v6": 23473,
+        "total": 42279
+      },
+      "goa": {
+        "ice_outage_rule_in_v5": 156,
+        "data_availability_rule_in_v6": 363,
+        "total": 519
+      }
+    },
+    "counts_vs_vintage_3_note": "theta90 cell x doy finite in #3 and NaN in #6 = the ice-outage channel (#5) + the zero-support mask (#6); the two sets are disjoint (the mask removes only values finite in #5); egoa and the Aleutians 0"
   },
   "data_availability_rule": "Data-availability rule (vintage #6; joint lofra-admin + lofra-mini decision approved by Col. Raj, admin ...-20261001-17; outside advice concurred). The 11-day window and the 31-day smoothing are unchanged. AFTER the smoothing, theta90 and mu are set NaN at every cell x day-of-year whose OWN 11-day baseline window (1991-2020) held zero usable observations (SST present, not ice-masked, ice-outage rule applied). Without it the NaN-aware smoothing creates such values from observations up to 20 days away (e.g. a 7.01 degC 11 July 2019 value as the 21-June threshold at 72.375N -164.125 in the Chukchi). A masked cell-day is invalid and stays in the fixed whole-zone denominator. This is an explicit data-availability rule of this implementation, not a requirement of Hobday et al. (2016). Every supported value is bit-identical to #5.",
   "detected_area_rule": "Detected area (admin ...-20261001-17 item v): area_frac and the conditional means Ibar/Dbar/Cbar/Obar count a cell on day d only if it is in a qualifying event (A, Hobday: >=5 consecutive exceedance days, gaps <=2 days bridged) AND scorable that day (V: SST present, not ice-masked, theta90 defined). An unscorable day inside a bridged gap keeps event continuity (A, D, C as the engine writes them) but is never detected area. Valid (scorable) bridged gap days still count, as part of the Hobday event.",
@@ -632,5 +671,18 @@
       }
     },
     "summary": "Every area_frac change is a REDUCTION. Mask-rule lines reproduce the dry run (0cdb112) exactly: nbs -0.0271 (1985-02-01), monthly -0.0038; ebs -0.0097/-0.0014; beaufort -0.0012/-0.0002. Detected-area lines are a separate small channel (max -0.0037 chukchi 2019-08-10), which is why beaufort's overall daily max is -0.0024 (2021-10-18)."
+  },
+  "_correction_20261002_stale_fields": {
+    "asked_by": "lofra-mini registration request mini-to-admin-cc-dashboard-m1-m4-20261001-10 (documentation only)",
+    "what": "three fields carried from #5's record were stale for #6: two asserted theta90 equal to #4 (false for #6: the zero-support mask removes values in 7 zones), one was #5's code history. Removed / restated above.",
+    "stale_text": {
+      "verification_by_producer.theta90_equal_to_vintage_4": "all 12 zones",
+      "theta90_undefined.counts_unchanged_from_vintage_4": "theta90 is byte-identical to #4, so the undefined cell-DOYs are unchanged: sebs 398, nbs 18,469, wgoa 156, chukchi 169,645, beaufort 189,059, ebs 18,806, goa 156",
+      "pipeline.code_changed_since_vintage_4": {
+        "src/mhw/fetch/ncei_daily.py": "--replace mode + day_sha256 (+3 tests)",
+        "config/ice_outage_days.json": "regional 2024-04 entry withdrawn"
+      }
+    },
+    "note": "PRODUCER copy corrected after sealing; the sealed copy (c13bb755 / snapshot 3544dc3b) is deliberately not rewritten. Generator fixed."
   }
 }

@@ -33,7 +33,7 @@ AREA6 = ("Detected area (admin ...-20261001-17 item v): area_frac and the condit
          "writes them) but is never detected area. Valid (scorable) bridged gap days still count, as part of the Hobday event.")
 
 br = copy.deepcopy(br5)
-for k in ("change_vs_vintage_4", "_correction_20261001_A3", "valid_cell_drops_vs_vintage_3_by_channel"):
+for k in ("change_vs_vintage_4", "_correction_20261001_A3", "valid_cell_drops_vs_vintage_3_by_channel"):  # stale-field fix 2026-10-02 below
     br.pop(k, None)
 br["written"] = "2026-10-01"; br["vintage_id"] = VID; br["register_as"] = f"snap-{VID}"
 br["supersedes"] = f"snap-{PREV} (vintage #5; stays registered and immutable)"
@@ -56,6 +56,7 @@ c["aggregation"]["note"] = "CHANGED vs #5: detected area = A x V; QC column n_ce
 c["vintage6_rules"] = {"commit": C6, "tests": "tests/test_support_mask.py (+3, incl. the 7.01 case in miniature)"}
 c["engine_and_inputs"]["what_ran"] = (f"2026-10-01, isolated checkout of {C6[:7]} with cloned inputs (the board's data untouched), MHW_FROZEN_INPUTS=1: "
                                       "mhw-build-climatology for all 12 zones, then mhw-backfill 1982-01-01..2026-08-31 for all 12; no network fetch")
+br["pipeline"].pop("code_changed_since_vintage_4", None); br["theta90_undefined"].pop("counts_unchanged_from_vintage_4", None)
 br["pipeline"]["code_changed_since_vintage_5"] = {"src/mhw/climatology/smooth_doy.py": "support_counts, mask_unsupported", "src/mhw/climatology/build_mu_theta.py": "applies the rule; writes support_<zone>.zarr",
                                                  "src/mhw/states/aggregates.py": "detected area A x V; n_cells_event_unscorable", "config/climatology.yml": "post_smoothing.mask_unsupported: true"}
 i = br["input"]
