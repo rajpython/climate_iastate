@@ -15,8 +15,9 @@ NOTE_HTML = (
     "of its area in a heatwave in February 2017, against at most 1.5% in any other February. Ice status on "
     "those days is now taken from the days either side, and the Beaufort and Chukchi February 2017 values "
     "are 0%. The same revision restored eight days that were missing from the input and adopted NOAA's "
-    "re-issued files for 22–26 April 2024. Values in other years can differ slightly from earlier versions "
-    "of this page."
+    "re-issued files for 22–26 April 2024. Heatwave thresholds are no longer extended to days of the year "
+    "on which a cell was ice-covered throughout the 1991–2020 baseline. Values in other years can differ "
+    "slightly from earlier versions of this page."
 )
 
 
