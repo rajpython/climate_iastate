@@ -168,7 +168,10 @@ def aggregate_region(
       n_cells_valid  mask cells with a usable observation (not ice-masked, finite
                      SST and theta90) on this day
       n_mask_cells   the zone's mask cell count (constant; the denominator)
-      valid_frac     cos(lat)-weighted share of the zone with a usable observation
+      valid_frac     cos(lat)-weighted share of the zone with a usable observation (SST present,
+                     not ice-masked AND theta90 defined -- the same valid_cells() rule the engine uses)
+      n_cells_event_unscorable  mask cells inside an event (A=1) but unscorable that day; they keep
+                     event continuity and are EXCLUDED from area_frac and the conditional means
 
     The names are not cosmetic: the sealing gate recognises count columns by the
     prefixes ``n_days`` / ``n_obs`` / ``n_valid``. The valid-cell count must NOT
@@ -184,7 +187,17 @@ def aggregate_region(
     is never silently reported as complete.
     """
     # Load all variables to memory (GOA: 32×160×365 = ~7 MB per variable)
-    A = ds["A"].values.astype(np.float32)   # (T, lat, lon)
+    A_event = ds["A"].values.astype(np.float32)   # (T, lat, lon) -- event membership (Hobday)
+    # DETECTED area (vintage #6, admin ...-20261001-17 item v): a cell counts toward the area and the
+    # conditional means on day t only if it is in a qualifying event AND scorable that day (V: SST
+    # present, not ice-masked, theta90 defined). An unscorable day inside a <=2-day gap keeps event
+    # continuity (A, D, C stay as the engine wrote them) but is never detected area -- otherwise a
+    # day with no usable observation reads as a measured heatwave (the defect class of the 2026-09-30
+    # missing-day episode). Stores without V (pre-QC vintages) keep the old reading.
+    if "V" in ds.data_vars:
+        A = A_event * ds["V"].values.astype(np.float32)
+    else:
+        A = A_event
     I = ds["I"].values.astype(np.float32)
     C = ds["C"].values.astype(np.float32)
     O = ds["O"].values.astype(np.float32)
@@ -239,6 +252,8 @@ def aggregate_region(
     if "V" in ds.data_vars:
         V = ds["V"].values.astype(bool)
         m3 = mask.astype(bool)[np.newaxis, :, :]
+        # in an event but unscorable that day: kept for continuity, excluded from detected area
+        out["n_cells_event_unscorable"] = ((A_event > 0) & ~V & m3).sum(axis=(1, 2)).astype(np.int32)
         out["n_cells_valid"] = (V & m3).sum(axis=(1, 2)).astype(np.int32)
         out["valid_frac"] = (
             np.sum(wm3 * (V & m3), axis=(1, 2)) / sum_wm
@@ -246,6 +261,7 @@ def aggregate_region(
     else:
         out["n_cells_valid"] = np.nan
         out["valid_frac"] = np.nan
+        out["n_cells_event_unscorable"] = np.nan
     # The state store keeps its own variable name (input_present); the product
     # column follows the delivery spec.
     if "input_present" in ds.data_vars:

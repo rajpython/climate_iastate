@@ -28,7 +28,13 @@ import xarray as xr
 from mhw.climatology.ice_outage import apply_ice_outages
 import yaml
 
-from mhw.climatology.smooth_doy import compute_mu_theta, doy_window, smooth_doy_field
+from mhw.climatology.smooth_doy import (
+    compute_mu_theta,
+    doy_window,
+    mask_unsupported,
+    smooth_doy_field,
+    support_counts,
+)
 from mhw.seal import OISST_PROVENANCE
 from mhw.climatology.storage import save_climatology
 
@@ -224,7 +230,8 @@ def build_climatology(
     cfg: dict,
     *,
     use_cache: bool = True,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    return_support: bool = False,
+) -> tuple:
     """Fetch baseline years, apply ice masking, compute mu and theta90 per DOY.
 
     Returns
@@ -259,6 +266,7 @@ def build_climatology(
 
     sst_arrays: list[np.ndarray] = []
     doy_arrays: list[np.ndarray] = []
+    year_arrays: list[np.ndarray] = []
     lats = lons = None
 
     # Open remote dataset once — reused for every uncached year
@@ -299,6 +307,7 @@ def build_climatology(
 
         sst_arrays.append(sst)
         doy_arrays.append(doys)
+        year_arrays.append(np.full(len(doys), year, dtype=np.int32))
         print(f"  ({len(doys)} days, {time.time()-t_yr:.1f}s)")
 
     if remote_ds is not None:
@@ -310,6 +319,7 @@ def build_climatology(
     # -----------------------------------------------------------------------
     all_sst = np.concatenate(sst_arrays, axis=0)   # (n_days_total, n_lat, n_lon)
     all_doy = np.concatenate(doy_arrays, axis=0)   # (n_days_total,)
+    all_year = np.concatenate(year_arrays, axis=0)  # (n_days_total,)
     n_days, n_lat, n_lon = all_sst.shape
     print(f"\nAssembled: {n_days} days × {n_lat} lat × {n_lon} lon")
 
@@ -342,7 +352,24 @@ def build_climatology(
               f"(canonical Hobday 2016) …")
         mu      = smooth_doy_field(mu, window_days=w)
         theta90 = smooth_doy_field(theta90, window_days=w)
+    else:
+        w = 1
 
+    # -----------------------------------------------------------------------
+    # Phase 3.6: support counts + the data-availability rule (vintage #6)
+    # -----------------------------------------------------------------------
+    n_raw, n_obs, n_years = support_counts(np.isfinite(all_sst), all_doy, all_year,
+                                           half_window=half_window, post_window=w)
+    if post.get("mask_unsupported", False):
+        n_before = int(np.isfinite(theta90).sum())
+        mu = mask_unsupported(mu, n_raw)
+        theta90 = mask_unsupported(theta90, n_raw)
+        print(f"\nData-availability rule: masked {n_before - int(np.isfinite(theta90).sum()):,} "
+              "doy x cell values whose own 11-day window held no baseline observation")
+
+    if return_support:
+        return mu, theta90, lats, lons, {"n_raw_window": n_raw, "n_support_obs": n_obs,
+                                         "n_support_years": n_years}
     return mu, theta90, lats, lons
 
 
@@ -549,8 +576,8 @@ def main(argv: list[str] | None = None) -> None:
 
     print(f"=== Climatology build: region={args.region} ===\n")
 
-    mu, theta90, lats, lons = build_climatology(
-        args.region, cfg, use_cache=not args.no_cache
+    mu, theta90, lats, lons, support = build_climatology(
+        args.region, cfg, use_cache=not args.no_cache, return_support=True
     )
 
     # Sanity checks
@@ -583,6 +610,14 @@ def main(argv: list[str] | None = None) -> None:
 
     print("\nSaving Zarr …")
     save_climatology(mu, theta90, lats, lons, out_paths_abs, chunking, attrs=attrs)
+    # Support counts beside the climatology: how many baseline observations stand behind each value
+    sup_path = Path(out_paths_abs["theta90"]).with_name(f"support_{args.region}.zarr")
+    xr.Dataset({k: (("doy", "lat", "lon"), v) for k, v in support.items()},
+               coords={"doy": np.arange(1, 367, dtype=np.int32), "lat": lats, "lon": lons},
+               attrs={**attrs, "meaning": "n_raw_window: observations in the doy's own 11-day window; "
+                      "n_support_obs / n_support_years: distinct observations / years behind the smoothed value"}
+               ).to_zarr(str(sup_path), mode="w", consolidated=False)
+    print(f"  Support counts → {sup_path}")
 
     if args.plot:
         print("\nGenerating plots …")
