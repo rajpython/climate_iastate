@@ -227,3 +227,17 @@ def test_engine_records_available_vs_processed_days(tmp_path, monkeypatch):
     (row,) = [r for r in rec["opened"] if r["basename"] == "oisst_sebs_2026.nc"]
     assert row["use"][0]["available"] == ["2026-01-01", "2026-09-30", 273]
     assert row["use"][0]["processed"] == ["2026-01-01", "2026-08-31", 243]
+
+
+def test_executed_code_is_bound_by_module_hash(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    _zone_year(raw / "oisst_sebs_2026.nc", "2026-01-01", 5)
+    code = ("import mhw.climatology.build_mu_theta as b, pathlib; "
+            f"b.DATA_RAW = pathlib.Path({str(raw)!r}); b.fetch_year('sebs', 2026, {{}}, None).close()")
+    monkeypatch.setenv("MHW_FROZEN_INPUTS", "1")
+    assert er.main(["wrap", "--out", str(tmp_path / "rec"), "--", sys.executable, "-c", code]) == 0
+    rec = json.loads((tmp_path / "rec" / "executed_inputs.json").read_text())
+    files = rec["executed_code"]["files"]
+    assert files["mhw/exec_record.py"] == [er.sha256_file(Path(er.__file__))]
+    assert "mhw/climatology/build_mu_theta.py" in files and rec["executed_code"]["n_module_files"] >= 3

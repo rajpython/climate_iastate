@@ -52,6 +52,7 @@ Known gaps (stated, not hidden)
 from __future__ import annotations
 
 import argparse
+import atexit
 import hashlib
 import json
 import os
@@ -67,6 +68,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ENV_VAR = "MHW_EXEC_RECORD"
 
 _SEEN: set[tuple[str, int, int]] = set()
+_CODE_HOOKED = False
 
 
 # ---------------------------------------------------------------------------
@@ -130,7 +132,7 @@ def read_log(log: Path) -> tuple[list[dict], list[dict], list[dict]]:
         if r.get("event", "open") == "open":
             uniq.setdefault((r["path"], r["sha256"]), r)
     opened = sorted(uniq.values(), key=lambda r: (r["role"], r["path"]))
-    uses = [r for r in rows if r.get("event") == "use"]
+    uses = [r for r in rows if r.get("event") in ("use", "code")]
     missing = sorted({(r["role"], r["path"]): r for r in rows if r.get("event") == "missing"}.values(),
                      key=lambda r: (r["role"], r["path"]))
     return opened, uses, missing
@@ -172,11 +174,31 @@ def record_missing(path, role: str) -> None:
         _append({"event": "missing", "role": role, "path": str(Path(path).resolve())})
 
 
+def _record_code() -> None:
+    """At process exit: sha256 of every module file this process actually imported from the project
+    (plus interpreter and argv). Written at exit so lazily imported helpers are included."""
+    src = (PROJECT_ROOT / "src").resolve()
+    mods = {}
+    for m in list(sys.modules.values()):
+        f = getattr(m, "__file__", None)
+        if f and Path(f).resolve().is_relative_to(src) and Path(f).exists():
+            mods[Path(f).resolve().relative_to(src).as_posix()] = sha256_file(Path(f))
+    commit = PROJECT_ROOT / "FIXTURE_COMMIT"
+    _append({"event": "code", "argv": sys.argv, "python": sys.version.split()[0],
+             "executable": sys.executable, "project_root": str(PROJECT_ROOT),
+             "export_commit": commit.read_text().strip() if commit.exists() else None,
+             "modules": dict(sorted(mods.items()))})
+
+
 def record_open(path, role: str) -> None:
     """Append (role, path, sha256, size, mtime) to $MHW_EXEC_RECORD before *path* is opened."""
+    global _CODE_HOOKED
     log = os.environ.get(ENV_VAR)
     if not log:
         return
+    if not _CODE_HOOKED:
+        _CODE_HOOKED = True
+        atexit.register(_record_code)
     p = Path(path).resolve()
     if not p.exists():
         return
@@ -224,6 +246,14 @@ def finalize(log: Path, out: Path, declared: Path | None = None,
         by_path.setdefault(r["path"], set()).add(r["sha256"])
     conflicts = sorted(p for p, s in by_path.items() if len(s) > 1)
     mutated = verify_unchanged(rows)
+    code_rows = [u for u in uses if u.get("event") == "code"]
+    uses = [u for u in uses if u.get("event") == "use"]
+    executed_code: dict[str, set] = {}
+    for c in code_rows:
+        for f, h in c["modules"].items():
+            executed_code.setdefault(f, set()).add(h)
+    code_conflicts = sorted(f for f, h in executed_code.items() if len(h) > 1)
+    code_pairs = [f"{f}:{h}" for f, hs in executed_code.items() for h in sorted(hs)]
     use_by_path: dict[str, list] = {}
     for u in uses:
         use_by_path.setdefault(u["path"], []).append(
@@ -239,6 +269,12 @@ def finalize(log: Path, out: Path, declared: Path | None = None,
         "environment": _environment(), "n_opened": len(rows),
         "paths_with_conflicting_hashes": conflicts,
         "mutated_after_open": mutated,
+        "executed_code": {"processes": [{k: c[k] for k in ("argv", "python", "executable", "project_root",
+                                                          "export_commit", "pid")} for c in code_rows],
+                          "n_module_files": len(executed_code),
+                          "aggregate_sha256": aggregate_sha(code_pairs),
+                          "files": {f: sorted(h) for f, h in sorted(executed_code.items())},
+                          "conflicting_versions": code_conflicts},
         "missing_dependencies": [{"role": m["role"], "path": m["path"]} for m in missing],
         "verdict_rules": ("exit 3 if: a declared same-name input has different bytes; a path was seen "
                           "with two hashes; or any opened input's bytes changed between open and "
@@ -256,7 +292,7 @@ def finalize(log: Path, out: Path, declared: Path | None = None,
         rec["declared_comparison"] = cmp
         if not cmp["ok"]:
             rc = 3
-    if conflicts or mutated:
+    if conflicts or mutated or code_conflicts:
         rc = 3
     (out / "executed_inputs.json").write_text(json.dumps(rec, indent=1) + "\n")
     hdr = [f"# EXECUTED inputs: hashed at open time by mhw.exec_record; n_files={len(oisst)}",
