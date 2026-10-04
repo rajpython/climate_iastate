@@ -45,6 +45,8 @@ from mhw.climatology.build_mu_theta import (
     year_cache_stale,
 )
 from mhw.climatology.ice_outage import apply_ice_outages
+from mhw.exec_record import record_open, record_use
+from mhw.utils.grid import assert_grid_contract, assert_same_grid
 
 # ---------------------------------------------------------------------------
 # Derived paths
@@ -73,10 +75,16 @@ def _load_climatology(
     paths = cfg["climatology"]["outputs"]["paths"]
     theta90_path = str(PROJECT_ROOT / paths["theta90"]).replace(".zarr", f"_{region_id}.zarr")
     mu_path      = str(PROJECT_ROOT / paths["mu"]).replace(".zarr", f"_{region_id}.zarr")
+    record_open(theta90_path, "climatology_theta90")
+    record_open(mu_path, "climatology_mu")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         t_ds = xr.open_zarr(theta90_path, consolidated=False)
         m_ds = xr.open_zarr(mu_path,      consolidated=False)
+    assert_grid_contract(t_ds["theta90"], f"theta90 store ({region_id})", ("doy", "lat", "lon"))
+    assert_grid_contract(m_ds["mu"], f"mu store ({region_id})", ("doy", "lat", "lon"))
+    assert_same_grid(t_ds["lat"].values, t_ds["lon"].values, m_ds["lat"].values, m_ds["lon"].values,
+                     where=f"theta90 vs mu stores ({region_id})")
     theta90 = t_ds["theta90"].values.astype(np.float32)
     mu      = m_ds["mu"].values.astype(np.float32)
     lats    = t_ds["lat"].values
@@ -490,14 +498,26 @@ def run_state_engine(
         # SAME substitution the baseline uses (mhw.climatology.ice_outage).
         ice_vals = apply_ice_outages(region_id, ds_yr)
 
-        # Verify grid alignment
+        # Verify grid alignment: exact coordinates, not just shape (a shifted or reversed axis
+        # has the right shape and would join every cell to its neighbour's threshold).
         if sst_vals.shape[1:] != (n_lat, n_lon):
             raise RuntimeError(
                 f"SST grid {sst_vals.shape[1:]} != theta90 grid ({n_lat}, {n_lon}). "
                 "Ensure the same region bbox is used for both climatology and states."
             )
+        for v in ("sst", "ice"):
+            assert_grid_contract(ds_yr[v], f"raw {v} {region_id} {year}", ("time", "lat", "lon"))
+        assert_same_grid(ds_yr["lat"].values, ds_yr["lon"].values, lats, lons,
+                         where=f"raw SST {region_id} {year} vs theta90/mu")
 
         days_in_range = [d for d in yr_dates if d in day_to_oi]
+        # Execution record: which days of this file were USED (vs merely present). An intended
+        # calendar restriction (later days present, not processed) is recorded, not hidden.
+        record_use(_year_cache_path(region_id, year), "raw_sst_ice",
+                   requested=[str(start_date), str(end_date)],
+                   available=[str(yr_dates[0]), str(yr_dates[-1]), len(yr_dates)] if yr_dates else None,
+                   processed=([str(days_in_range[0]), str(days_in_range[-1]), len(days_in_range)]
+                              if days_in_range else None))
         if verbose:
             print(f"         processing {len(days_in_range)} days …", flush=True)
 

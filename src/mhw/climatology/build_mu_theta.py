@@ -37,6 +37,8 @@ from mhw.climatology.smooth_doy import (
 )
 from mhw.seal import OISST_PROVENANCE
 from mhw.climatology.storage import save_climatology
+from mhw.exec_record import record_missing, record_open, record_use
+from mhw.utils.grid import assert_grid_contract, assert_same_grid
 
 # ---------------------------------------------------------------------------
 # Project paths
@@ -49,11 +51,13 @@ PFEG_URL = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/ncdcOisst21Agg"
 
 
 def _load_config() -> dict:
+    record_open(CONFIG_DIR / "climatology.yml", "config")
     with open(CONFIG_DIR / "climatology.yml") as f:
         return yaml.safe_load(f)
 
 
 def _load_region_bbox(region_id: str) -> dict:
+    record_open(CONFIG_DIR / "regions.geojson", "config")
     with open(CONFIG_DIR / "regions.geojson") as f:
         fc = json.load(f)
     from mhw.regions.masks import region_bbox
@@ -165,9 +169,11 @@ def fetch_year(
         if year_cache_stale(cache, year):
             cache.unlink()  # stale/corrupt — re-fetch below
         else:
+            record_open(cache, "raw_sst_ice")
             return xr.open_dataset(cache)
 
     if os.environ.get("MHW_FROZEN_INPUTS"):
+        record_missing(cache, "raw_sst_ice")
         raise RuntimeError(
             f"MHW_FROZEN_INPUTS is set but {cache.name} is missing or unusable. "
             "Refusing to fetch: frozen-input runs must read the staged cache only."
@@ -218,6 +224,7 @@ def fetch_year(
             )
 
     tmp.rename(cache)         # atomic rename on success
+    record_open(cache, "raw_sst_ice")
     return xr.open_dataset(cache)
 
 
@@ -293,9 +300,18 @@ def build_climatology(
         # Ice-field outage days: blank ice means "unknown", not "open water" (ice_outage.py).
         icec = apply_ice_outages(region_id, ds)
 
+        for v in ("sst", "ice"):
+            assert_grid_contract(ds[v], f"raw {v} {region_id} {year} (baseline)", ("time", "lat", "lon"))
         if lats is None:
             lats = ds["lat"].values
             lons = ds["lon"].values
+        else:   # every baseline year is stacked cell-by-cell onto the first year's grid
+            assert_same_grid(ds["lat"].values, ds["lon"].values, lats, lons,
+                             where=f"baseline year {year} vs {years[0]} ({region_id})")
+        _t = ds["time"].values
+        record_use(cache, "raw_sst_ice", requested=[f"{start_yr}-01-01", f"{end_yr}-12-31"],
+                   available=[str(_t[0])[:10], str(_t[-1])[:10], int(_t.size)] if _t.size else None,
+                   processed=[str(_t[0])[:10], str(_t[-1])[:10], int(_t.size)] if _t.size else None)
 
         # Ice masking: NaN SST where ice fraction exceeds threshold
         if apply_mask:

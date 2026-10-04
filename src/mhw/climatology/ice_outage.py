@@ -46,6 +46,9 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from mhw.exec_record import record_missing, record_open
+from mhw.utils.grid import assert_same_grid
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 OUTAGE_CONFIG = PROJECT_ROOT / "config" / "ice_outage_days.json"
 DATA_RAW = PROJECT_ROOT / "data" / "raw"
@@ -111,19 +114,32 @@ def substitute(ice: np.ndarray, times: list[date], effective: dict[date, np.ndar
 @lru_cache(maxsize=1)
 def load_outage_doc(path: str = str(OUTAGE_CONFIG)) -> dict:
     p = Path(path)
+    record_open(p, "config")
     return json.loads(p.read_text()) if p.exists() else {}
 
 
-def _ice_on(region_id: str, d: date, raw_dir: Path) -> np.ndarray | None:
+# Grid of the bracketing files, per outage_brackets() key: checked against the dataset the
+# brackets are applied to (a raw/raw join, guarded like the SST/threshold join).
+_BRACKET_GRID: dict[tuple[str, str, str], tuple[np.ndarray, np.ndarray]] = {}
+
+
+def _ice_on(region_id: str, d: date, raw_dir: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    """(ice on day d, lat, lon) from the zone-year file, or None when the file lacks that day."""
     p = Path(raw_dir) / f"oisst_{region_id}_{d.year}.nc"
+    if not p.exists():
+        record_missing(p, "raw_ice_bracket")
+        raise FileNotFoundError(p)
+    record_open(p, "raw_ice_bracket")
     with xr.open_dataset(p) as ds:
         t = pd.DatetimeIndex(ds["time"].values).normalize()
         hit = np.flatnonzero(t == pd.Timestamp(d))
-        return ds["ice"].values[hit[0]].astype(np.float32) if len(hit) else None
+        if not len(hit):
+            return None
+        return ds["ice"].values[hit[0]].astype(np.float32), ds["lat"].values, ds["lon"].values
 
 
 def _nearest_good(region_id: str, start: date, step: int, bad: set[date], raw_dir: Path,
-                  limit: int = 60) -> np.ndarray:
+                  limit: int = 60) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     d = start
     for _ in range(limit):
         d = d + timedelta(days=step)
@@ -144,12 +160,19 @@ def outage_brackets(region_id: str, raw_dir: str = str(DATA_RAW),
     """{outage day: (ice before, ice after, interpolation fraction)} for *region_id*."""
     bad = outage_days_for(load_outage_doc(config), region_id)
     out: dict[date, tuple[np.ndarray, np.ndarray, float]] = {}
+    grid = None
     for first, last in runs(bad):
-        before = _nearest_good(region_id, first, -1, bad, Path(raw_dir))
-        after = _nearest_good(region_id, last, +1, bad, Path(raw_dir))
+        before, *g_b = _nearest_good(region_id, first, -1, bad, Path(raw_dir))
+        after, *g_a = _nearest_good(region_id, last, +1, bad, Path(raw_dir))
+        for g in (g_b, g_a):
+            if grid is None:
+                grid = g
+            assert_same_grid(*grid, *g, where=f"ice-outage bracket files ({region_id})")
         n = (last - first).days + 1
         for k in range(n):
             out[first + timedelta(days=k)] = (before, after, (k + 1) / (n + 1))
+    if grid is not None:
+        _BRACKET_GRID[(region_id, raw_dir, config)] = tuple(grid)
     return out
 
 
@@ -165,6 +188,10 @@ def apply_ice_outages(region_id: str, ds: xr.Dataset, raw_dir: Path = DATA_RAW,
     if not set(times) & outage_days_for(load_outage_doc(str(config)), region_id):
         return np.asarray(ice, dtype=np.float32)
     br = outage_brackets(region_id, str(raw_dir), str(config))
+    grid = _BRACKET_GRID.get((region_id, str(raw_dir), str(config)))
+    if grid is not None:
+        assert_same_grid(ds["lat"].values, ds["lon"].values, *grid,
+                         where=f"ice-outage brackets vs zone-year data ({region_id})")
     hits = [(i, t) for i, t in enumerate(times) if t in br]
     if not hits:
         return np.asarray(ice, dtype=np.float32)
