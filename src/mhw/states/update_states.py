@@ -480,7 +480,7 @@ def run_state_engine(
 
     # Frozen inputs: every required year must be present and usable BEFORE any remote connection is
     # considered; a missing one is recorded and refused here (it previously reached the PFEG pre-open).
-    frozen_input_preflight(region_id, years)
+    frozen_input_preflight(region_id, years, use_cache=use_cache)
     need_remote = any(not _cache_usable(yr) for yr in years)
     remote_ds = None
     if need_remote:

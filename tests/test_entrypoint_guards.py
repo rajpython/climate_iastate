@@ -213,3 +213,44 @@ def test_PC05_climatology_refuses_before_remote_and_records_the_missing_year(tmp
         bmt.build_climatology("sebs", cfg)
     _, _, missing = er.read_log(log)
     assert [m["path"].split("/")[-1] for m in missing] == ["oisst_sebs_1992.nc"]
+
+
+# --- Handback 07 residuals ----------------------------------------------------------------------
+def test_H07_fractional_doy_is_rejected_without_truncation(tmp_path, monkeypatch):
+    cfg = _clim(tmp_path, monkeypatch, np.arange(1, 367) + 0.5, np.arange(1, 367) + 0.5)   # 1.5..366.5
+    with pytest.raises(GridMismatchError, match="canonical 1..366"):
+        us._load_climatology(cfg, "sebs")
+
+
+@pytest.mark.parametrize("doy", [np.arange(1, 367), np.arange(1, 367).astype(np.float64),
+                                 np.arange(1, 367).astype(np.int16)])
+def test_H07_canonical_doy_in_any_numeric_representation_loads(tmp_path, monkeypatch, doy):
+    cfg = _clim(tmp_path, monkeypatch, doy, doy)
+    assert us._load_climatology(cfg, "sebs")[0].shape == (366, 2, 2)
+
+
+def test_H07_no_cache_with_frozen_inputs_refuses_before_remote_engine(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    _year(raw / "oisst_sebs_2026.nc", "2026-01-01", 10)               # usable cache present
+    theta = np.full((366, 2, 2), 5.0, dtype=np.float32)
+    monkeypatch.setattr(bmt, "DATA_RAW", raw)
+    monkeypatch.setattr(us, "_load_climatology", lambda cfg, r: (theta, theta, LAT2, LON2))
+    monkeypatch.setattr(us, "_load_region_bbox", lambda r: {})
+    monkeypatch.setenv("MHW_FROZEN_INPUTS", "1")
+    with pytest.raises(RuntimeError, match=r"--no-cache.*Refusing before any remote connection"):
+        us.run_state_engine("sebs", date(2026, 1, 1), date(2026, 1, 10), _load_config(),
+                            use_cache=False, verbose=False)
+
+
+def test_H07_no_cache_with_frozen_inputs_refuses_before_remote_climatology(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    _year(raw / "oisst_sebs_1991.nc", "1991-01-01", 365)
+    cfg = _load_config()
+    cfg["climatology"]["baseline"] = {"start_year": 1991, "end_year": 1991}
+    monkeypatch.setattr(bmt, "DATA_RAW", raw)
+    monkeypatch.setattr(bmt, "_load_region_bbox", lambda r: {})
+    monkeypatch.setenv("MHW_FROZEN_INPUTS", "1")
+    with pytest.raises(RuntimeError, match=r"--no-cache.*Refusing before any remote connection"):
+        bmt.build_climatology("sebs", cfg, use_cache=False)

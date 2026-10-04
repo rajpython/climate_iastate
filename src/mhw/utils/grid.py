@@ -81,7 +81,11 @@ CANONICAL_DOY = np.arange(1, 367)
 def assert_canonical_doy(doy, where: str) -> None:
     """The climatology calendar the engine indexes positionally (row doy-1) must be exactly 1..366."""
     d = np.asarray(doy)
-    if d.shape != CANONICAL_DOY.shape or not np.array_equal(d.astype(np.int64), CANONICAL_DOY):
+    # Compare the ORIGINAL values exactly (no integer truncation: 1.5..366.5 must fail); integer and
+    # float representations of the same integers compare equal.
+    ok = (d.shape == CANONICAL_DOY.shape and d.dtype.kind in "iuf"
+          and np.array_equal(d.astype(np.float64), CANONICAL_DOY.astype(np.float64)))
+    if not ok:
         lo = d.min() if d.size else None
         hi = d.max() if d.size else None
         raise GridMismatchError(f"{where}: doy axis is not the canonical 1..366 "

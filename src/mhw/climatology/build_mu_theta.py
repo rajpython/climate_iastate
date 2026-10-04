@@ -145,12 +145,17 @@ def year_cache_stale(cache: Path, year: int, *, today: date | None = None) -> bo
     return False
 
 
-def frozen_input_preflight(region_id: str, years) -> None:
+def frozen_input_preflight(region_id: str, years, *, use_cache: bool = True) -> None:
     """Under MHW_FROZEN_INPUTS, check EVERY required zone-year cache before any remote connection is
-    opened: each missing or unusable one is recorded (exec record) and the run is refused. Without the
-    variable this is a no-op (normal fetching behaviour is unchanged)."""
+    opened: each missing or unusable one is recorded (exec record) and the run is refused. A request
+    that disables the cache (``--no-cache``) contradicts frozen inputs and is refused outright, even
+    when every cache file is usable. Without the variable this is a no-op (normal behaviour unchanged)."""
     if not os.environ.get("MHW_FROZEN_INPUTS"):
         return
+    if not use_cache:
+        raise RuntimeError(
+            "MHW_FROZEN_INPUTS is set but the cache was disabled (--no-cache): the two requests "
+            "contradict each other. Refusing before any remote connection.")
     bad = []
     for yr in years:
         cache = _year_cache_path(region_id, yr)
@@ -295,7 +300,7 @@ def build_climatology(
     lats = lons = None
 
     # Frozen inputs: refuse (and record) a missing baseline year BEFORE any remote connection.
-    frozen_input_preflight(region_id, years)
+    frozen_input_preflight(region_id, years, use_cache=use_cache)
     # Open remote dataset once — reused for every uncached year
     need_remote = any(
         not (use_cache and _year_cache_path(region_id, yr).exists())
