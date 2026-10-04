@@ -350,3 +350,60 @@ def test_F4_child_literal_double_dash_is_passed_through(tmp_path):
             f"Path({str(argv_out)!r}).write_text(json.dumps(sys.argv[1:]))")
     rc = er.main(["wrap", "--out", str(tmp_path / "rec"), "--", *_child(code), "--", "literal"])
     assert rc == 0 and json.loads(argv_out.read_text()) == ["--", "literal"]
+
+
+# --- Handback 05 residual: standalone finalize is a record check, never an execution certificate ----
+def _failed_child_log(tmp_path):
+    f = tmp_path / "oisst_sebs_2026.nc"
+    f.write_bytes(b"x")
+    out = tmp_path / "wrapped"
+    rc = er.main(["wrap", "--out", str(out), "--",
+                  *_child(f"record_open(Path({str(f)!r}), 'raw_sst_ice'); raise SystemExit(7)")])
+    assert rc == 7 and _rec(out)["execution_certified"] is False
+    return out / "opened.jsonl"
+
+
+def test_R05_standalone_finalize_of_a_failed_child_log_is_record_check_only(tmp_path):
+    log = _failed_child_log(tmp_path)
+    rc = er.main(["finalize", "--log", str(log), "--out", str(tmp_path / "standalone")])
+    rec = _rec(tmp_path / "standalone")
+    assert rc == 0                                   # the record checks themselves pass
+    assert rec["status"] == "RECORD_CHECK_ONLY" and rec["execution_certified"] is False
+    assert rec["command_exit_status"] is None and rec["command_exit_binding"] is None
+    assert "execution_certified=false" in (tmp_path / "standalone" / "oisst_input_file_shas_executed.txt").read_text()
+
+
+def test_R05_standalone_finalize_binds_a_durable_failed_exit(tmp_path):
+    log = _failed_child_log(tmp_path)
+    ex = tmp_path / "exit_status"
+    ex.write_text("7\n")
+    rc = er.main(["finalize", "--log", str(log), "--out", str(tmp_path / "bound"), "--command-exit-file", str(ex)])
+    rec = _rec(tmp_path / "bound")
+    assert rc == 7 and rec["status"] == "COMMAND_FAILED" and rec["execution_certified"] is False
+    assert rec["command_exit_binding"]["sha256"] == er.sha256_file(ex)
+
+
+def test_R05_bound_zero_exit_with_passing_checks_is_certified(tmp_path):
+    f = tmp_path / "x.nc"
+    f.write_bytes(b"x")
+    out = tmp_path / "w"
+    assert er.main(["wrap", "--out", str(out), "--", *_child(f"record_open(Path({str(f)!r}), 'raw_sst_ice')")]) == 0
+    assert _rec(out)["status"] == "OK" and _rec(out)["execution_certified"] is True
+    ex = tmp_path / "exit_status"
+    ex.write_text("0")
+    assert er.main(["finalize", "--log", str(out / "opened.jsonl"), "--out", str(tmp_path / "b"),
+                    "--command-exit-file", str(ex)]) == 0
+    assert _rec(tmp_path / "b")["execution_certified"] is True
+
+
+def test_R05_declared_superset_is_explicit_and_does_not_fail(tmp_path):
+    f = tmp_path / "oisst_sebs_2026.nc"
+    f.write_bytes(b"x")
+    decl = tmp_path / "declared.txt"
+    decl.write_text(f"oisst_sebs_2026.nc:{er.sha256_file(f)}\noisst_sebs_2025.nc:{'0' * 64}\n")
+    out = tmp_path / "w"
+    rc = er.main(["wrap", "--out", str(out), "--declared", str(decl), "--",
+                  *_child(f"record_open(Path({str(f)!r}), 'raw_sst_ice')")])
+    cmp = _rec(out)["checks"]["declared_comparison"]
+    assert rc == 0 and cmp["ok"] and cmp["declared_not_executed"] == ["oisst_sebs_2025.nc"]
+    assert "declared superset" in _rec(out)["verdict_rules"]

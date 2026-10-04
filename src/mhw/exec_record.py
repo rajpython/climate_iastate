@@ -31,6 +31,9 @@ How it works
   missing-only or code-only logs, so an uninstrumented entry point cannot read as complete);
   COMMAND_FAILED (the child's own non-zero exit, which is also the wrapper's). Only the leading ``--``
   is consumed; later ``--`` tokens belong to the child.
+* ``finalize`` alone has no command outcome: its record is RECORD_CHECK_ONLY with
+  ``execution_certified: false`` unless ``--command-exit-file`` binds a durable exit status. Only an
+  OK record (outcome bound, exit 0, every check passed) is an execution certificate.
 * Raw inputs are keyed by resolved path. Two opened paths with one basename and different bytes are
   ambiguous against a basename-keyed list: both are listed and the record fails (auditor finding on
   b2b8d151, 2026-10-04).
@@ -251,8 +254,14 @@ def _atomic_write(path: Path, text: str) -> None:
     os.replace(tmp, path)
 
 
+def read_exit_status_file(path: Path) -> int:
+    """A durable run record of the command's exit: one integer (e.g. a driver's ``exit_status`` file)."""
+    return int(Path(path).read_text().strip())
+
+
 def finalize(log: Path, out: Path, declared: Path | None = None,
-             command: list[str] | None = None, command_exit: int | None = None) -> int:
+             command: list[str] | None = None, command_exit: int | None = None,
+             command_exit_file: Path | None = None) -> int:
     """Write the execution record. ALWAYS writes one (even for a failed or empty run) with a durable
     ``status`` and ``exit_code``, so a record can never read as a success it was not.
 
@@ -266,6 +275,15 @@ def finalize(log: Path, out: Path, declared: Path | None = None,
         print(f"mhw-exec-record: {out} already holds a record; refusing to overwrite (use a fresh "
               "directory)", file=sys.stderr)
         return EXIT_OUT_NOT_EMPTY
+    # Command outcome: from the wrapper (in-process), or bound from a durable exit-status file. With
+    # neither, the record is a RECORD CHECK ONLY: it can never read as a successful execution.
+    exit_binding = None
+    if command_exit is not None:
+        exit_binding = {"source": "wrap (observed in-process)"}
+    elif command_exit_file is not None:
+        command_exit = read_exit_status_file(command_exit_file)
+        exit_binding = {"source": "durable exit-status file", "path": str(Path(command_exit_file).resolve()),
+                        "sha256": sha256_file(Path(command_exit_file))}
     rows, uses, missing = read_log(log)
     by_path: dict[str, set] = {}
     for r in rows:
@@ -313,6 +331,8 @@ def finalize(log: Path, out: Path, declared: Path | None = None,
                         or (declared and not checks["declared_comparison"]["ok"]))
 
     statuses = []
+    if command_exit is None:
+        statuses.append("RECORD_CHECK_ONLY")          # command outcome not verified
     if command_exit not in (None, 0):
         statuses.append("COMMAND_FAILED")
     if not rows:
@@ -327,13 +347,17 @@ def finalize(log: Path, out: Path, declared: Path | None = None,
         rc = EXIT_CHECK_FAILED
     else:
         rc = EXIT_OK
-    status = statuses[0] if statuses else "OK"
+    # Headline status: a real failure outranks the RECORD_CHECK_ONLY qualifier.
+    failing = [s for s in statuses if s != "RECORD_CHECK_ONLY"]
+    status = failing[0] if failing else ("RECORD_CHECK_ONLY" if statuses else "OK")
+    execution_certified = status == "OK"     # only: command outcome bound AND exit 0 AND every check passed
 
     rec = {
         "record_type": "execution_record", "generator": "mhw.exec_record (successor to write_records_v*.py)",
         "written_utc": datetime.now(timezone.utc).isoformat(), "command": command,
         "status": status, "all_statuses": statuses or ["OK"], "exit_code": rc,
-        "command_exit_status": command_exit,
+        "execution_certified": execution_certified,
+        "command_exit_status": command_exit, "command_exit_binding": exit_binding,
         "environment": _environment(), "n_opened": len(rows), "n_raw_inputs": len(raw),
         "checks": checks,
         "executed_code": {"processes": [{k: c.get(k) for k in ("argv", "python", "executable", "project_root",
@@ -344,9 +368,14 @@ def finalize(log: Path, out: Path, declared: Path | None = None,
                           "conflicting_versions": code_conflicts},
         "missing_dependencies": [{"role": m["role"], "path": m["path"]} for m in missing],
         "verdict_rules": (
-            "status OK (exit 0) only if: >=1 input was opened; no path seen with two hashes; no opened input "
-            "changed between open and finalize; no module ran at two versions; no basename opened with two "
-            "different byte contents; and, with --declared, every declared basename's bytes equal. "
+            "status OK (exit 0, execution_certified true) only if: the command's exit status is BOUND (observed "
+            "by wrap, or read from a durable exit-status file) and is 0; >=1 input was opened; no path seen with "
+            "two hashes; no opened input changed between open and finalize; no module ran at two versions; no "
+            "basename opened with two different byte contents; and, with --declared, every basename present in "
+            "BOTH the executed and the declared lists has equal bytes (names only in the declared list -- a "
+            "declared superset -- are listed in declared_not_executed and do not fail; names only executed are "
+            "listed in executed_not_declared). RECORD_CHECK_ONLY (exit 0 if the checks pass): finalize without a "
+            "bound command outcome; the checks above hold but the record is NOT an execution certificate. "
             "NO_EXECUTED_INPUTS (exit 4): nothing instrumented was opened -- missing-only or code-only logs "
             "included. Missing dependencies alongside opened inputs are LISTED, not failed (some are optional "
             "by design, e.g. the ice-outage bracket search). COMMAND_FAILED: the wrapped command's own non-zero "
@@ -359,7 +388,7 @@ def finalize(log: Path, out: Path, declared: Path | None = None,
         "opened": rows,
     }
     hdr = [f"# EXECUTED inputs: hashed at open time by mhw.exec_record; status={status}; exit_code={rc}; "
-           f"command_exit_status={command_exit}",
+           f"command_exit_status={command_exit}; execution_certified={str(execution_certified).lower()}",
            f"# n_paths={len(raw)} n_pairs={len(pairs)} ambiguous_basenames={','.join(ambiguous) or '-'}",
            f"# aggregate_executed_{len(pairs)}={aggregate_sha(pairs)}",
            "# aggregate recipe: sha256( '\\n'.join(sorted(set('<basename>:<sha256>'))) ), no trailing newline"]
@@ -382,13 +411,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     f.add_argument("--log", required=True, type=Path)
     f.add_argument("--out", required=True, type=Path)
     f.add_argument("--declared", type=Path, default=None)
+    f.add_argument("--command-exit-file", type=Path, default=None,
+                   help="durable file holding the command's exit status (binds the outcome)")
     return ap.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     a = parse_args(argv)
     if a.cmd == "finalize":
-        rc = finalize(a.log, a.out, a.declared)
+        rc = finalize(a.log, a.out, a.declared, command_exit_file=a.command_exit_file)
         print(f"mhw-exec-record: finalize rc={rc}; {a.out}/executed_inputs.json")
         return rc
     # Only the separator between the wrapper's options and the command is consumed; any later "--" is
