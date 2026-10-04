@@ -139,6 +139,12 @@ def test_climatology_baseline_years_must_share_one_grid(tmp_path, monkeypatch):
     cfg["climatology"]["baseline"] = {"start_year": 1991, "end_year": 1992}
     grids = {1991: (LAT, LON), 1992: (LAT, LON + 0.25)}       # same shape, shifted
     monkeypatch.setattr(bmt, "_load_region_bbox", lambda r: {})
+    # Network guard: every year "has a cache" (so no remote connection is opened), and the remote
+    # opener raises if anything still tries -- this test must never reach ERDDAP.
+    stub = tmp_path / "cache.nc"
+    stub.write_bytes(b"")
+    monkeypatch.setattr(bmt, "_year_cache_path", lambda r, y: stub)
+    monkeypatch.setattr(bmt.xr, "open_dataset", lambda *a, **k: (_ for _ in ()).throw(AssertionError("network")))
     monkeypatch.setattr(bmt, "fetch_year", lambda r, y, *a, **k: _sst_ds(*grids[y], n=365).assign_coords(
         time=pd.date_range(f"{y}-01-01", periods=365)))
     monkeypatch.setattr(bmt, "apply_ice_outages", lambda r, ds: ds["ice"].values)
