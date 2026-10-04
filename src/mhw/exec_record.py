@@ -25,9 +25,15 @@ How it works
   ``oisst_input_file_shas_executed.txt`` in the vintage-list format (``<basename>:<sha256>``,
   with the same aggregate recipe). Given ``--declared``, it compares by NAME and by BYTES and
   fails (exit 3) on any same-name/different-hash file: that is exactly the D01 condition.
-* ``wrap`` sets the variable, runs the command, and finalizes. It refuses (exit 4) when the
-  command opened nothing instrumented, so an uninstrumented entry point cannot yield an empty
-  record that reads as complete.
+* ``wrap`` refuses a non-empty output directory (exit 5), sets the variable, runs the command and
+  ALWAYS finalizes. Every record carries a durable ``status`` / ``exit_code`` / ``command_exit_status``:
+  OK (0); RECORD_CHECK_FAILED (3); NO_EXECUTED_INPUTS (4: nothing instrumented was opened, including
+  missing-only or code-only logs, so an uninstrumented entry point cannot read as complete);
+  COMMAND_FAILED (the child's own non-zero exit, which is also the wrapper's). Only the leading ``--``
+  is consumed; later ``--`` tokens belong to the child.
+* Raw inputs are keyed by resolved path. Two opened paths with one basename and different bytes are
+  ambiguous against a basename-keyed list: both are listed and the record fails (auditor finding on
+  b2b8d151, 2026-10-04).
 
 Instrumented call sites (enforced only when the variable is set, i.e. under ``wrap``)
 ------------------------------------------------------------------------------------
@@ -60,7 +66,6 @@ import platform
 import socket
 import subprocess
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -236,11 +241,32 @@ def _environment() -> dict:
             "env": {k: os.environ.get(k) for k in ("MHW_FROZEN_INPUTS", ENV_VAR)}}
 
 
+RAW_ROLES = ("raw_sst_ice", "raw_ice_bracket")
+EXIT_OK, EXIT_CHECK_FAILED, EXIT_NO_INPUTS, EXIT_OUT_NOT_EMPTY = 0, 3, 4, 5
+
+
+def _atomic_write(path: Path, text: str) -> None:
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text)
+    os.replace(tmp, path)
+
+
 def finalize(log: Path, out: Path, declared: Path | None = None,
-             command: list[str] | None = None) -> int:
-    rows, uses, missing = read_log(log)
+             command: list[str] | None = None, command_exit: int | None = None) -> int:
+    """Write the execution record. ALWAYS writes one (even for a failed or empty run) with a durable
+    ``status`` and ``exit_code``, so a record can never read as a success it was not.
+
+    Exit precedence: a failed command's own exit > 4 (no executed inputs) > 3 (a check failed) > 0.
+    Refuses (exit 5, writes nothing) when *out* already holds a record: a reused directory must not
+    leave an earlier run's record in place under a new run's name.
+    """
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
+    if (out / "executed_inputs.json").exists():
+        print(f"mhw-exec-record: {out} already holds a record; refusing to overwrite (use a fresh "
+              "directory)", file=sys.stderr)
+        return EXIT_OUT_NOT_EMPTY
+    rows, uses, missing = read_log(log)
     by_path: dict[str, set] = {}
     for r in rows:
         by_path.setdefault(r["path"], set()).add(r["sha256"])
@@ -261,44 +287,84 @@ def finalize(log: Path, out: Path, declared: Path | None = None,
     for r in rows:
         if r["path"] in use_by_path:
             r["use"] = use_by_path[r["path"]]
-    oisst = {r["basename"]: r["sha256"] for r in rows if r["role"] in ("raw_sst_ice", "raw_ice_bracket")}
-    pairs = [f"{n}:{s}" for n, s in oisst.items()]
+
+    # Raw inputs are keyed by RESOLVED PATH. The vintage-list format is by basename, so two distinct
+    # opened paths sharing a basename with different bytes are AMBIGUOUS against any basename list:
+    # both are listed, and the record fails rather than collapsing them into one entry.
+    raw = [r for r in rows if r["role"] in RAW_ROLES]
+    by_base: dict[str, set] = {}
+    for r in raw:
+        by_base.setdefault(r["basename"], set()).add(r["sha256"])
+    ambiguous = sorted(b for b, h in by_base.items() if len(h) > 1)
+    pairs = sorted({f"{r['basename']}:{r['sha256']}" for r in raw})
+    unambiguous = {b: next(iter(h)) for b, h in by_base.items() if len(h) == 1}
+
+    checks: dict = {"paths_with_conflicting_hashes": conflicts, "mutated_after_open": mutated,
+                    "code_modules_at_two_versions": code_conflicts,
+                    "basenames_opened_with_different_bytes": ambiguous}
+    if declared:
+        cmp = compare_to_declared(unambiguous, parse_shas_list(Path(declared).read_text()))
+        cmp["ambiguous_basenames"] = ambiguous
+        cmp["ok"] = cmp["ok"] and not ambiguous
+        cmp["declared_file"] = str(declared)
+        cmp["declared_file_sha256"] = sha256_file(Path(declared))
+        checks["declared_comparison"] = cmp
+    check_failed = bool(conflicts or mutated or code_conflicts or ambiguous
+                        or (declared and not checks["declared_comparison"]["ok"]))
+
+    statuses = []
+    if command_exit not in (None, 0):
+        statuses.append("COMMAND_FAILED")
+    if not rows:
+        statuses.append("NO_EXECUTED_INPUTS")
+    if check_failed:
+        statuses.append("RECORD_CHECK_FAILED")
+    if command_exit not in (None, 0):
+        rc = int(command_exit)
+    elif not rows:
+        rc = EXIT_NO_INPUTS
+    elif check_failed:
+        rc = EXIT_CHECK_FAILED
+    else:
+        rc = EXIT_OK
+    status = statuses[0] if statuses else "OK"
+
     rec = {
         "record_type": "execution_record", "generator": "mhw.exec_record (successor to write_records_v*.py)",
         "written_utc": datetime.now(timezone.utc).isoformat(), "command": command,
-        "environment": _environment(), "n_opened": len(rows),
-        "paths_with_conflicting_hashes": conflicts,
-        "mutated_after_open": mutated,
-        "executed_code": {"processes": [{k: c[k] for k in ("argv", "python", "executable", "project_root",
-                                                          "export_commit", "pid")} for c in code_rows],
+        "status": status, "all_statuses": statuses or ["OK"], "exit_code": rc,
+        "command_exit_status": command_exit,
+        "environment": _environment(), "n_opened": len(rows), "n_raw_inputs": len(raw),
+        "checks": checks,
+        "executed_code": {"processes": [{k: c.get(k) for k in ("argv", "python", "executable", "project_root",
+                                                              "export_commit", "pid")} for c in code_rows],
                           "n_module_files": len(executed_code),
                           "aggregate_sha256": aggregate_sha(code_pairs),
                           "files": {f: sorted(h) for f, h in sorted(executed_code.items())},
                           "conflicting_versions": code_conflicts},
         "missing_dependencies": [{"role": m["role"], "path": m["path"]} for m in missing],
-        "verdict_rules": ("exit 3 if: a declared same-name input has different bytes; a path was seen "
-                          "with two hashes; or any opened input's bytes changed between open and "
-                          "finalize. Missing dependencies are listed (some are tolerated by design, "
-                          "e.g. the ice-outage bracket search); a fatal one already fails the command."),
-        "oisst_inputs": {"n_files": len(oisst), "aggregate_sha256": aggregate_sha(pairs),
-                         "aggregate_recipe": "sha256('\\n'.join(sorted('<basename>:<sha256>'))), no trailing newline"},
+        "verdict_rules": (
+            "status OK (exit 0) only if: >=1 input was opened; no path seen with two hashes; no opened input "
+            "changed between open and finalize; no module ran at two versions; no basename opened with two "
+            "different byte contents; and, with --declared, every declared basename's bytes equal. "
+            "NO_EXECUTED_INPUTS (exit 4): nothing instrumented was opened -- missing-only or code-only logs "
+            "included. Missing dependencies alongside opened inputs are LISTED, not failed (some are optional "
+            "by design, e.g. the ice-outage bracket search). COMMAND_FAILED: the wrapped command's own non-zero "
+            "exit, which is also the wrapper's exit."),
+        "raw_inputs": {"n_paths": len(raw), "n_distinct_basename_sha_pairs": len(pairs),
+                       "aggregate_sha256": aggregate_sha(pairs),
+                       "aggregate_recipe": "sha256('\\n'.join(sorted(set('<basename>:<sha256>')))), no trailing newline",
+                       "by_path": [{"path": r["path"], "basename": r["basename"], "sha256": r["sha256"],
+                                    "role": r["role"]} for r in raw]},
         "opened": rows,
     }
-    rc = 0
-    if declared:
-        cmp = compare_to_declared(oisst, parse_shas_list(Path(declared).read_text()))
-        cmp["declared_file"] = str(declared)
-        cmp["declared_file_sha256"] = sha256_file(Path(declared))
-        rec["declared_comparison"] = cmp
-        if not cmp["ok"]:
-            rc = 3
-    if conflicts or mutated or code_conflicts:
-        rc = 3
-    (out / "executed_inputs.json").write_text(json.dumps(rec, indent=1) + "\n")
-    hdr = [f"# EXECUTED inputs: hashed at open time by mhw.exec_record; n_files={len(oisst)}",
-           f"# aggregate_executed_{len(oisst)}={aggregate_sha(pairs)}",
-           "# aggregate recipe: sha256( '\\n'.join(sorted('<basename>:<sha256>')) ), no trailing newline"]
-    (out / "oisst_input_file_shas_executed.txt").write_text("\n".join(hdr + sorted(pairs)) + "\n")
+    hdr = [f"# EXECUTED inputs: hashed at open time by mhw.exec_record; status={status}; exit_code={rc}; "
+           f"command_exit_status={command_exit}",
+           f"# n_paths={len(raw)} n_pairs={len(pairs)} ambiguous_basenames={','.join(ambiguous) or '-'}",
+           f"# aggregate_executed_{len(pairs)}={aggregate_sha(pairs)}",
+           "# aggregate recipe: sha256( '\\n'.join(sorted(set('<basename>:<sha256>'))) ), no trailing newline"]
+    _atomic_write(out / "oisst_input_file_shas_executed.txt", "\n".join(hdr + pairs) + "\n")
+    _atomic_write(out / "executed_inputs.json", json.dumps(rec, indent=1) + "\n")   # written LAST
     return rc
 
 
@@ -323,25 +389,31 @@ def main(argv: list[str] | None = None) -> int:
     a = parse_args(argv)
     if a.cmd == "finalize":
         rc = finalize(a.log, a.out, a.declared)
-        print(f"mhw-exec-record: wrote {a.out}/executed_inputs.json (rc={rc})")
+        print(f"mhw-exec-record: finalize rc={rc}; {a.out}/executed_inputs.json")
         return rc
-    cmd = [c for c in a.command if c != "--"]
+    # Only the separator between the wrapper's options and the command is consumed; any later "--" is
+    # the child's own argument and is passed through untouched.
+    cmd = list(a.command)
+    if cmd and cmd[0] == "--":
+        cmd = cmd[1:]
     if not cmd:
         print("mhw-exec-record wrap: no command given", file=sys.stderr)
         return 2
+    if a.out.exists() and any(a.out.iterdir()):
+        print(f"mhw-exec-record wrap: {a.out} is not empty; refusing to run (an earlier record there "
+              "could be read as this run's). Use a fresh directory.", file=sys.stderr)
+        return EXIT_OUT_NOT_EMPTY
     a.out.mkdir(parents=True, exist_ok=True)
-    fd, log = tempfile.mkstemp(prefix="exec-", suffix=".jsonl", dir=a.out)
-    os.close(fd)
-    env = dict(os.environ, **{ENV_VAR: log})
+    log = a.out / "opened.jsonl"
+    log.touch()
+    env = dict(os.environ, **{ENV_VAR: str(log)})
     rc_cmd = subprocess.call(cmd, env=env)
-    if not Path(log).read_text().strip():
-        print("mhw-exec-record wrap: the command opened NO instrumented input; refusing to "
-              "write an empty record (uninstrumented entry point?)", file=sys.stderr)
-        return 4
-    Path(log).replace(a.out / "opened.jsonl")
-    rc = finalize(a.out / "opened.jsonl", a.out, a.declared, command=cmd)
-    print(f"mhw-exec-record: command rc={rc_cmd}; record rc={rc}; {a.out}/executed_inputs.json")
-    return rc_cmd or rc
+    rc = finalize(log, a.out, a.declared, command=cmd, command_exit=rc_cmd)
+    if rc == EXIT_NO_INPUTS:
+        print("mhw-exec-record wrap: the command opened NO instrumented input (record status "
+              "NO_EXECUTED_INPUTS; uninstrumented entry point?)", file=sys.stderr)
+    print(f"mhw-exec-record: command rc={rc_cmd}; exit {rc}; {a.out}/executed_inputs.json")
+    return rc
 
 
 if __name__ == "__main__":

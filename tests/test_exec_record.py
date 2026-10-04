@@ -92,8 +92,9 @@ def test_D01_negative_control_same_name_extended_bytes_is_caught(tmp_path, monke
     rc = er.finalize(log, out, declared)
     rec = json.loads((out / "executed_inputs.json").read_text())
     assert rc == 3
-    assert rec["declared_comparison"]["changed_same_name_different_bytes"] == ["oisst_sebs_2026.nc"]
-    assert not rec["declared_comparison"]["ok"]
+    assert rec["checks"]["declared_comparison"]["changed_same_name_different_bytes"] == ["oisst_sebs_2026.nc"]
+    assert not rec["checks"]["declared_comparison"]["ok"]
+    assert rec["status"] == "RECORD_CHECK_FAILED" and rec["exit_code"] == 3
     listed = er.parse_shas_list((out / "oisst_input_file_shas_executed.txt").read_text())
     assert listed == {"oisst_sebs_2026.nc": er.sha256_file(ext)}   # the record names what was opened
 
@@ -148,10 +149,10 @@ def test_directory_hash_follows_content(tmp_path):
     assert er.sha256_path(d) != h1
 
 
-def test_wrap_refuses_an_empty_record(tmp_path):
+def test_wrap_of_a_command_opening_nothing_is_a_durable_failure(tmp_path):
     rc = er.main(["wrap", "--out", str(tmp_path / "rec"), "--", sys.executable, "-c", "pass"])
-    assert rc == 4
-    assert not (tmp_path / "rec" / "executed_inputs.json").exists()
+    rec = json.loads((tmp_path / "rec" / "executed_inputs.json").read_text())
+    assert rc == 4 and rec["status"] == "NO_EXECUTED_INPUTS" and rec["exit_code"] == 4
 
 
 def test_wrap_records_a_child_process(tmp_path, monkeypatch):
@@ -164,7 +165,7 @@ def test_wrap_records_a_child_process(tmp_path, monkeypatch):
     rc = er.main(["wrap", "--out", str(tmp_path / "rec"), "--", sys.executable, "-c", code])
     assert rc == 0
     rec = json.loads((tmp_path / "rec" / "executed_inputs.json").read_text())
-    assert rec["oisst_inputs"]["n_files"] == 1
+    assert rec["raw_inputs"]["n_paths"] == 1 and rec["status"] == "OK"
     assert rec["environment"]["env"]["MHW_FROZEN_INPUTS"] == "1"
 
 
@@ -189,7 +190,7 @@ def test_mutation_between_open_and_finalize_fails_the_record(tmp_path, monkeypat
     rc = er.finalize(log, tmp_path / "rec")
     rec = json.loads((tmp_path / "rec" / "executed_inputs.json").read_text())
     assert rc == 3
-    assert [m["path"] for m in rec["mutated_after_open"]] == [str(f.resolve())]
+    assert [m["path"] for m in rec["checks"]["mutated_after_open"]] == [str(f.resolve())]
 
 
 def test_missing_frozen_input_is_recorded_and_fatal(tmp_path, monkeypatch):
@@ -241,3 +242,111 @@ def test_executed_code_is_bound_by_module_hash(tmp_path, monkeypatch):
     files = rec["executed_code"]["files"]
     assert files["mhw/exec_record.py"] == [er.sha256_file(Path(er.__file__))]
     assert "mhw/climatology/build_mu_theta.py" in files and rec["executed_code"]["n_module_files"] >= 3
+
+
+# --- Successor controls for the independent auditor's findings on b2b8d151 (2026-10-04) -----------
+def _child(code: str) -> list[str]:
+    return [sys.executable, "-B", "-c", "from pathlib import Path; from mhw.exec_record import *; " + code]
+
+
+def _rec(d):
+    return json.loads((d / "executed_inputs.json").read_text())
+
+
+def test_F1_two_paths_one_basename_different_bytes_fail_and_are_both_listed(tmp_path):
+    a, z = tmp_path / "a" / "oisst_sebs_2026.nc", tmp_path / "z" / "oisst_sebs_2026.nc"
+    for f, b in ((a, b"AAA"), (z, b"ZZZ")):
+        f.parent.mkdir()
+        f.write_bytes(b)
+    decl = tmp_path / "declared.txt"
+    decl.write_text(f"oisst_sebs_2026.nc:{er.sha256_file(z)}\n")       # matches ONE of the two
+    out = tmp_path / "rec"
+    rc = er.main(["wrap", "--out", str(out), "--declared", str(decl), "--",
+                  *_child(f"record_open(Path({str(a)!r}), 'raw_sst_ice'); record_open(Path({str(z)!r}), 'raw_sst_ice')")])
+    rec = _rec(out)
+    assert rc == 3 and rec["status"] == "RECORD_CHECK_FAILED"
+    assert rec["checks"]["basenames_opened_with_different_bytes"] == ["oisst_sebs_2026.nc"]
+    assert not rec["checks"]["declared_comparison"]["ok"]
+    assert sorted(p["path"] for p in rec["raw_inputs"]["by_path"]) == sorted([str(a.resolve()), str(z.resolve())])
+    assert rec["raw_inputs"]["n_distinct_basename_sha_pairs"] == 2
+
+
+def test_F1_control_two_paths_same_bytes_is_not_ambiguous(tmp_path):
+    a, z = tmp_path / "a" / "x.nc", tmp_path / "z" / "x.nc"
+    for f in (a, z):
+        f.parent.mkdir()
+        f.write_bytes(b"same")
+    out = tmp_path / "rec"
+    rc = er.main(["wrap", "--out", str(out), "--",
+                  *_child(f"record_open(Path({str(a)!r}), 'raw_sst_ice'); record_open(Path({str(z)!r}), 'raw_sst_ice')")])
+    assert rc == 0 and _rec(out)["raw_inputs"]["n_paths"] == 2
+
+
+def test_F2_finalize_of_an_empty_log_is_no_executed_inputs(tmp_path):
+    log = tmp_path / "empty.jsonl"
+    log.write_text("")
+    rc = er.main(["finalize", "--log", str(log), "--out", str(tmp_path / "rec")])
+    assert rc == 4 and _rec(tmp_path / "rec")["status"] == "NO_EXECUTED_INPUTS"
+
+
+def test_F2_missing_only_log_is_no_executed_inputs(tmp_path):
+    out = tmp_path / "rec"
+    rc = er.main(["wrap", "--out", str(out), "--",
+                  *_child(f"record_missing(Path({str(tmp_path / 'absent.nc')!r}), 'raw_sst_ice')")])
+    rec = _rec(out)
+    assert rc == 4 and rec["status"] == "NO_EXECUTED_INPUTS" and len(rec["missing_dependencies"]) == 1
+
+
+def test_F2_code_only_log_is_no_executed_inputs(tmp_path):
+    out = tmp_path / "rec"
+    # record_open on an absent path arms the exit-time code row but records no input
+    rc = er.main(["wrap", "--out", str(out), "--",
+                  *_child(f"record_open(Path({str(tmp_path / 'absent.nc')!r}), 'raw_sst_ice')")])
+    rec = _rec(out)
+    assert rc == 4 and rec["status"] == "NO_EXECUTED_INPUTS" and rec["executed_code"]["processes"]
+
+
+def test_F2_optional_miss_alongside_opened_inputs_is_listed_not_failed(tmp_path):
+    f = tmp_path / "oisst_sebs_2016.nc"
+    f.write_bytes(b"x")
+    out = tmp_path / "rec"
+    rc = er.main(["wrap", "--out", str(out), "--",
+                  *_child(f"record_missing(Path({str(tmp_path / 'oisst_sebs_1987.nc')!r}), 'raw_ice_bracket'); "
+                          f"record_open(Path({str(f)!r}), 'raw_ice_bracket')")])
+    rec = _rec(out)
+    assert rc == 0 and rec["status"] == "OK" and len(rec["missing_dependencies"]) == 1
+
+
+def test_F3_failed_child_exit_is_durable_in_the_record(tmp_path):
+    f = tmp_path / "oisst_sebs_2026.nc"
+    f.write_bytes(b"x")
+    out = tmp_path / "rec"
+    rc = er.main(["wrap", "--out", str(out), "--",
+                  *_child(f"record_open(Path({str(f)!r}), 'raw_sst_ice'); raise SystemExit(7)")])
+    rec = _rec(out)
+    assert rc == 7 and rec["status"] == "COMMAND_FAILED"
+    assert rec["command_exit_status"] == 7 and rec["exit_code"] == 7
+    assert "status=COMMAND_FAILED" in (out / "oisst_input_file_shas_executed.txt").read_text()
+
+
+def test_F3_reused_output_directory_is_refused_and_the_old_record_is_not_reported_as_new(tmp_path):
+    f = tmp_path / "oisst_sebs_2026.nc"
+    f.write_bytes(b"x")
+    out = tmp_path / "rec"
+    assert er.main(["wrap", "--out", str(out), "--", *_child(f"record_open(Path({str(f)!r}), 'raw_sst_ice')")]) == 0
+    before = (out / "executed_inputs.json").read_bytes()
+    rc = er.main(["wrap", "--out", str(out), "--", sys.executable, "-B", "-c", "pass"])
+    assert rc == 5 and (out / "executed_inputs.json").read_bytes() == before
+    log = tmp_path / "l.jsonl"
+    log.write_text("")
+    assert er.main(["finalize", "--log", str(log), "--out", str(out)]) == 5   # finalize refuses too
+
+
+def test_F4_child_literal_double_dash_is_passed_through(tmp_path):
+    f = tmp_path / "x.nc"
+    f.write_bytes(b"x")
+    argv_out = tmp_path / "argv.json"
+    code = (f"import json, sys; record_open(Path({str(f)!r}), 'raw_sst_ice'); "
+            f"Path({str(argv_out)!r}).write_text(json.dumps(sys.argv[1:]))")
+    rc = er.main(["wrap", "--out", str(tmp_path / "rec"), "--", *_child(code), "--", "literal"])
+    assert rc == 0 and json.loads(argv_out.read_text()) == ["--", "literal"]
