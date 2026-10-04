@@ -510,7 +510,9 @@ def main() -> int:
     print(f"  {n_mask} cells in region '{args.region}'")
 
     print("Aggregating …")
-    df = aggregate_region(ds, mask, weights)
+    # Pass the filled-days registry exactly as the backfill path does (update_states.backfill_main): without it
+    # every row this entry point rewrites (the nightly's current-year rows) loses its `filled` provenance label.
+    df = aggregate_region(ds, mask, weights, filled_days=load_filled_days())
     ds.close()
 
     # Summary stats
