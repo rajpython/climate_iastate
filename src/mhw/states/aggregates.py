@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import warnings
 from datetime import date
 from pathlib import Path
@@ -46,8 +47,8 @@ import pandas as pd
 import xarray as xr
 
 from mhw.climatology.build_mu_theta import PROJECT_ROOT, _load_config
-from mhw.exec_record import record_open
-from mhw.utils.grid import GridMismatchError, assert_grid_contract, assert_same_grid
+from mhw.exec_record import ENV_VAR, record_open
+from mhw.utils.grid import GridMismatchError, assert_dims, assert_grid_contract, assert_same_grid
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -198,9 +199,14 @@ def aggregate_region(
     """
     # Coordinate contract at the state<->mask/weight boundary: named dims in order, and arrays
     # that are joined cell-by-cell must have the state grid's shape.
-    for v in ("A", "I", "D", "C", "O"):
+    # EVERY variable read positionally below -- including V and input_present -- must carry exactly the
+    # required dims: a transposed V on a square grid passes coordinate-vector checks.
+    for v in ("A", "I", "D", "C", "O", "V", "x"):
         if v in ds:
+            assert_dims(ds[v], ("time", "lat", "lon"), f"state store variable {v}")
             assert_grid_contract(ds[v], f"state store variable {v}", ("time", "lat", "lon"))
+    if "input_present" in ds:
+        assert_dims(ds["input_present"], ("time",), "state store variable input_present")
     n_grid = (ds.sizes["lat"], ds.sizes["lon"])
     if mask.shape != n_grid or weights.shape != n_grid:
         raise GridMismatchError(f"state grid {n_grid} vs mask {mask.shape} / weights {weights.shape}")
@@ -331,6 +337,19 @@ def to_monthly(daily: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Save/load parquet
 # ---------------------------------------------------------------------------
+def certified_fresh_output_preflight(region_id: str) -> None:
+    """Certified (recorded) runs are FRESH-OUTPUT-ONLY: an existing region_daily parquet would be an
+    unrecorded merge input (its rows outside the recomputed window are kept), so a recorded run refuses
+    to start when one exists. Unrecorded runs (e.g. the nightly refresh) keep the merge behaviour."""
+    if not os.environ.get(ENV_VAR):
+        return
+    out_path = AGGREGATES_DIR / f"region_daily_{region_id}.parquet"
+    if out_path.exists():
+        raise RuntimeError(
+            f"certified run ({ENV_VAR} set): {out_path} already exists and would be merged as an "
+            "unrecorded input. Certified runs are fresh-output-only; use an empty output tree.")
+
+
 def save_aggregates(df: pd.DataFrame, region_id: str) -> Path:
     """Write aggregate DataFrame to parquet, merging with any existing data.
 
@@ -339,6 +358,7 @@ def save_aggregates(df: pd.DataFrame, region_id: str) -> Path:
     """
     AGGREGATES_DIR.mkdir(parents=True, exist_ok=True)
     out_path = AGGREGATES_DIR / f"region_daily_{region_id}.parquet"
+    certified_fresh_output_preflight(region_id)   # backstop; entry points call it before computing
 
     if out_path.exists():
         existing = pd.read_parquet(out_path)
@@ -478,6 +498,7 @@ def main() -> int:
     start_date = date.fromisoformat(args.start)
     end_date   = date.fromisoformat(args.end)
 
+    certified_fresh_output_preflight(args.region)
     print(f"Loading states: {args.region}  {args.start} → {args.end} …")
     ds = _load_states(args.region, start_date, end_date)
     state_lats = ds["lat"].values

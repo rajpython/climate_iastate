@@ -38,7 +38,7 @@ from mhw.climatology.smooth_doy import (
 from mhw.seal import OISST_PROVENANCE
 from mhw.climatology.storage import save_climatology
 from mhw.exec_record import record_missing, record_open, record_use
-from mhw.utils.grid import assert_grid_contract, assert_same_grid
+from mhw.utils.grid import assert_dims, assert_grid_contract, assert_same_grid
 
 # ---------------------------------------------------------------------------
 # Project paths
@@ -143,6 +143,24 @@ def year_cache_stale(cache: Path, year: int, *, today: date | None = None) -> bo
             return True
 
     return False
+
+
+def frozen_input_preflight(region_id: str, years) -> None:
+    """Under MHW_FROZEN_INPUTS, check EVERY required zone-year cache before any remote connection is
+    opened: each missing or unusable one is recorded (exec record) and the run is refused. Without the
+    variable this is a no-op (normal fetching behaviour is unchanged)."""
+    if not os.environ.get("MHW_FROZEN_INPUTS"):
+        return
+    bad = []
+    for yr in years:
+        cache = _year_cache_path(region_id, yr)
+        if year_cache_stale(cache, yr):        # frozen mode: True only for missing / unreadable / no vars
+            record_missing(cache, "raw_sst_ice")
+            bad.append(cache.name)
+    if bad:
+        raise RuntimeError(
+            f"MHW_FROZEN_INPUTS is set but {len(bad)} required input(s) are missing or unusable: "
+            f"{', '.join(bad)}. Refusing before any remote connection.")
 
 
 def fetch_year(
@@ -276,6 +294,8 @@ def build_climatology(
     year_arrays: list[np.ndarray] = []
     lats = lons = None
 
+    # Frozen inputs: refuse (and record) a missing baseline year BEFORE any remote connection.
+    frozen_input_preflight(region_id, years)
     # Open remote dataset once — reused for every uncached year
     need_remote = any(
         not (use_cache and _year_cache_path(region_id, yr).exists())
@@ -301,6 +321,7 @@ def build_climatology(
         icec = apply_ice_outages(region_id, ds)
 
         for v in ("sst", "ice"):
+            assert_dims(ds[v], ("time", "lat", "lon"), f"raw {v} {region_id} {year} (baseline)")
             assert_grid_contract(ds[v], f"raw {v} {region_id} {year} (baseline)", ("time", "lat", "lon"))
         if lats is None:
             lats = ds["lat"].values

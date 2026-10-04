@@ -66,3 +66,23 @@ def assert_grid_contract(da, where: str, trailing_dims=("lat", "lon")) -> None:
         raise GridMismatchError(f"{where}: dims {dims} do not end in {tuple(trailing_dims)}")
     for d in trailing_dims:
         assert_axis_contract(da[d].values, d, where)
+
+
+def assert_dims(da, dims, where: str) -> None:
+    """EXACT dimension names and order (no extra or missing dims) before any positional read: a
+    transposed variable on a square grid passes every coordinate-vector check."""
+    if tuple(da.dims) != tuple(dims):
+        raise GridMismatchError(f"{where}: dims {tuple(da.dims)} != required {tuple(dims)}")
+
+
+CANONICAL_DOY = np.arange(1, 367)
+
+
+def assert_canonical_doy(doy, where: str) -> None:
+    """The climatology calendar the engine indexes positionally (row doy-1) must be exactly 1..366."""
+    d = np.asarray(doy)
+    if d.shape != CANONICAL_DOY.shape or not np.array_equal(d.astype(np.int64), CANONICAL_DOY):
+        lo = d.min() if d.size else None
+        hi = d.max() if d.size else None
+        raise GridMismatchError(f"{where}: doy axis is not the canonical 1..366 "
+                                f"(length {d.size}, range {lo}..{hi})")

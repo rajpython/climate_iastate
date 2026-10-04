@@ -43,10 +43,11 @@ from mhw.climatology.build_mu_theta import (
     _year_cache_path,
     fetch_year,
     year_cache_stale,
+    frozen_input_preflight,
 )
 from mhw.climatology.ice_outage import apply_ice_outages
 from mhw.exec_record import record_open, record_use
-from mhw.utils.grid import assert_grid_contract, assert_same_grid
+from mhw.utils.grid import assert_canonical_doy, assert_dims, assert_grid_contract, assert_same_grid
 
 # ---------------------------------------------------------------------------
 # Derived paths
@@ -81,8 +82,13 @@ def _load_climatology(
         warnings.simplefilter("ignore")
         t_ds = xr.open_zarr(theta90_path, consolidated=False)
         m_ds = xr.open_zarr(mu_path,      consolidated=False)
+    assert_dims(t_ds["theta90"], ("doy", "lat", "lon"), f"theta90 store ({region_id})")
+    assert_dims(m_ds["mu"], ("doy", "lat", "lon"), f"mu store ({region_id})")
     assert_grid_contract(t_ds["theta90"], f"theta90 store ({region_id})", ("doy", "lat", "lon"))
     assert_grid_contract(m_ds["mu"], f"mu store ({region_id})", ("doy", "lat", "lon"))
+    # The engine reads theta90[doy - 1] / mu[doy - 1]: both calendars must be exactly 1..366.
+    assert_canonical_doy(t_ds["doy"].values, f"theta90 store ({region_id})")
+    assert_canonical_doy(m_ds["doy"].values, f"mu store ({region_id})")
     assert_same_grid(t_ds["lat"].values, t_ds["lon"].values, m_ds["lat"].values, m_ds["lon"].values,
                      where=f"theta90 vs mu stores ({region_id})")
     theta90 = t_ds["theta90"].values.astype(np.float32)
@@ -472,6 +478,9 @@ def run_state_engine(
             return False
         return not year_cache_stale(_year_cache_path(region_id, yr), yr)
 
+    # Frozen inputs: every required year must be present and usable BEFORE any remote connection is
+    # considered; a missing one is recorded and refused here (it previously reached the PFEG pre-open).
+    frozen_input_preflight(region_id, years)
     need_remote = any(not _cache_usable(yr) for yr in years)
     remote_ds = None
     if need_remote:
@@ -506,6 +515,7 @@ def run_state_engine(
                 "Ensure the same region bbox is used for both climatology and states."
             )
         for v in ("sst", "ice"):
+            assert_dims(ds_yr[v], ("time", "lat", "lon"), f"raw {v} {region_id} {year}")
             assert_grid_contract(ds_yr[v], f"raw {v} {region_id} {year}", ("time", "lat", "lon"))
         assert_same_grid(ds_yr["lat"].values, ds_yr["lon"].values, lats, lons,
                          where=f"raw SST {region_id} {year} vs theta90/mu")
@@ -1033,9 +1043,10 @@ def backfill_main(argv: list[str] | None = None) -> None:
 
     # Lazy-import aggregation + risk helpers to avoid circular imports at module level
     from mhw.states.aggregates import (
-        AGGREGATES_DIR, _load_mask_weights, aggregate_region, load_filled_days,
-        save_aggregates,
+        AGGREGATES_DIR, _load_mask_weights, aggregate_region, certified_fresh_output_preflight,
+        load_filled_days, save_aggregates,
     )
+    certified_fresh_output_preflight(args.region)   # before any computation
     from mhw.states.risk import compute_risk_table, save_risk_table
 
     years = list(range(start.year, end.year + 1))

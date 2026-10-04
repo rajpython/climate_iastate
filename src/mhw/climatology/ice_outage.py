@@ -47,7 +47,7 @@ import pandas as pd
 import xarray as xr
 
 from mhw.exec_record import record_missing, record_open
-from mhw.utils.grid import assert_same_grid
+from mhw.utils.grid import assert_dims, assert_same_grid
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 OUTAGE_CONFIG = PROJECT_ROOT / "config" / "ice_outage_days.json"
@@ -131,6 +131,8 @@ def _ice_on(region_id: str, d: date, raw_dir: Path) -> tuple[np.ndarray, np.ndar
         raise FileNotFoundError(p)
     record_open(p, "raw_ice_bracket")
     with xr.open_dataset(p) as ds:
+        # positional read below (ice[hit]): the variable must be exactly (time, lat, lon)
+        assert_dims(ds["ice"], ("time", "lat", "lon"), f"ice-outage bracket file {p.name}")
         t = pd.DatetimeIndex(ds["time"].values).normalize()
         hit = np.flatnonzero(t == pd.Timestamp(d))
         if not len(hit):
