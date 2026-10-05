@@ -37,6 +37,8 @@ from mhw.climatology.smooth_doy import (
 )
 from mhw.seal import OISST_PROVENANCE
 from mhw.climatology.storage import save_climatology
+from mhw.exec_record import record_missing, record_open, record_use
+from mhw.utils.grid import assert_dims, assert_grid_contract, assert_same_grid
 
 # ---------------------------------------------------------------------------
 # Project paths
@@ -49,11 +51,13 @@ PFEG_URL = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/ncdcOisst21Agg"
 
 
 def _load_config() -> dict:
+    record_open(CONFIG_DIR / "climatology.yml", "config")
     with open(CONFIG_DIR / "climatology.yml") as f:
         return yaml.safe_load(f)
 
 
 def _load_region_bbox(region_id: str) -> dict:
+    record_open(CONFIG_DIR / "regions.geojson", "config")
     with open(CONFIG_DIR / "regions.geojson") as f:
         fc = json.load(f)
     from mhw.regions.masks import region_bbox
@@ -141,6 +145,29 @@ def year_cache_stale(cache: Path, year: int, *, today: date | None = None) -> bo
     return False
 
 
+def frozen_input_preflight(region_id: str, years, *, use_cache: bool = True) -> None:
+    """Under MHW_FROZEN_INPUTS, check EVERY required zone-year cache before any remote connection is
+    opened: each missing or unusable one is recorded (exec record) and the run is refused. A request
+    that disables the cache (``--no-cache``) contradicts frozen inputs and is refused outright, even
+    when every cache file is usable. Without the variable this is a no-op (normal behaviour unchanged)."""
+    if not os.environ.get("MHW_FROZEN_INPUTS"):
+        return
+    if not use_cache:
+        raise RuntimeError(
+            "MHW_FROZEN_INPUTS is set but the cache was disabled (--no-cache): the two requests "
+            "contradict each other. Refusing before any remote connection.")
+    bad = []
+    for yr in years:
+        cache = _year_cache_path(region_id, yr)
+        if year_cache_stale(cache, yr):        # frozen mode: True only for missing / unreadable / no vars
+            record_missing(cache, "raw_sst_ice")
+            bad.append(cache.name)
+    if bad:
+        raise RuntimeError(
+            f"MHW_FROZEN_INPUTS is set but {len(bad)} required input(s) are missing or unusable: "
+            f"{', '.join(bad)}. Refusing before any remote connection.")
+
+
 def fetch_year(
     region_id: str,
     year: int,
@@ -165,9 +192,11 @@ def fetch_year(
         if year_cache_stale(cache, year):
             cache.unlink()  # stale/corrupt — re-fetch below
         else:
+            record_open(cache, "raw_sst_ice")
             return xr.open_dataset(cache)
 
     if os.environ.get("MHW_FROZEN_INPUTS"):
+        record_missing(cache, "raw_sst_ice")
         raise RuntimeError(
             f"MHW_FROZEN_INPUTS is set but {cache.name} is missing or unusable. "
             "Refusing to fetch: frozen-input runs must read the staged cache only."
@@ -218,6 +247,7 @@ def fetch_year(
             )
 
     tmp.rename(cache)         # atomic rename on success
+    record_open(cache, "raw_sst_ice")
     return xr.open_dataset(cache)
 
 
@@ -269,6 +299,8 @@ def build_climatology(
     year_arrays: list[np.ndarray] = []
     lats = lons = None
 
+    # Frozen inputs: refuse (and record) a missing baseline year BEFORE any remote connection.
+    frozen_input_preflight(region_id, years, use_cache=use_cache)
     # Open remote dataset once — reused for every uncached year
     need_remote = any(
         not (use_cache and _year_cache_path(region_id, yr).exists())
@@ -293,9 +325,19 @@ def build_climatology(
         # Ice-field outage days: blank ice means "unknown", not "open water" (ice_outage.py).
         icec = apply_ice_outages(region_id, ds)
 
+        for v in ("sst", "ice"):
+            assert_dims(ds[v], ("time", "lat", "lon"), f"raw {v} {region_id} {year} (baseline)")
+            assert_grid_contract(ds[v], f"raw {v} {region_id} {year} (baseline)", ("time", "lat", "lon"))
         if lats is None:
             lats = ds["lat"].values
             lons = ds["lon"].values
+        else:   # every baseline year is stacked cell-by-cell onto the first year's grid
+            assert_same_grid(ds["lat"].values, ds["lon"].values, lats, lons,
+                             where=f"baseline year {year} vs {years[0]} ({region_id})")
+        _t = ds["time"].values
+        record_use(cache, "raw_sst_ice", requested=[f"{start_yr}-01-01", f"{end_yr}-12-31"],
+                   available=[str(_t[0])[:10], str(_t[-1])[:10], int(_t.size)] if _t.size else None,
+                   processed=[str(_t[0])[:10], str(_t[-1])[:10], int(_t.size)] if _t.size else None)
 
         # Ice masking: NaN SST where ice fraction exceeds threshold
         if apply_mask:

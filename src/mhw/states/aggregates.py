@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import warnings
 from datetime import date
 from pathlib import Path
@@ -46,6 +47,8 @@ import pandas as pd
 import xarray as xr
 
 from mhw.climatology.build_mu_theta import PROJECT_ROOT, _load_config
+from mhw.exec_record import ENV_VAR, record_open
+from mhw.utils.grid import GridMismatchError, assert_dims, assert_grid_contract, assert_same_grid
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -76,6 +79,7 @@ def _find_states_zarr(region_id: str, start_date: date, end_date: date) -> Path:
 def _load_states(region_id: str, start_date: date, end_date: date) -> xr.Dataset:
     """Load grid-level state arrays from Zarr."""
     path = _find_states_zarr(region_id, start_date, end_date)
+    record_open(path, "states_grid")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         ds = xr.open_zarr(str(path), consolidated=False)
@@ -94,21 +98,27 @@ def _load_mask_weights(
     mask    : (n_lat, n_lon) uint8   — 1 inside region, 0 outside
     weights : (n_lat, n_lon) float32 — cos(lat) area weights
     """
+    record_open(MASKS_PATH, "region_masks")
+    record_open(WEIGHTS_PATH, "area_weights")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         m_ds = xr.open_zarr(str(MASKS_PATH), consolidated=False)
         w_ds = xr.open_zarr(str(WEIGHTS_PATH), consolidated=False)
 
-    mask_sub = (
-        m_ds[region_id]
-        .sel(lat=state_lats, lon=state_lons, method="nearest")
-        .values.astype(np.uint8)
-    )
-    weights_sub = (
-        w_ds["weights"]
-        .sel(lat=state_lats, lon=state_lons, method="nearest")
-        .values.astype(np.float32)
-    )
+    # The mask and weight stores must share one grid, and the "nearest" selection below must land
+    # EXACTLY on the state grid: nearest-neighbour would otherwise snap a shifted grid silently.
+    assert_grid_contract(m_ds[region_id], f"region mask store ({region_id})")
+    assert_grid_contract(w_ds["weights"], "area-weight store")
+    assert_same_grid(m_ds["lat"].values, m_ds["lon"].values, w_ds["lat"].values, w_ds["lon"].values,
+                     where="region mask store vs area-weight store")
+    m_sel = m_ds[region_id].sel(lat=state_lats, lon=state_lons, method="nearest")
+    w_sel = w_ds["weights"].sel(lat=state_lats, lon=state_lons, method="nearest")
+    assert_same_grid(m_sel["lat"].values, m_sel["lon"].values, state_lats, state_lons,
+                     where=f"region mask vs state grid ({region_id})")
+    assert_same_grid(w_sel["lat"].values, w_sel["lon"].values, state_lats, state_lons,
+                     where=f"area weights vs state grid ({region_id})")
+    mask_sub = m_sel.values.astype(np.uint8)
+    weights_sub = w_sel.values.astype(np.float32)
     m_ds.close()
     w_ds.close()
     return mask_sub, weights_sub
@@ -128,6 +138,7 @@ def load_filled_days() -> dict[str, str]:
     registry is provenance, not a gate, so its absence must not stop a build.
     """
     path = PROJECT_ROOT / "config" / "filled_days.json"
+    record_open(path, "config")
     try:
         doc = json.loads(path.read_text())
     except (FileNotFoundError, json.JSONDecodeError):
@@ -186,6 +197,19 @@ def aggregate_region(
     for those the QC columns are emitted as NaN rather than guessed, so an old vintage
     is never silently reported as complete.
     """
+    # Coordinate contract at the state<->mask/weight boundary: named dims in order, and arrays
+    # that are joined cell-by-cell must have the state grid's shape.
+    # EVERY variable read positionally below -- including V and input_present -- must carry exactly the
+    # required dims: a transposed V on a square grid passes coordinate-vector checks.
+    for v in ("A", "I", "D", "C", "O", "V", "x"):
+        if v in ds:
+            assert_dims(ds[v], ("time", "lat", "lon"), f"state store variable {v}")
+            assert_grid_contract(ds[v], f"state store variable {v}", ("time", "lat", "lon"))
+    if "input_present" in ds:
+        assert_dims(ds["input_present"], ("time",), "state store variable input_present")
+    n_grid = (ds.sizes["lat"], ds.sizes["lon"])
+    if mask.shape != n_grid or weights.shape != n_grid:
+        raise GridMismatchError(f"state grid {n_grid} vs mask {mask.shape} / weights {weights.shape}")
     # Load all variables to memory (GOA: 32×160×365 = ~7 MB per variable)
     A_event = ds["A"].values.astype(np.float32)   # (T, lat, lon) -- event membership (Hobday)
     # DETECTED area (vintage #6, admin ...-20261001-17 item v): a cell counts toward the area and the
@@ -313,6 +337,19 @@ def to_monthly(daily: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Save/load parquet
 # ---------------------------------------------------------------------------
+def certified_fresh_output_preflight(region_id: str) -> None:
+    """Certified (recorded) runs are FRESH-OUTPUT-ONLY: an existing region_daily parquet would be an
+    unrecorded merge input (its rows outside the recomputed window are kept), so a recorded run refuses
+    to start when one exists. Unrecorded runs (e.g. the nightly refresh) keep the merge behaviour."""
+    if not os.environ.get(ENV_VAR):
+        return
+    out_path = AGGREGATES_DIR / f"region_daily_{region_id}.parquet"
+    if out_path.exists():
+        raise RuntimeError(
+            f"certified run ({ENV_VAR} set): {out_path} already exists and would be merged as an "
+            "unrecorded input. Certified runs are fresh-output-only; use an empty output tree.")
+
+
 def save_aggregates(df: pd.DataFrame, region_id: str) -> Path:
     """Write aggregate DataFrame to parquet, merging with any existing data.
 
@@ -321,6 +358,7 @@ def save_aggregates(df: pd.DataFrame, region_id: str) -> Path:
     """
     AGGREGATES_DIR.mkdir(parents=True, exist_ok=True)
     out_path = AGGREGATES_DIR / f"region_daily_{region_id}.parquet"
+    certified_fresh_output_preflight(region_id)   # backstop; entry points call it before computing
 
     if out_path.exists():
         existing = pd.read_parquet(out_path)
@@ -460,6 +498,7 @@ def main() -> int:
     start_date = date.fromisoformat(args.start)
     end_date   = date.fromisoformat(args.end)
 
+    certified_fresh_output_preflight(args.region)
     print(f"Loading states: {args.region}  {args.start} → {args.end} …")
     ds = _load_states(args.region, start_date, end_date)
     state_lats = ds["lat"].values

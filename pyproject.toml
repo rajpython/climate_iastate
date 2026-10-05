@@ -98,6 +98,7 @@ mhw-seal = "mhw.seal:main"
 mhw-splice-ncei = "mhw.fetch.ncei_daily:main"
 mhw-update-ncei = "mhw.fetch.ncei_update:main"
 mhw-ice-outage-report = "mhw.climatology.ice_outage:main"
+mhw-exec-record = "mhw.exec_record:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
