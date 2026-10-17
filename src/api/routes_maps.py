@@ -12,11 +12,12 @@ import xarray as xr
 from fastapi import APIRouter, HTTPException, Query
 
 from api.schema import MapCell, MapMetric, MapPayload
+from mhw import record
 
 router = APIRouter()
 
 ROOT       = Path(__file__).parents[2]
-STATES_DIR = ROOT / "data" / "derived" / "states_grid"
+STATES_DIR = record.states_dir()   # the staged heatwave record (vintage #7, D1)
 RAW_DIR    = ROOT / "data" / "raw"
 
 METRIC_UNITS = {
@@ -78,8 +79,12 @@ def _load_zarr(path: Path) -> dict:
         else:
             arrays["D"] = D_raw.astype(np.float32)
 
+    for var in ("V", "reason"):
+        if var in ds:
+            arrays[var] = ds[var].values
+    R = ds["R"].values if "R" in ds else None
     ds.close()
-    result = {"lats": lats, "lons": lons, "dates": dates, **arrays}
+    result = {"lats": lats, "lons": lons, "dates": dates, "R": R, **arrays}
     _zarr_cache[key] = result
     return result
 
@@ -130,20 +135,35 @@ def get_map(
         raise HTTPException(status_code=404, detail=f"Date {date} not in zarr")
 
     t_idx = data["dates"].index(date)
-    values = data[metric_value][t_idx]  # (n_lat, n_lon)
-
-    land = _land_mask(region_id, data["lats"], data["lons"])
 
     cells: list[MapCell] = []
-    for i, lat in enumerate(data["lats"]):
-        for j, lon in enumerate(data["lons"]):
-            v = float(values[i, j])
-            is_land = bool(land[i, j]) if land is not None else False
-            if is_land or v <= 0:
-                cells.append(MapCell(lat=round(lat, 4), lon=round(lon, 4), value=None))
-            else:
+    if data.get("R") is not None and "V" in data:
+        # D1: detected metrics only where A·V·R = 1; unscorable cells classed; excluded cells omitted
+        values, cls = record.map_cells(metric_value, data[metric_value][t_idx], data["A"][t_idx],
+                                       data["V"][t_idx], data["R"], data["reason"][t_idx])
+        names = {record.CELL_SCORED: "scorable", record.CELL_ICE: "observed_ice",
+                 record.CELL_UNKNOWN: "unknown"}
+        for i, lat in enumerate(data["lats"]):
+            for j, lon in enumerate(data["lons"]):
+                c = int(cls[i, j])
+                if c == record.CELL_HIDDEN:
+                    continue
+                v = float(values[i, j])
                 cells.append(MapCell(lat=round(lat, 4), lon=round(lon, 4),
-                                     value=round(v, 4)))
+                                     value=round(v, 4) if np.isfinite(v) else None,
+                                     cell_class=names[c]))
+    else:
+        values = data[metric_value][t_idx]  # (n_lat, n_lon)
+        land = _land_mask(region_id, data["lats"], data["lons"])
+        for i, lat in enumerate(data["lats"]):
+            for j, lon in enumerate(data["lons"]):
+                v = float(values[i, j])
+                is_land = bool(land[i, j]) if land is not None else False
+                if is_land or v <= 0:
+                    cells.append(MapCell(lat=round(lat, 4), lon=round(lon, 4), value=None))
+                else:
+                    cells.append(MapCell(lat=round(lat, 4), lon=round(lon, 4),
+                                         value=round(v, 4)))
 
     return MapPayload(
         region=region_id,

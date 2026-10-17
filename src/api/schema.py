@@ -68,6 +68,11 @@ class DailyState(BaseModel):
     mean_duration:    float    # parquet column: Dbar (days)
     cumul_intensity:  float    # parquet column: Cbar (°C·days)
     onset_rate:       float    # parquet column: Obar (°C/day, nonzero only on confirmation days)
+    # Coverage (vintage #7, D1). area_frac is the record's value as published; on a day whose
+    # unknown_share exceeds 0.25 it is NOT an observed zero — read `eligible` / `coverage`.
+    unknown_share:    float | None = None   # absent input + missing SST + unknown ice + missing θ90
+    eligible:         bool | None = None    # unknown_share ≤ 0.25 (the board's day rule)
+    coverage:         str | None = None     # board label, e.g. "Incomplete coverage", "Ice-covered …"
 
 
 # ---------------------------------------------------------------------------
@@ -93,6 +98,7 @@ class MapCell(BaseModel):
     lat:   float
     lon:   float
     value: float | None
+    cell_class: str | None = None   # "scorable" | "observed_ice" | "unknown" (D1); excluded cells omitted
 
 
 class MapPayload(BaseModel):

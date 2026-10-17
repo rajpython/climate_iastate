@@ -16,7 +16,7 @@ def _two_datasets(tmp):
         "landings_t": [float(i) for i in range(len(yrs))],
         "value_usd": [float(i * 10) for i in range(len(yrs))],
     }).to_parquet(r / "landings_foss_ak.parquet")
-    a = tmp / "derived" / "aggregates_region"
+    a = tmp / "record" / "mhw-d1" / "aggregates_region"
     a.mkdir(parents=True, exist_ok=True)
     pd.DataFrame([
         {"date": pd.Timestamp(y, 7, 1), "area_frac": 2.0 * i,

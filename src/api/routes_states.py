@@ -9,10 +9,16 @@ URL conventions (under /v1 router prefix added in main.py):
 Parquet columns (Ibar/Dbar/Cbar/Obar) follow Hobday-paper notation; the API
 exposes them as mean_intensity / mean_duration / cumul_intensity / onset_rate
 to keep the JSON contract snake_case.
+
+Source: the board's heatwave record, vintage #7 (D1), certified 1982-01-01 … 2026-08-31, joined to its
+coverage sidecar. Values are the record's own; each day also carries its unknown share, eligibility
+(unknown share ≤ 0.25) and board label. Event detection skips ineligible days (they neither start,
+extend nor break an event).
 """
 from __future__ import annotations
 
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
@@ -20,11 +26,12 @@ import yaml
 from fastapi import APIRouter, HTTPException, Query
 
 from api.schema import DailyState, EventSummary, RegionInfo
+from mhw import record
 
 router = APIRouter()
 
 ROOT         = Path(__file__).parents[2]
-AGG_DIR      = ROOT / "data" / "derived" / "aggregates_region"
+AGG_DIR      = record.agg_dir()   # the staged heatwave record (vintage #7, D1)
 _cfg         = yaml.safe_load((ROOT / "config" / "climatology.yml").read_text())
 AREA_THRESH  = float(_cfg["regional_events"]["area_frac_threshold"])
 GAP_DAYS     = int(_cfg["mhw_definition"]["gap_days"])
@@ -41,13 +48,20 @@ def _list_regions() -> list[str]:
     )
 
 
+@lru_cache(maxsize=16)
+def _load_zone_cached(region: str) -> pd.DataFrame | None:
+    # The record is static (certified to 2026-08-31; nightly updates paused), so cache per worker.
+    df = record.load_zone(region)
+    if df is not None:
+        df["date"] = pd.to_datetime(df["date"]).dt.date
+    return df
+
+
 def _load_agg(region: str) -> pd.DataFrame:
-    p = AGG_DIR / f"region_daily_{region}.parquet"
-    if not p.exists():
+    df = _load_zone_cached(region) if region in _list_regions() else None
+    if df is None:
         raise HTTPException(status_code=404, detail=f"No data for region '{region}'")
-    df = pd.read_parquet(p)
-    df["date"] = pd.to_datetime(df["date"]).dt.date
-    return df.sort_values("date").reset_index(drop=True)
+    return df.copy()
 
 
 def _region_info(region: str) -> RegionInfo:
@@ -69,6 +83,8 @@ def _detect_events(df: pd.DataFrame) -> list[EventSummary]:
     gap_count = 0
 
     for i, row in df.iterrows():
+        if not row.get("eligible", True):
+            continue   # incomplete coverage: neither starts, extends nor breaks an event
         active = row["area_frac"] > AREA_THRESH
         if not in_event:
             if active:
@@ -140,7 +156,11 @@ def get_daily_states(
     start: date | None = Query(None, description="Start date YYYY-MM-DD"),
     end:   date | None = Query(None, description="End date YYYY-MM-DD"),
 ):
-    """Return daily aggregated MHW state metrics for a region."""
+    """Return daily aggregated MHW state metrics for a region (record vintage #7, D1).
+
+    ``area_frac`` is the record's published value. A day with ``eligible = false`` (unknown share
+    above 0.25) is incomplete coverage: its area is not an observed zero.
+    """
     df = _load_agg(region_id)
     if start:
         df = df[df["date"] >= start]
@@ -157,6 +177,9 @@ def get_daily_states(
             mean_duration=round(float(r["Dbar"]), 2),
             cumul_intensity=round(float(r["Cbar"]), 3),
             onset_rate=round(float(r["Obar"]), 3),
+            unknown_share=round(float(r["unknown_share"]), 4),
+            eligible=bool(r["eligible"]),
+            coverage=str(r["label"]),
         )
         for _, r in df.iterrows()
     ]

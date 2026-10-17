@@ -21,6 +21,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
+from mhw import record
 from mhw.states.risk import RISK_THRESHOLDS, RISK_WEIGHTS, compute_risk_table
 from dashboard.components.labels import display_label, PCT_COLUMN_NAMES, metric_legend
 
@@ -28,8 +29,8 @@ from dashboard.components.labels import display_label, PCT_COLUMN_NAMES, metric_
 # Paths
 # ---------------------------------------------------------------------------
 ROOT    = Path(__file__).parents[3]
-AGG_DIR = ROOT / "data" / "derived" / "aggregates_region"
-RISK_DIR = ROOT / "data" / "derived" / "risk"
+AGG_DIR = record.agg_dir()    # the staged heatwave record (vintage #7, D1)
+RISK_DIR = record.risk_dir()  # coverage-aware risk recomputed from D1 (the #6 folder is kept)
 
 # Gauge colour bands (threshold, bar_color, bg_color)
 GAUGE_STEPS = [
@@ -44,12 +45,7 @@ GAUGE_THRESHOLD_COLOR = {"green": "#2ecc40", "orange": "#ff851b", "red": "#ff413
 # ---------------------------------------------------------------------------
 @st.cache_data(show_spinner="Loading aggregates …", ttl=3600)
 def load_aggregates(region: str) -> pd.DataFrame | None:
-    p = AGG_DIR / f"region_daily_{region}.parquet"
-    if not p.exists():
-        return None
-    df = pd.read_parquet(p)
-    df["date"] = pd.to_datetime(df["date"])
-    return df.sort_values("date").reset_index(drop=True)
+    return record.load_zone(region)
 
 
 @st.cache_data(show_spinner="Loading risk table …", ttl=3600)

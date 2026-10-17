@@ -11,7 +11,6 @@ Run standalone:
 """
 from __future__ import annotations
 
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -25,7 +24,6 @@ from plotly.subplots import make_subplots
 from dashboard.components.map_mhw import (
     METRICS as MAP_METRICS,
     find_available_states,
-    load_land_mask,
     load_states,
     make_grid_geojson,
 )
@@ -52,8 +50,18 @@ from dashboard.components.risk_gauge import (
     _make_sparkline,
     load_risk_table,
 )
-from mhw.states.risk import compute_risk_table, save_risk_table
+from mhw import record
+from mhw.states.risk import LEVEL_INCOMPLETE
 
+from dashboard.components.mhw_record_ui import (  # noqa: E402
+    ICE_FILL,
+    UNKNOWN_FILL,
+    add_area_with_coverage,
+    as_of_text,
+    coverage_footnote,
+    coverage_legend_html,
+    map_legend_html,
+)
 from dashboard.components.mhw_revision_note import render_mhw_revision_note  # noqa: E402
 from dashboard.components.bottom_ui import (
     AMBER,
@@ -68,7 +76,7 @@ from dashboard.components.bottom_ui import (
     page_header,
 )
 
-RISK_DIR = Path(__file__).parents[3] / "data" / "derived" / "risk"
+RISK_DIR = record.risk_dir()   # coverage-aware risk recomputed from the D1 record
 # Region names (_REGION_NAMES) + grouped dropdown labels (region_menu_label) come from
 # ts_event_metrics — ESR ecosystem regions (ebs=combined, sebs/nbs; goa=combined, wgoa/egoa; Arctic).
 
@@ -95,15 +103,15 @@ def render() -> None:
 
     regions = list_regions()
     if not regions:
-        page_header("🌊", "Operational MHW", "Live & recent marine-heatwave state", "—")
+        page_header("🌊", "Operational MHW", f"Latest marine-heatwave state, {as_of_text()}", "—")
         st.error("No aggregates parquet found. Run the backfill first.")
         st.stop()
 
     region = st.sidebar.selectbox("Region", regions, format_func=region_menu_label, key="op_region")
-    page_header("🌊", "Operational MHW", "Live & recent marine-heatwave state",
+    page_header("🌊", "Operational MHW", f"Latest marine-heatwave state, {as_of_text()}",
                 f"{_REGION_NAMES.get(region, region.upper())} ({region.upper()})",
-                caption=("Today's and recent marine-heatwave state for the selected region — "
-                         "the live map, event metrics, AO/PDO context, and a composite risk score."))
+                caption=("The most recent certified marine-heatwave state for the selected region — "
+                         "the map, event metrics, AO/PDO context, and a composite risk score."))
     render_mhw_revision_note(region)
 
     # ---------------------------------------------------------------------------
@@ -114,21 +122,14 @@ def render() -> None:
     ao_df     = load_ao()
     pdo_df    = load_pdo()
 
-    # Ensure risk table exists
-    _risk_path = RISK_DIR / f"risk_{region}.parquet"
-    if not _risk_path.exists() and agg_df is not None:
-        _full = agg_df.copy()
-        _full["date"] = pd.to_datetime(_full["date"]).dt.date
-        _rt = compute_risk_table(_full)
-        save_risk_table(_rt, region)
-
+    # Risk percentiles are precomputed from the record at staging (never written from the page).
     risk_df = load_risk_table(region)
 
     # ---------------------------------------------------------------------------
     # Tabs
     # ---------------------------------------------------------------------------
     tab_map, tab_ts, tab_pred, tab_risk = st.tabs([
-        "🗺️ Live MHW Map",
+        "🗺️ MHW Map",
         "📈 Event Metrics",
         "🌐 Predictability",
         "🚦 Risk Gauge",
@@ -167,23 +168,39 @@ def render() -> None:
                                      key="map_date")
                 st.caption(f"**{_fmt(dates[date_idx])}**")
 
-            values = data[metric_key][date_idx]
             label, colorscale, vmin, vmax, fmt = avail_metrics[metric_key]
+            if "V" in data and data.get("R") is not None:
+                values, cls = record.map_cells(metric_key, data[metric_key][date_idx], data["A"][date_idx],
+                                               data["V"][date_idx], data["R"], data["reason"][date_idx])
+            else:   # pre-D1 store (no coverage layers): draw as before
+                values = data[metric_key][date_idx].astype(float)
+                cls = np.full(values.shape, record.CELL_SCORED, dtype=np.int8)
 
             lons_2d, lats_2d = np.meshgrid(data["lons"], data["lats"])
             lat_flat  = lats_2d.flatten()
             lon_flat  = lons_2d.flatten()
             val_flat  = values.flatten().astype(float)
-            land_mask = load_land_mask(info["region"])
-            if land_mask is not None:
-                val_flat[land_mask.flatten()] = np.nan
-            # Also hide ocean cells with no activity — only show where metric > 0
-            val_flat[val_flat <= 0] = np.nan
+            cls_flat  = cls.flatten()
+            # Only show where the metric is detected (A·V·R) — everything else is a coverage layer
+            val_flat[~(val_flat > 0)] = np.nan
             ids = [str(i) for i in range(len(val_flat))]
 
             geojson = make_grid_geojson(info["path"])
 
-            fig = go.Figure(go.Choroplethmap(
+            fig = go.Figure()
+            for k, fillc, name in ((record.CELL_ICE, ICE_FILL, "Observed ice"),
+                                   (record.CELL_UNKNOWN, UNKNOWN_FILL, "Not assessed (unknown)")):
+                sel = np.flatnonzero(cls_flat == k)
+                if sel.size:
+                    fig.add_trace(go.Choroplethmap(
+                        geojson=geojson, locations=[ids[i] for i in sel], z=np.ones(sel.size),
+                        colorscale=[[0, fillc], [1, fillc]], showscale=False,
+                        marker_opacity=1.0, marker_line_width=0, name=name,
+                        customdata=np.column_stack([lat_flat[sel], lon_flat[sel]]),
+                        hovertemplate=(f"Lat: %{{customdata[0]:.3f}}<br>Lon: %{{customdata[1]:.3f}}<br>"
+                                       f"{name}<extra></extra>"),
+                    ))
+            fig.add_trace(go.Choroplethmap(
                 geojson=geojson,
                 locations=ids,
                 z=val_flat,
@@ -213,21 +230,28 @@ def render() -> None:
                 ),
                 height=500,
                 margin={"l": 0, "r": 0, "t": 50, "b": 0},
+                showlegend=False,
             )
             with c2:
                 st.plotly_chart(fig, use_container_width=True, key="map_chart")
+                st.markdown(map_legend_html(), unsafe_allow_html=True)
+                st.caption("Coloured cells are retained, assessable and in a heatwave on this day. "
+                           "Excluded cells (142 across the zones) are never coloured.")
 
-            valid = np.isfinite(values)
+            n_ret = int((cls != record.CELL_HIDDEN).sum())
+            n_unk = int((cls == record.CELL_UNKNOWN).sum())
+            n_ice = int((cls == record.CELL_ICE).sum())
+            shown = values[np.isfinite(values)]
             _cards = [
-                kpi_card("Min", f"{np.nanmin(values):{fmt}}", SLATE),
-                kpi_card("Max", f"{np.nanmax(values):{fmt}}", SLATE),
-                kpi_card("Mean (valid)",
-                         f"{np.nanmean(values[valid]):{fmt}}" if valid.any() else "—", SLATE),
+                kpi_card("Max", f"{shown.max():{fmt}}" if shown.size else "—", SLATE),
+                kpi_card("Mean (detected)", f"{shown.mean():{fmt}}" if shown.size else "—", SLATE),
+                kpi_card("Observed-ice cells", f"{n_ice} / {n_ret}", BLUE),
+                kpi_card("Not-assessed cells", f"{n_unk} / {n_ret}", AMBER),
             ]
             if metric_key == "A":
-                n_act = int((values > 0).sum())
-                _cards.append(kpi_card("Active cells",
-                              f"{n_act} / {values.size} ({100 * n_act / values.size:.1f}%)", BLUE))
+                n_act = int(np.isfinite(values).sum())
+                _cards.insert(0, kpi_card("Detected cells",
+                              f"{n_act} / {n_ret} ({100 * n_act / max(n_ret, 1):.1f}%)", RED))
             kpi_grid(_cards, cols=len(_cards))
 
     # ============================================================
@@ -245,7 +269,8 @@ def render() -> None:
             window = window_opts[window_label]
             df_win = agg_df.tail(window).reset_index(drop=True)
 
-            active_flag = df_win["area_frac"].values > AREA_THRESH
+            # Event days are judged on eligible days only (a rejected day is never 0 or 1).
+            active_flag = ((df_win["area_frac"] > AREA_THRESH) & df_win["eligible"]).to_numpy()
             spans = _active_spans(df_win["date"], active_flag)
 
             fig = make_subplots(rows=5, cols=1, shared_xaxes=True,
@@ -253,12 +278,15 @@ def render() -> None:
                                 vertical_spacing=0.06)
 
             for row, (col, title, ylabel, color) in enumerate(METRIC_DEFS, start=1):
-                fig.add_trace(go.Scatter(
-                    x=df_win["date"], y=df_win[col], mode="lines",
-                    line={"color": color, "width": 1.8},
-                    hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.3f}} {ylabel}<extra></extra>",
-                    name=title,
-                ), row=row, col=1)
+                if col == "area_frac":
+                    add_area_with_coverage(fig, df_win, row=row, col=1, color=color, fill=None)
+                else:
+                    fig.add_trace(go.Scatter(
+                        x=df_win["date"], y=df_win[col].where(~df_win["gap"]), mode="lines",
+                        connectgaps=False, line={"color": color, "width": 1.8},
+                        hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.3f}} {ylabel}<extra></extra>",
+                        name=title,
+                    ), row=row, col=1)
                 fig.update_yaxes(title_text=ylabel, row=row, col=1,
                                  title_font={"size": 10})
                 for s, e in spans:
@@ -275,15 +303,20 @@ def render() -> None:
                 margin={"l": 60, "r": 20, "t": 60, "b": 40},
             )
             mhw_plot(fig, use_container_width=True, key="ts_chart")
+            st.markdown(coverage_legend_html(), unsafe_allow_html=True)
+            st.caption(coverage_footnote(region))
 
-            # Summary
-            ev_days = int((df_win["area_frac"] > AREA_THRESH).sum())
-            peak    = df_win.loc[df_win["area_frac"].idxmax()]
-            kpi_grid([
-                kpi_card("Event Days", f"{ev_days}", BLUE),
-                kpi_card("Peak Area Fraction", f"{peak['area_frac']:.4f}", BLUE),
-                kpi_card("Peak date", _fmt(peak["date"]), SLATE),
-            ], cols=3)
+            # Summary (eligible days only)
+            elig = df_win[df_win["eligible"]]
+            ev_days = int((elig["area_frac"] > AREA_THRESH).sum())
+            n_rej = int((~df_win["eligible"]).sum())
+            _cards = [kpi_card("Event Days", f"{ev_days}", BLUE,
+                               sub=f"{n_rej} incomplete-coverage day(s) not counted" if n_rej else "")]
+            if not elig.empty:
+                peak = elig.loc[elig["area_frac"].idxmax()]
+                _cards += [kpi_card("Peak Area Fraction", f"{peak['area_frac']:.4f}", BLUE),
+                           kpi_card("Peak date", _fmt(peak["date"]), SLATE)]
+            kpi_grid(_cards, cols=len(_cards))
 
     # ============================================================
     # TAB 3 — Predictability Context
@@ -335,19 +368,16 @@ def render() -> None:
                 fig.update_yaxes(title_text="PDO", row=2, col=1, title_font={"size": 9})
 
             if agg_win is not None and not agg_win.empty:
-                active_flag = agg_win["area_frac"].values > AREA_THRESH
-                fig.add_trace(go.Scatter(
-                    x=agg_win["date"], y=agg_win["area_frac"], mode="lines",
-                    line={"color": "tomato", "width": 1.8},
-                    fill="tozeroy", fillcolor="rgba(255,99,71,0.15)",
-                    hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.4f}}<extra></extra>"),
-                    row=3, col=1)
+                active_flag = ((agg_win["area_frac"] > AREA_THRESH) & agg_win["eligible"]).to_numpy()
+                add_area_with_coverage(fig, agg_win, row=3, col=1, color="tomato",
+                                       fill="rgba(255,99,71,0.15)")
                 fig.add_hline(y=AREA_THRESH, line_dash="dash", line_color="darkred",
                               line_width=1, row=3, col=1)
                 fig.update_yaxes(title_text="fraction", row=3, col=1, title_font={"size": 9})
 
                 fig.add_trace(go.Scatter(
-                    x=agg_win["date"], y=agg_win["Ibar"], mode="lines",
+                    x=agg_win["date"], y=agg_win["Ibar"].where(~agg_win["gap"]), mode="lines",
+                    connectgaps=False,
                     line={"color": "orangered", "width": 1.8},
                     hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.3f}} °C<extra></extra>"),
                     row=4, col=1)
@@ -364,6 +394,7 @@ def render() -> None:
             # when subplots mix daily and monthly data with different end dates)
             fig.update_xaxes(range=[str(t_start), str(t_end)])
             mhw_plot(fig, use_container_width=True, key="pred_chart")
+            st.markdown(coverage_legend_html(), unsafe_allow_html=True)
 
             _cards = [
                 kpi_card("Latest AO", f"{float(ao_df['ao'].iloc[-1]):.3f}", SLATE),
@@ -373,7 +404,8 @@ def render() -> None:
                 _cards.append(kpi_card("Latest PDO", f"{float(pdo_df['pdo'].iloc[-1]):.3f}", SLATE))
             if agg_win is not None and not agg_win.empty:
                 _cards.append(kpi_card("MHW event days",
-                              f"{int((agg_win['area_frac'] > AREA_THRESH).sum())}", BLUE))
+                              f"{int(((agg_win['area_frac'] > AREA_THRESH) & agg_win['eligible']).sum())}",
+                              BLUE))
             kpi_grid(_cards, cols=len(_cards))
 
     # ============================================================
@@ -383,13 +415,10 @@ def render() -> None:
         if risk_df is None:
             st.error("Risk table not found. Run `mhw-compute-risk`.")
         else:
-            if st.button("♻️ Recompute risk scores", key="risk_recompute"):
-                load_risk_table.clear()
-                st.rerun()
-
             min_d = risk_df["date"].dt.date.min()
             max_d = risk_df["date"].dt.date.max()
-            sel_date = st.date_input("Reference date", value=max_d,
+            sel_date = st.date_input(f"Reference date (record certified to {record.CERTIFIED_THROUGH_TEXT})",
+                                     value=max_d,
                                      min_value=min_d, max_value=max_d,
                                      key="risk_date")
 
@@ -400,7 +429,10 @@ def render() -> None:
                 row_r = row_r.iloc[0]
                 score  = float(row_r["composite_risk"])
                 level  = str(row_r["risk_level"])
-
+            if not row_r.empty and level == LEVEL_INCOMPLETE:
+                st.warning(f"{_fmt(sel_date)}: incomplete coverage — more than 25 % of the zone could not "
+                           "be assessed, so no risk score is given for this day.")
+            elif not row_r.empty:
                 g_col, p_col = st.columns([1, 1.6])
                 with g_col:
                     st.plotly_chart(_make_gauge(score, level), use_container_width=True, key="risk_gauge")
@@ -428,7 +460,8 @@ def render() -> None:
                         f"Mean Intensity {RISK_WEIGHTS['Ibar']:.0%}, "
                         f"Mean Duration {RISK_WEIGHTS['Dbar']:.0%}, "
                         f"Cumul. Intensity {RISK_WEIGHTS['Cbar']:.0%}. "
-                        "Reference: full 1982–present backfill distribution."
+                        "Reference: every eligible day (unknown share ≤ 25 %) of the record, "
+                        f"1982 – {record.CERTIFIED_THROUGH_TEXT}."
                     )
 
                 st.markdown("---")
@@ -436,5 +469,6 @@ def render() -> None:
                     st.plotly_chart(_make_sparkline(risk_df, agg_df, n_days=30),
                                     use_container_width=True, key="risk_sparkline")
 
-    footer("Data sources: NOAA OISST v2.1 (SST + sea ice) · CPC Arctic Oscillation · PSL Pacific "
-           "Decadal Oscillation. Daily; OISST typically lags real time by 1–2 days.")
+    footer("Data sources: NOAA OISST v2.1 (SST + sea ice), heatwave record vintage #7 (D1), certified "
+           f"1982 – {record.CERTIFIED_THROUGH_TEXT} · CPC Arctic Oscillation · PSL Pacific Decadal "
+           "Oscillation.", guide_url="/marine_heatwave_guide")

@@ -17,12 +17,14 @@ import streamlit as st
 import yaml
 from plotly.subplots import make_subplots
 
+from mhw import record
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
 ROOT    = Path(__file__).parents[3]
 RAW_DIR = ROOT / "data" / "raw"
-AGG_DIR = ROOT / "data" / "derived" / "aggregates_region"
+AGG_DIR = record.agg_dir()   # the staged heatwave record (vintage #7, D1)
 
 _cfg = yaml.safe_load((ROOT / "config" / "climatology.yml").read_text())
 AREA_THRESH = float(_cfg["regional_events"]["area_frac_threshold"])
@@ -52,12 +54,7 @@ def load_pdo() -> pd.DataFrame | None:
 
 @st.cache_data(show_spinner="Loading aggregates …", ttl=3600)
 def load_aggregates(region: str) -> pd.DataFrame | None:
-    p = AGG_DIR / f"region_daily_{region}.parquet"
-    if not p.exists():
-        return None
-    df = pd.read_parquet(p)
-    df["date"] = pd.to_datetime(df["date"])
-    return df.sort_values("date").reset_index(drop=True)
+    return record.load_zone(region)
 
 
 @st.cache_data(show_spinner=False, ttl=3600)

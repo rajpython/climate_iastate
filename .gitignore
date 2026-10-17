@@ -16,6 +16,7 @@ env/
 # Data directories (large binary files — managed outside version control)
 data/raw/
 data/derived/
+data/record/
 outputs/
 
 # OS and IDE

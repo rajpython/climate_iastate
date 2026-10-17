@@ -18,11 +18,13 @@ import plotly.graph_objects as go
 import streamlit as st
 import xarray as xr
 
+from mhw import record
+
 # ---------------------------------------------------------------------------
 # Paths (resolve from this file's location up to project root)
 # ---------------------------------------------------------------------------
 ROOT       = Path(__file__).parents[3]
-STATES_DIR = ROOT / "data" / "derived" / "states_grid"
+STATES_DIR = record.states_dir()   # the staged heatwave record (vintage #7, D1)
 
 # ---------------------------------------------------------------------------
 # Metric definitions  {key: (label, colorscale, vmin, vmax, fmt)}
@@ -67,6 +69,12 @@ def load_states(path_str: str) -> dict:
         if var in ds:
             arrays[var] = ds[var].values.astype(np.float32)
 
+    # D1 coverage layers: V (scorable), reason (coverage reason), R (static retained domain)
+    for var in ("V", "reason"):
+        if var in ds:
+            arrays[var] = ds[var].values
+    R = ds["R"].values if "R" in ds else None
+
     # D may be timedelta64 — convert to days (float32)
     if "D" in ds:
         D_raw = ds["D"].values
@@ -77,7 +85,7 @@ def load_states(path_str: str) -> dict:
             arrays["D"] = D_raw.astype(np.float32)
 
     ds.close()
-    return {"lats": lats, "lons": lons, "dates": dates, **arrays}
+    return {"lats": lats, "lons": lons, "dates": dates, "R": R, **arrays}
 
 
 @st.cache_data(show_spinner="Loading ocean mask …", ttl=3600)

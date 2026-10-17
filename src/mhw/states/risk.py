@@ -14,8 +14,12 @@ Reference distribution:
                     until full backfill; rebuilt with mhw-compute-risk --rebuild)
     mode=incremental — grows daily (not implemented; future extension)
 
+Coverage-aware (vintage #7 / D1): pass ``eligible`` and only eligible days (unknown share ≤ 0.25)
+form the reference distribution; rejected days get no score (NaN, level "Incomplete coverage").
+
 CLI:
     mhw-compute-risk --region goa [--ref-start YYYY-MM-DD --ref-end YYYY-MM-DD]
+    mhw-compute-risk --region goa --record      # D1 record in, board risk folder out
 """
 from __future__ import annotations
 
@@ -43,6 +47,7 @@ RISK_WEIGHTS: dict[str, float] = {
 }
 
 RISK_THRESHOLDS = [(33.0, "Normal", "green"), (66.0, "Elevated", "orange"), (100.0, "High Risk", "red")]
+LEVEL_INCOMPLETE = "Incomplete coverage"
 
 
 def _pct_rank(values: np.ndarray, reference: np.ndarray) -> np.ndarray:
@@ -56,6 +61,7 @@ def _pct_rank(values: np.ndarray, reference: np.ndarray) -> np.ndarray:
 def compute_risk_table(
     df: pd.DataFrame,
     ref_df: pd.DataFrame | None = None,
+    eligible: np.ndarray | None = None,
 ) -> pd.DataFrame:
     """Compute risk scores for every row in df.
 
@@ -63,14 +69,17 @@ def compute_risk_table(
     ----------
     df     : region_daily DataFrame (date, area_frac, Ibar, Dbar, Cbar, Obar)
     ref_df : reference distribution DataFrame; defaults to df itself (proxy mode)
+    eligible : optional boolean mask aligned with df. Ineligible rows are dropped from the
+               default reference and scored NaN with level "Incomplete coverage".
 
     Returns
     -------
     DataFrame with columns: date, area_frac_pct, Ibar_pct, Dbar_pct,
                             Cbar_pct, composite_risk, risk_level
     """
+    ok = np.ones(len(df), dtype=bool) if eligible is None else np.asarray(eligible, dtype=bool)
     if ref_df is None:
-        ref_df = df   # test-year proxy
+        ref_df = df[ok]   # test-year proxy
 
     result = pd.DataFrame({"date": df["date"].values})
 
@@ -79,7 +88,9 @@ def compute_risk_table(
     for col in RISK_WEIGHTS:
         ref_vals = ref_df[col].values.astype(float)
         cur_vals = df[col].values.astype(float)
-        pct_cols[f"{col}_pct"] = _pct_rank(cur_vals, ref_vals)
+        pct = np.full(len(df), np.nan, dtype=np.float32)
+        pct[ok] = _pct_rank(cur_vals[ok], ref_vals)
+        pct_cols[f"{col}_pct"] = pct
         result[f"{col}_pct"] = pct_cols[f"{col}_pct"]
 
     # Composite score (weighted average)
@@ -90,6 +101,8 @@ def compute_risk_table(
 
     # Risk level label
     def _level(score: float) -> str:
+        if np.isnan(score):
+            return LEVEL_INCOMPLETE
         for threshold, label, _ in RISK_THRESHOLDS:
             if score <= threshold:
                 return label
@@ -99,10 +112,11 @@ def compute_risk_table(
     return result
 
 
-def save_risk_table(risk_df: pd.DataFrame, region_id: str) -> Path:
-    """Save risk table to data/derived/risk/risk_{region}.parquet."""
-    RISK_DIR.mkdir(parents=True, exist_ok=True)
-    out = RISK_DIR / f"risk_{region_id}.parquet"
+def save_risk_table(risk_df: pd.DataFrame, region_id: str, out_dir: Path | None = None) -> Path:
+    """Save risk table to ``out_dir`` (default data/derived/risk/)/risk_{region}.parquet."""
+    out_dir = RISK_DIR if out_dir is None else out_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"risk_{region_id}.parquet"
     risk_df.to_parquet(out, index=False)
     return out
 
@@ -110,23 +124,36 @@ def save_risk_table(risk_df: pd.DataFrame, region_id: str) -> Path:
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Compute MHW risk scores from region_daily metrics.")
     p.add_argument("--region",    default="goa")
     p.add_argument("--ref-start", default=None, help="Reference period start YYYY-MM-DD")
     p.add_argument("--ref-end",   default=None, help="Reference period end YYYY-MM-DD")
-    args = p.parse_args()
+    p.add_argument("--record", action="store_true",
+                   help="Read the staged D1 record (aggregate + coverage) and write to its risk folder")
+    args = p.parse_args(argv)
 
-    agg_path = AGG_DIR / f"region_daily_{args.region}.parquet"
-    if not agg_path.exists():
-        print(f"ERROR: {agg_path} not found. Run mhw-aggregate first.")
-        return 1
-
-    df = pd.read_parquet(agg_path)
+    eligible = None
+    out_dir = None
+    if args.record:
+        from mhw import record
+        days = record.load_zone(args.region)
+        if days is None:
+            print(f"ERROR: staged record for {args.region} not found under {record.record_dir()}")
+            return 1
+        df = days[["date", *RISK_WEIGHTS, "Obar"]].copy()
+        eligible = days["eligible"].to_numpy()
+        out_dir = record.risk_dir()
+    else:
+        agg_path = AGG_DIR / f"region_daily_{args.region}.parquet"
+        if not agg_path.exists():
+            print(f"ERROR: {agg_path} not found. Run mhw-aggregate first.")
+            return 1
+        df = pd.read_parquet(agg_path)
     df["date"] = pd.to_datetime(df["date"]).dt.date
 
-    # Reference window
-    ref_df = df.copy()
+    # Reference window (eligible days only when coverage-aware)
+    ref_df = df.copy() if eligible is None else df[eligible].copy()
     if args.ref_start:
         ref_df = ref_df[ref_df["date"] >= pd.to_datetime(args.ref_start).date()]
     if args.ref_end:
@@ -135,8 +162,8 @@ def main() -> int:
     print(f"Computing risk scores for {args.region} ({len(df)} days, "
           f"reference: {len(ref_df)} days) …")
 
-    risk_df = compute_risk_table(df, ref_df)
-    out = save_risk_table(risk_df, args.region)
+    risk_df = compute_risk_table(df, ref_df, eligible=eligible)
+    out = save_risk_table(risk_df, args.region, out_dir)
 
     # Summary
     latest = risk_df.iloc[-1]

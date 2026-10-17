@@ -8,7 +8,7 @@ from mhw.assistant import tools
 
 
 def _mhw(tmp):
-    a = tmp / "derived" / "aggregates_region"
+    a = tmp / "record" / "mhw-d1" / "aggregates_region"
     a.mkdir(parents=True, exist_ok=True)
     pd.DataFrame({
         "date": pd.date_range("2020-01-01", periods=5, freq="D"),

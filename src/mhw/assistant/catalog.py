@@ -80,7 +80,7 @@ def _reg(spec: DatasetSpec) -> None:
 
 _reg(DatasetSpec(
     "mhw_daily", "Marine-heatwave daily aggregates", "daily",
-    "derived/aggregates_region/region_daily_*.parquet",
+    "record/mhw-d1/aggregates_region/region_daily_*.parquet",
     (_m("area_frac", "MHW area fraction", "fraction 0–1", "share"),
      _m("Ibar", "Mean intensity", "°C", "temp"),
      _m("Dbar", "Mean duration", "days", "days"),
@@ -88,11 +88,15 @@ _reg(DatasetSpec(
      _m("Obar", "Onset rate", "°C/day", "temp")),
     ("date", "region"),
     file_dims=(("region", r"region_daily_(\w+)\.parquet"),),
-    coverage="1982–present, 12 zones"))
+    coverage="1982-01-01 – 2026-08-31 (record vintage #7, D1; daily updates paused), 12 zones",
+    note=("On days where more than 25% of the zone could not be assessed (e.g. the 171 OISST ice-outage "
+          "days in the Bering zones; most Arctic winter days are ice-covered instead), area_frac is not an "
+          "observed zero: say 'incomplete coverage', never 'no heatwave'. The risk table leaves those "
+          "days unscored (risk_level 'Incomplete coverage').")))
 
 _reg(DatasetSpec(
     "mhw_risk", "Marine-heatwave risk percentiles", "daily",
-    "derived/risk/risk_*.parquet",
+    "record/mhw-d1/risk/risk_*.parquet",
     (_m("area_frac_pct", "Area-fraction percentile", "%", "share"),
      _m("Ibar_pct", "Intensity percentile", "%", "share"),
      _m("Dbar_pct", "Duration percentile", "%", "share"),
@@ -101,7 +105,7 @@ _reg(DatasetSpec(
      _m("risk_level", "Risk level", "category", "category")),
     ("date", "region"),
     file_dims=(("region", r"risk_(\w+)\.parquet"),),
-    coverage="1982–present, 12 zones"))
+    coverage="1982-01-01 – 2026-08-31 (record vintage #7, D1), 12 zones; incomplete-coverage days unscored"))
 
 _reg(DatasetSpec(
     "index_ao", "Arctic Oscillation index", "daily", "raw/ao_daily.parquet",

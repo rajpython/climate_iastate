@@ -1,4 +1,4 @@
-"""Page 2 — Historical Analysis (1982–present).
+"""Page 2 — Historical Analysis (1982 – 31 Aug 2026, heatwave record vintage #7 / D1).
 
 Four panels in tabs:
   📊  Annual MHW Burden bar chart
@@ -20,7 +20,15 @@ import streamlit as st
 import yaml
 from plotly.subplots import make_subplots
 
+from dashboard.components.mhw_record_ui import (  # noqa: E402
+    add_area_with_coverage,
+    coverage_footnote,
+    coverage_legend_html,
+    load_days,
+    render_panel2016,
+)
 from dashboard.components.mhw_revision_note import render_mhw_revision_note  # noqa: E402
+from mhw import record  # noqa: E402
 from dashboard.components.bottom_ui import (
     AMBER,
     BLUE,
@@ -35,7 +43,7 @@ from dashboard.components.bottom_ui import (
 )
 
 ROOT    = Path(__file__).parents[3]
-AGG_DIR = ROOT / "data" / "derived" / "aggregates_region"
+AGG_DIR = record.agg_dir()   # the staged heatwave record (vintage #7, D1)
 RAW_DIR = ROOT / "data" / "raw"
 
 # Region names + grouped dropdown labels are centralized in ts_event_metrics (ESR ecosystem
@@ -58,15 +66,9 @@ _PLOTLY_DATE = "%b %d, %Y"        # e.g. "Feb 24, 2024"
 # ---------------------------------------------------------------------------
 # Loaders
 # ---------------------------------------------------------------------------
-@st.cache_data(show_spinner="Loading aggregates …", ttl=3600)
 def _load_agg(region: str) -> pd.DataFrame | None:
-    p = AGG_DIR / f"region_daily_{region}.parquet"
-    if not p.exists():
-        return None
-    df = pd.read_parquet(p)
-    df["date"] = pd.to_datetime(df["date"])
-    df["year"] = df["date"].dt.year
-    return df.sort_values("date").reset_index(drop=True)
+    """Daily aggregate + coverage, every day classified (eligible / hatched / gap / label)."""
+    return load_days(region)
 
 
 @st.cache_data(show_spinner="Loading AO …", ttl=3600)
@@ -105,15 +107,8 @@ def _annual_summary(region: str) -> pd.DataFrame:
     df = _load_agg(region)
     if df is None:
         return pd.DataFrame()
-    return df.groupby("year").agg(
-        rows       =("date",      "count"),
-        max_af     =("area_frac", "max"),
-        mean_af    =("area_frac", "mean"),
-        event_days =("area_frac", lambda x: (x > AREA_THRESH).sum()),
-        max_Ibar   =("Ibar",      "max"),
-        max_Dbar   =("Dbar",      "max"),
-        max_Cbar   =("Cbar",      "max"),
-    ).reset_index()
+    # Eligible days only: a rejected day (unknown share > 25 %) never counts as zero area.
+    return record.annual_summary(df, AREA_THRESH)
 
 
 @st.cache_data(show_spinner="Joining regime data …", ttl=3600)
@@ -124,7 +119,7 @@ def _regime_df(region: str) -> pd.DataFrame:
     if df is None or ao is None or pdo is None:
         return pd.DataFrame()
 
-    merged = df.merge(ao[["date", "ao"]], on="date", how="inner")
+    merged = df[df["eligible"]].merge(ao[["date", "ao"]], on="date", how="inner")
     merged["year_month"] = merged["date"].dt.to_period("M")
     merged = merged.merge(pdo[["year_month", "pdo"]], on="year_month", how="left")
     merged = merged.dropna(subset=["ao", "pdo"])
@@ -173,20 +168,21 @@ def render() -> None:
 
     regions = _list_regions()
     if not regions:
-        page_header("📊", "Historical MHW", "1982–present analysis", "—")
+        page_header("📊", "Historical MHW", f"1982 – {record.CERTIFIED_THROUGH_TEXT}", "—")
         st.error("No aggregates parquet found. Run the backfill first.")
         st.stop()
 
     region = st.sidebar.selectbox("Region", regions, format_func=region_menu_label, key="hist_region")
 
-    page_header("📊", "Historical MHW", "1982–present analysis",
+    page_header("📊", "Historical MHW", f"1982 – {record.CERTIFIED_THROUGH_TEXT}",
                 f"{_REGION_NAMES.get(region, region.upper())} ({region.upper()})",
                 caption=("Year-by-year marine-heatwave activity over the full record — annual "
                          "burden, an event explorer, metric distributions, and AO/PDO regimes."))
     render_mhw_revision_note(region)
     _parts = []
     if "agg" in _dates:
-        _parts.append(f"📅 **MHW data through {_dates['agg'].strftime('%b %d, %Y')}**")
+        _parts.append(f"📅 **Heatwave record certified through {_dates['agg'].strftime('%b %d, %Y')}** "
+                      f"({record.VINTAGE_LABEL})")
     if "ao" in _dates:
         _parts.append(f"AO through {_dates['ao'].strftime('%b %d, %Y')}")
     if "pdo" in _dates:
@@ -255,7 +251,9 @@ def render() -> None:
         fig_b.add_trace(go.Bar(
             x=ann_f["year"], y=ann_f[col],
             marker_color=bar_colors, width=0.7,
-            hovertemplate="Year %{x}: %{y:.4f}<extra></extra>",
+            customdata=ann_f["n_rejected"],
+            hovertemplate=("Year %{x}: %{y:.4f}<br>Incomplete-coverage days (not counted): "
+                           "%{customdata}<extra></extra>"),
             showlegend=False,
         ))
         # Dummy traces purely for legend swatches (off-canvas x values)
@@ -315,19 +313,21 @@ def render() -> None:
         )
         mhw_plot(fig_b, use_container_width=True)
         st.caption(
-            "Colors are quantile-based against this region's full 1982–present "
+            "Colors are quantile-based against this region's full 1982 – 2026 "
             "history of the displayed metric. Cutoffs update automatically when you "
-            "change region or metric."
+            "change region or metric. Means, peaks and event days use eligible days only "
+            "(unknown share ≤ 25 %); incomplete-coverage days are left out, never counted as zero. "
+            "2026 runs to 31 August."
         )
 
         # Summary table (top 10 years)
         top10 = ann_f.nlargest(10, "max_af")[
-            ["year", "max_af", "mean_af", "event_days", "max_Ibar", "max_Cbar"]
+            ["year", "max_af", "mean_af", "event_days", "max_Ibar", "max_Cbar", "n_rejected"]
         ].round(4)
         top10 = top10.rename(columns={
             "max_af": "Peak Area Frac.", "mean_af": "Mean Area Frac.",
             "event_days": "Event Days", "max_Ibar": "Peak Intensity (°C)",
-            "max_Cbar": "Peak Cumul. Int. (°C·days)",
+            "max_Cbar": "Peak Cumul. Int. (°C·days)", "n_rejected": "Incomplete days",
         })
         section_title("Top 10 Years by Peak Area Fraction")
         mhw_table(top10, use_container_width=True, hide_index=True)
@@ -359,19 +359,20 @@ def render() -> None:
                                                "Mean Duration (days)"],
                                vertical_spacing=0.08)
 
-        active_yr = df_yr["area_frac"].values > AREA_THRESH
+        active_yr = ((df_yr["area_frac"] > AREA_THRESH) & df_yr["eligible"]).to_numpy()
 
         for row, (col, color) in enumerate(
             [("area_frac", "crimson"), ("Ibar", "orangered"), ("Dbar", "mediumpurple")],
             start=1
         ):
-            fig_yr.add_trace(go.Scatter(
-                x=df_yr["date"], y=df_yr[col],
-                mode="lines", line={"color": color, "width": 1.6},
-                fill="tozeroy" if row == 1 else None,
-                fillcolor="rgba(220,20,60,0.15)" if row == 1 else None,
-                hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.3f}}<extra></extra>",
-            ), row=row, col=1)
+            if col == "area_frac":
+                add_area_with_coverage(fig_yr, df_yr, row=row, col=1, color=color)
+            else:
+                fig_yr.add_trace(go.Scatter(
+                    x=df_yr["date"], y=df_yr[col].where(~df_yr["gap"]), connectgaps=False,
+                    mode="lines", line={"color": color, "width": 1.6},
+                    hovertemplate=f"%{{x|{_PLOTLY_DATE}}}: %{{y:.3f}}<extra></extra>",
+                ), row=row, col=1)
 
             # Event shading
             in_span, span_s = False, None
@@ -399,34 +400,45 @@ def render() -> None:
             margin={"l": 55, "r": 20, "t": 60, "b": 40},
         )
         mhw_plot(fig_yr, use_container_width=True)
+        st.markdown(coverage_legend_html(), unsafe_allow_html=True)
+        st.caption(coverage_footnote(region))
 
-        # Monthly stats table
-        df_yr2 = df_yr.copy()
-        df_yr2["month"] = df_yr2["date"].dt.month_name()
-        month_order = list(pd.date_range(f"{sel_year}-01-01",
-                                         periods=12, freq="MS").month_name())
-        monthly = (
-            df_yr2.groupby("month")
-            .agg(event_days=("area_frac", lambda x: (x > AREA_THRESH).sum()),
-                 max_area_frac=("area_frac", "max"),
-                 max_Ibar=("Ibar", "max"),
-                 max_Dbar=("Dbar", "max"))
-            .reindex([m for m in month_order if m in df_yr2["month"].values])
-            .round(4)
-        )
-        monthly = monthly.rename(columns={
-            "event_days": "Event Days", "max_area_frac": "Peak Area Frac.",
-            "max_Ibar": "Peak Intensity (°C)", "max_Dbar": "Peak Duration (days)",
-        })
-        # Label an incomplete final month: its Event Days count only covers the days
-        # observed so far and would otherwise read as a genuinely quiet month.
-        last_day = df_yr2["date"].max()
+        # Monthly stats table — ADDENDUM-02: eligible days only; a month with ≥ 11 rejected days or
+        # ≥ 5 consecutive rejected days is missing (shown as incomplete, never as zero).
+        ms = record.monthly_summary(df_yr, AREA_THRESH)
+
+        def _num(v, fmt):
+            return "—" if pd.isna(v) else format(v, fmt)
+
+        coverage = [
+            f"incomplete ({n} days rejected)" if miss
+            else ("none detected in the assessed area" if reduced else "all days eligible" if n == 0
+                  else f"{n} day(s) rejected")
+            for miss, n, reduced in zip(ms["missing"], ms["n_rejected"], ms["has_reduced_zero"])
+        ]
+        monthly = pd.DataFrame({
+            "Coverage": coverage,
+            "Event Days": [_num(v, ".0f") for v in ms["event_days"]],
+            "Peak Area Frac.": [_num(v, ".4f") for v in ms["max_area_frac"]],
+            "Peak Intensity (°C)": [_num(v, ".2f") for v in ms["max_Ibar"]],
+            "Peak Duration (days)": [_num(v, ".1f") for v in ms["max_Dbar"]],
+            "Eligible days": ms["n_eligible"].to_numpy(),
+        }, index=[m.strftime("%B") for m in ms["month"]])
+        # Label an incomplete final month: its Event Days count only covers the days so far.
+        last_day = df_yr["date"].max()
         if last_day < last_day + pd.offsets.MonthEnd(0):  # data stops mid-month
-            partial_name = last_day.month_name()
-            monthly = monthly.rename(
-                index={partial_name: f"{partial_name} (partial — through {last_day:%b %d})"})
-        section_title(f"Monthly summary — {sel_year}")
-        mhw_table(monthly, use_container_width=True)
+            monthly = monthly.rename(index={monthly.index[-1]:
+                                            f"{monthly.index[-1]} (partial — through {last_day:%b %d})"})
+        section_title(f"Monthly summary — {sel_year}",
+                      "eligible days only; a month is incomplete with ≥ 11 rejected days or ≥ 5 in a row")
+        mhw_table(monthly, use_container_width=True,
+                  column_config={"Coverage": st.column_config.TextColumn(width="medium")})
+
+        if sel_year == 2016 and region == "sebs":
+            render_panel2016()
+        elif sel_year == 2016 and region == "ebs":
+            st.caption("The 2016 evidence panel for the satellite ice gap (18 April – 30 June) is shown "
+                       "under the Southeastern Bering Sea subarea.")
 
     # ============================================================
     # TAB 3 — Metric Distributions
@@ -434,7 +446,9 @@ def render() -> None:
     with tab_dist, st.container(border=True):
         df_full = _load_agg(region)
 
-        df_range = df_full[(df_full["year"] >= y_start) & (df_full["year"] <= y_end)]
+        df_range = df_full[(df_full["year"] >= y_start) & (df_full["year"] <= y_end) & df_full["eligible"]]
+        st.caption("Distributions use eligible days only (unknown share ≤ 25 %); incomplete-coverage "
+                   "days are left out.")
 
         metrics_hist = [
             ("area_frac", "Area Fraction",      "fraction",  "steelblue",  False),
@@ -491,9 +505,9 @@ def render() -> None:
             mhw_plot(fig_h, use_container_width=True)
 
         # Composite risk distribution
-        risk_path = ROOT / "data" / "derived" / "risk" / f"risk_{region}.parquet"
+        risk_path = record.risk_dir() / f"risk_{region}.parquet"
         if risk_path.exists():
-            risk_df = pd.read_parquet(risk_path)
+            risk_df = pd.read_parquet(risk_path).dropna(subset=["composite_risk"])
             risk_df["year"] = pd.to_datetime(risk_df["date"]).dt.year
             risk_range = risk_df[(risk_df["year"] >= y_start) & (risk_df["year"] <= y_end)]
             if not risk_range.empty:
@@ -674,5 +688,6 @@ def render() -> None:
             fig_ph.update_xaxes(tickmode="linear", dtick=2, row=2, col=1)
             mhw_plot(fig_ph, use_container_width=True)
 
-    footer("Data sources: NOAA OISST v2.1 (SST + sea ice) · CPC Arctic Oscillation · PSL Pacific "
-           "Decadal Oscillation. Full backfill 1982–present.")
+    footer("Data sources: NOAA OISST v2.1 (SST + sea ice), heatwave record vintage #7 (D1), certified "
+           f"1982 – {record.CERTIFIED_THROUGH_TEXT} · CPC Arctic Oscillation · PSL Pacific Decadal "
+           "Oscillation.", guide_url="/marine_heatwave_guide")

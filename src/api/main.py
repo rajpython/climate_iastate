@@ -33,10 +33,11 @@ ROOT = Path(__file__).parents[2]
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: print data paths. Shutdown: nothing to clean up."""
-    agg_dir = ROOT / "data" / "derived" / "aggregates_region"
+    from mhw import record
+    agg_dir = record.agg_dir()
     parquets = list(agg_dir.glob("region_daily_*.parquet"))
     print(f"[MHW API] aggregates found: {[p.name for p in parquets]}")
-    zarr_dir = ROOT / "data" / "derived" / "states_grid"
+    zarr_dir = record.states_dir()
     zarrs = list(zarr_dir.glob("*.zarr")) if zarr_dir.exists() else []
     print(f"[MHW API] state zarrs found: {len(zarrs)}")
     yield

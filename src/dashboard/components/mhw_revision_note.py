@@ -1,27 +1,30 @@
-"""One data-revision note for the marine-heatwave pages (October 2026 input corrections).
+"""Record banner + data-revision note for the marine-heatwave pages (vintage #7, D1).
 
-Shown on the Operational and Historical MHW pages for the zones the ice-field correction moved most.
+Every heatwave page carries the record banner; the zones D1 moved most also get a short note on
+what changed. Shown on the Operational and Historical MHW pages.
 """
 from __future__ import annotations
 
 from dashboard.components.bottom_ui import AMBER, callout
+from dashboard.components.mhw_record_ui import render_record_banner
 
 ICE_ZONES = {"beaufort", "chukchi", "nbs", "sebs", "ebs"}
 
 NOTE_HTML = (
-    "<b>Data revision, October 2026.</b> NOAA's OISST v2.1 sea-surface record omits its sea-ice field on "
-    "171 days (for example January–February 2017 and April–June 2016). Ice-covered water on those days "
-    "had been counted as open sea, which produced spurious winter heatwaves — the Beaufort Sea showed 26% "
-    "of its area in a heatwave in February 2017, against at most 1.5% in any other February. Ice status on "
-    "those days is now taken from the days either side, and the Beaufort and Chukchi February 2017 values "
-    "are 0%. The same revision restored eight days that were missing from the input and adopted NOAA's "
-    "re-issued files for 22–26 April 2024. Heatwave thresholds are no longer extended to days of the year "
-    "on which a cell was ice-covered throughout the 1991–2020 baseline. Values in other years can differ "
-    "slightly from earlier versions of this page."
+    "<b>What changed in vintage #7 (D1).</b> NOAA's OISST v2.1 omits its sea-ice field on 171 days "
+    "(for example April–June 2016 and January–February 2017). The previous version filled the ice on "
+    "those days from the days either side. D1 no longer fills it: where ice cannot be known, that part "
+    "of the zone is <b>unknown</b>, drawn as the grey band, and a day with more than 25 % unknown is "
+    "hatched and never shown as zero. Observed ice counts as a real zero, so Arctic winter days mostly "
+    "read “ice-covered”. 142 cells whose satellite ice record is inconsistent over time (for example, "
+    "never ice-covered before 2005 but routinely after) are excluded in every season. Values differ "
+    "from earlier versions of this page, most in spring 2016 in the southeast Bering and in the "
+    "pre-2005 Arctic."
 )
 
 
 def render_mhw_revision_note(region: str) -> None:
-    """Show the revision note when *region* is one of the ice-affected zones."""
+    """Record banner on every zone; the D1 change note on the ice-affected zones."""
+    render_record_banner()
     if region in ICE_ZONES:
         callout(NOTE_HTML, icon="⚠️", tint=AMBER)

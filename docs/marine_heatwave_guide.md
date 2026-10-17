@@ -11,6 +11,49 @@ For platform orientation — what the dashboard is and how it is organised — s
 Guide**. For the Bering Sea bottom-state indicators (cold pool, bottom temperature, model
 validation, catch–environment relationships) see the **Bering Sea Bottom-State Guide**.
 
+## The heatwave record: vintage #7 (D1)
+
+**What the board shows.** The heatwave pages and the `/v1` API read the sealed record **vintage #7 (D1)**
+(`mhw-hobday-consecutive-20261009-icegap-d1`), certified from 1 January 1982 to **31 August 2026**. It
+replaces vintage #6. The event rules are unchanged: five-day qualification and joins of at most two days.
+
+**What D1 changed.**
+- **Ice-outage days are no longer filled.** NOAA's OISST v2.1 omits its sea-ice field on 171 days (for
+  example April–June 2016 and January–February 2017). Vintage #6 filled ice on those days from the days
+  either side. D1 does not. A cell without an ice observation on an outage day is *unknown*, unless SST is present and no ice above 15 % is
+  observed on every other day of its record (and the cell is not barred). That exemption is an inference from the absence of observed
+  ice, not verified open water.
+- **A fixed reporting domain.** 142 cells whose satellite ice record is inconsistent over time (for
+  example, blank before 2005 and routinely ice-covered after) are excluded from every regional figure,
+  in every season: SEBS 18, NBS 27, WGOA 34, EGOA 11, AI East 2, Chukchi 37, Beaufort 13. Area is
+  always a share of the same retained domain.
+- **Observed ice comes first.** A cell observed with more than 15 % ice is ice-covered even if SST is
+  above 2 °C. The old "SST > 2 °C means open water" override is retired.
+
+**What "unknown" means.** Every zone-day splits into three exclusive parts: scorable water, observed ice,
+and **unknown**. Unknown is absent input + missing SST + unknown ice + a missing threshold. The board
+draws it as a grey band under every area chart; the tooltip splits unknown ice into cell runs or
+regional intervals and the global outage days.
+- **More than 25 % unknown:** the day is *incomplete coverage*, hatched, and never shown as zero. If
+  nothing in the zone could be scored, the area line has a gap.
+- **25 % or less unknown:** the area is drawn as computed. Observed ice is a real zero, labelled
+  "ice-covered". A zero day with more unknown than the zone's constant never-observed floor reads
+  "none detected in the assessed area", not "no heatwave".
+- **Months** use eligible days only (unknown ≤ 25 %). A month with 11 or more rejected days, or 5 or
+  more in a row, is incomplete and shown as missing, never as zero. Annual figures, distributions,
+  regimes and risk percentiles also use eligible days only.
+
+**Why the record stops at 31 August 2026.** D1 is certified to that date and its code refuses later
+dates. No daily rule has been validated for new days, so daily heatwave updates are **paused**. The
+OISST source files keep being collected. Updates resume when a validated daily extension is adopted.
+
+**The 2016 southeast Bering spring.** The Historical page (SEBS, 2016) carries a separate evidence panel
+for the outage of 18 April – 30 June 2016. It shows the observed + externally corroborated area as a
+headline, an estimated area as a sensitivity, and unresolved coverage. It is a documented analysis
+beside the record, not a revision of it; every gap day remains incomplete coverage.
+
+---
+
 ## What is a Marine Heatwave?
 
 A **marine heatwave (MHW)** is a prolonged period of unusually warm ocean surface temperatures. Following the Hobday et al. (2016) framework, an MHW is declared when sea surface temperature (SST) exceeds the local 90th-percentile threshold — based on a 1991--2020 baseline — for at least **5 consecutive days**. Brief cool dips of 2 days or fewer are bridged so that a single continuous event is not artificially split.
@@ -65,12 +108,12 @@ Both views sit under **Alaska-wide Climate → Marine Heatwaves** and are region
 
 Current and recent MHW state, in four panels:
 
-- **Live MHW map** — the selected metric (active flag, intensity, duration, cumulative intensity, or threshold exceedance) mapped across the region for a chosen date; land and ice-covered cells are masked.
+- **MHW map** — the selected metric (active flag, intensity, duration, cumulative intensity, or threshold exceedance) mapped across the region for a chosen date. Only retained, scorable cells in a heatwave are coloured (A·V·R); observed ice is pale blue, unassessed cells are grey, and the 142 excluded cells are never coloured.
 - **Event metrics** — regional time series of area fraction and the mean intensity, duration, cumulative intensity, and onset rate across active cells, with regional-scale events (area fraction > 5%) shaded.
 - **Predictability context** — the Arctic Oscillation (AO) and Pacific Decadal Oscillation (PDO) shown alongside MHW coverage and intensity, to assess visually whether climate-mode shifts coincide with changes in heatwave activity. This is correlation context, not prediction.
-- **Risk gauge** — a composite 0–100 score combining the current intensity, duration, cumulative-intensity, and onset-rate percentiles against the region's full 1982–present record, with a 30-day trend. Higher means more extreme than most of the historical record.
+- **Risk gauge** — a composite 0–100 score combining the area-fraction, intensity, duration and cumulative-intensity percentiles against every eligible day of the region's record (1982 – 31 August 2026), with a 30-day trend. Higher means more extreme than most of the historical record. Incomplete-coverage days get no score.
 
-### Historical (1982–present)
+### Historical (1982 – 31 August 2026)
 
 The full record, in four panels:
 
@@ -91,7 +134,7 @@ The full record, in four panels:
 
 All data comes from NOAA sources. SST and sea ice are fetched from the same OISST dataset via ERDDAP — cells with ice concentration above 15% are masked out of the MHW analysis. AO is retained from \~1950 and PDO from 1854 so the Regime Analysis tab covers both phases (PDO has been in a sustained negative phase since 2020, so the full record is essential for seeing PDO+ regimes).
 
-In production the dashboard refreshes automatically each day at 14:00 UTC, after OISST publishes new observations (typically by 12:30 UTC). Local development copies are extended via `bash scripts/monthly_refresh.sh` — see the project README.
+The heatwave record is paused at 31 August 2026 (see *The heatwave record: vintage #7 (D1)* above). The production job still collects the new OISST source files each day at 14:00 UTC, but no heatwave states are computed from them until a validated daily extension is adopted.
 
 ---
 
@@ -116,12 +159,15 @@ All data endpoints are versioned under `/api/v1/`. The service-level health chec
 | `GET /api/v1/indices/pdo` | Pacific Decadal Oscillation monthly values |
 | `GET /api/health` | Service health (unversioned) |
 
+Daily states also carry each day's coverage: `unknown_share`, `eligible` (unknown ≤ 0.25) and the board label `coverage`. `area_frac` is the record's published value; on a day with `eligible = false` it is not an observed zero. Event detection skips ineligible days. Map cells carry a `cell_class` (`scorable`, `observed_ice`, `unknown`); excluded cells are omitted.
+
 All responses are JSON with snake_case field names. The regional aggregate fields are `area_frac`, `mean_intensity`, `mean_duration`, `cumul_intensity`, and `onset_rate` (internally these correspond to the Hobday-paper symbols I, D, C, O). Categorical fields use typed enums (`MapMetric`, `IndexName`, `IndexFrequency`, `RiskLevel`) so OpenAPI consumers can codegen against them. See the Swagger UI for full parameter details and query options.
 
 **Data conventions for monthly products** (release note, applies to every monthly series this platform publishes — API, dashboard, and sealed data deliveries):
 
 - **Monthly records are keyed by `date`, set to the first day of the month (`YYYY-MM-01`).** There is no `year_month` field anywhere; if you built a shim converting `year_month`, retire it (convention settled 2026-07-22).
 - **An incomplete current month is excluded from monthly series.** A "monthly" mean computed from a few days of a still-running month is not a monthly value — early in a month it can plot as a spurious collapse (or spike). Monthly series shown or published by this platform therefore only use complete months (tables that do show the running month label it as partial); daily endpoints always carry the freshest data.
+- **Monthly heatwave values use eligible days only** (unknown share ≤ 0.25). A month with 11 or more rejected days, or 5 or more consecutive rejected days, is missing — never zero.
 - **`onset_rate` (O) is signed.** It can be legitimately negative — routinely so in the Chukchi and Beaufort — so consumers should not clamp, drop, or log-transform negative values.
 
 ---
@@ -129,22 +175,22 @@ All responses are JSON with snake_case field names. The regional aggregate field
 ## Frequently Asked Questions
 
 **How often is the data updated?**
-Daily at 14:00 UTC. NOAA typically publishes new OISST data by 12:30 UTC each day.
+The heatwave record is currently paused at 31 August 2026, the end of the certified vintage #7 (D1). Daily updates resume when a validated daily extension is adopted; the OISST source files are still collected every day.
 
 **What does "area fraction" mean?**
 The percentage of ocean grid cells in a region that are currently experiencing a confirmed MHW. An area fraction of 0.25 means 25% of the region is in active heatwave.
 
 **Why do Chukchi and Beaufort show zero activity in winter?**
-Those regions are covered by sea ice from roughly November through June. Ice-covered cells are masked out of the MHW analysis because SST under ice is not physically meaningful for heatwave detection.
+Those regions are covered by sea ice from roughly November through June. Observed ice is a real zero for heatwave area, so those days read "ice-covered". On the satellite record's ice-outage days, the ice cannot be known; those days are hatched as incomplete coverage instead of zero.
 
 **What is the "Blob"?**
 An exceptionally large and persistent MHW in the northeast Pacific from 2014 to 2016, driven by a persistent atmospheric ridge. It caused widespread marine ecosystem disruption. On the Annual Burden chart, the period is labeled with a *Pacific Blob* text annotation as historical context, but the bar **coloring is not Blob-specific**: it is quantile-based on the displayed metric, so the Blob shows up red automatically on regions where it actually was extreme (GOA, EBS) and stays blue on regions where it wasn't (Chukchi, Beaufort). The label is a calendar marker; the color is the verdict.
 
 **Can I download the raw data?**
-Use the REST API endpoints to retrieve daily aggregate and grid-level data in JSON format. The full backfill dataset (1982--present) is available via the API.
+Use the REST API endpoints to retrieve daily aggregate and grid-level data in JSON format. The full record (1 January 1982 – 31 August 2026) is available via the API.
 
 **What does a risk score of 80 mean?**
-The current MHW conditions are more extreme than roughly 80% of all historical observations (1982--present) for that region.
+Conditions on that day are more extreme than roughly 80% of the eligible days in that region's record (1982 – 31 August 2026).
 
 **How is the climatological baseline calculated?**
 For each day of the year at each grid cell, SST values from 1991--2020 within an 11-day centered window are pooled. The mean and 90th percentile of this pool become the climatological reference and detection threshold, respectively.
@@ -159,7 +205,7 @@ If SST dips below the threshold for 2 days or fewer, the event is bridged — tr
 In this dashboard, intensity is the anomaly above the **90th-percentile threshold**, not the climatological mean. This is a more conservative definition and yields smaller intensity values than a mean-referenced approach. Keep this distinction in mind when comparing with other MHW studies.
 
 **Why do risk scores change even if conditions seem similar?**
-Risk scores are percentile-based against each region's full 1982--present distribution; they are region-specific but not explicitly season-conditioned. A given intensity value may rank as "normal" in the Gulf of Alaska but "extreme" in the Chukchi Sea.
+Risk scores are percentile-based against each region's eligible days, 1982 – 31 August 2026; they are region-specific but not explicitly season-conditioned. A given intensity value may rank as "normal" in the Gulf of Alaska but "extreme" in the Chukchi Sea.
 
 **Why are AO and PDO included on the Predictability tab?**
 The Arctic Oscillation and Pacific Decadal Oscillation are large-scale climate modes that influence North Pacific SST patterns. They are shown alongside MHW metrics for regime context — researchers can visually assess whether phase shifts in AO or PDO coincide with changes in heatwave coverage and intensity. They provide correlation context, not direct predictions.
@@ -193,4 +239,4 @@ Hobday, A.J. et al. (2016). A hierarchical approach to defining marine heatwaves
 
 ---
 
-*Last updated: May 2026*
+*Last updated: October 2026*
