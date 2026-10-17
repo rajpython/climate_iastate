@@ -62,7 +62,7 @@ Once confirmed, each heatwave is tracked with four metrics:
 
 | Metric | Symbol | Meaning |
 |--------|--------|---------|
-| **Intensity** | I | How far SST exceeds the threshold (degrees C) |
+| **Intensity** | I | How far SST sits above the seasonal climatological mean (degrees C) |
 | **Duration** | D | How many days the event has persisted |
 | **Cumulative intensity** | C | Total heat exposure over the event (degree-days) |
 | **Onset rate** | O | How rapidly SST rose at the start of the event (degrees C per day) |
@@ -91,7 +91,7 @@ These five regions follow the standard regionalisation used by NOAA's Alaska Fis
 
 Each metric answers a different ecological question; read together they describe how severe, how long, and how widespread an event is.
 
-- **Intensity (I)** — how far SST sits above the local 90th-percentile threshold (°C). Higher intensity means greater thermal stress relative to what the ecosystem is adapted to at that time of year. Because the reference is the threshold rather than the mean, these values are conservative.
+- **Intensity (I)** — how far SST sits above the local seasonal climatological mean (°C), following Hobday et al. (2016). Higher intensity means greater thermal stress relative to what the ecosystem is adapted to at that time of year. The 90th-percentile threshold decides *whether* a day is in a heatwave; intensity measures *how warm* it is relative to the normal for that day of the year.
 - **Duration (D)** — how many consecutive days the event persists. Persistence often matters more than peak warmth: prolonged exposure depletes energy reserves, shifts distributions, and disrupts spawning and prey availability.
 - **Cumulative intensity (C)** — total heat exposure (degree-days): intensity integrated over duration. This is the best single measure of overall ecological burden because it captures both how warm and how long; the 2014–2016 northeast Pacific event ranks extreme on it.
 - **Area fraction** — the share of a region under a confirmed MHW at a given time. A low value is a localised event; a high value is a region-wide event with broader ecological consequences. Above roughly 5% is treated here as a regional-scale event.
@@ -159,7 +159,7 @@ All data endpoints are versioned under `/api/v1/`. The service-level health chec
 | `GET /api/v1/indices/pdo` | Pacific Decadal Oscillation monthly values |
 | `GET /api/health` | Service health (unversioned) |
 
-Daily states also carry each day's coverage: `unknown_share`, `eligible` (unknown ≤ 0.25) and the board label `coverage`. `area_frac` is the record's published value; on a day with `eligible = false` it is not an observed zero. Event detection skips ineligible days. Map cells carry a `cell_class` (`scorable`, `observed_ice`, `unknown`); excluded cells are omitted.
+Daily states also carry each day's coverage: `unknown_share`, `eligible` (unknown ≤ 0.25) and the board label `coverage`. On a no-coverage day (more than 25 % unknown and nothing in the zone scorable) every metric is `null`, never 0. On other days with `eligible = false` the record's value is returned, but it is incomplete coverage, not an observed figure. Event detection skips ineligible days. Map cells carry a `cell_class` (`scorable`, `observed_ice`, `unknown`); excluded cells are omitted.
 
 All responses are JSON with snake_case field names. The regional aggregate fields are `area_frac`, `mean_intensity`, `mean_duration`, `cumul_intensity`, and `onset_rate` (internally these correspond to the Hobday-paper symbols I, D, C, O). Categorical fields use typed enums (`MapMetric`, `IndexName`, `IndexFrequency`, `RiskLevel`) so OpenAPI consumers can codegen against them. See the Swagger UI for full parameter details and query options.
 
@@ -202,7 +202,7 @@ MHWs require 5 consecutive days above the 90th-percentile threshold before being
 If SST dips below the threshold for 2 days or fewer, the event is bridged — treated as a single continuous event rather than split into two separate events. This follows the Hobday et al. (2016) protocol to prevent artificial fragmentation of one physical heatwave.
 
 **How is intensity measured — above the mean or above the threshold?**
-In this dashboard, intensity is the anomaly above the **90th-percentile threshold**, not the climatological mean. This is a more conservative definition and yields smaller intensity values than a mean-referenced approach. Keep this distinction in mind when comparing with other MHW studies.
+Above the **seasonal climatological mean** (1991–2020 baseline), as in Hobday et al. (2016) and the heatwaveR / marineHeatWaves packages. The 90th-percentile threshold is used only to detect heatwave days. Earlier versions of this board (before July 2026) measured intensity above the threshold, which gave smaller values; compare with older figures accordingly.
 
 **Why do risk scores change even if conditions seem similar?**
 Risk scores are percentile-based against each region's eligible days, 1982 – 31 August 2026; they are region-specific but not explicitly season-conditioned. A given intensity value may rank as "normal" in the Gulf of Alaska but "extreme" in the Chukchi Sea.
@@ -218,7 +218,7 @@ The Arctic Oscillation and Pacific Decadal Oscillation are large-scale climate m
 - **MHW confirmation**: 5 consecutive days above the 90th-percentile threshold
 - **Gap bridging**: Cool dips of 2 days or fewer are bridged into a single event
 - **Baseline period**: 1991--2020 (30-year climate normal)
-- **Intensity reference**: Anomaly above the 90th-percentile threshold
+- **Intensity reference**: Anomaly above the seasonal climatological mean (Hobday et al. 2016); the 90th-percentile threshold is used for detection only
 - **Regional aggregation**: Area-weighted (cosine of latitude) averages across active cells
 
 ---

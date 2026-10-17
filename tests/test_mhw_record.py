@@ -259,3 +259,18 @@ def test_staged_panel_matches_m4_frozen_hashes():
     assert gap["oec_fills_area_frac"].mean() == pytest.approx(0.2467, abs=5e-4)
     assert gap["est_fills_area_frac"].mean() == pytest.approx(0.576, abs=5e-4)
     assert gap["cov_fills_unresolved"].mean() == pytest.approx(0.062, abs=5e-4)
+
+
+def test_api_gap_day_metrics_are_null_not_zero(staged):
+    from datetime import date
+
+    from api.routes_states import get_daily_states
+    # NBS 1987-12-20: wholly unscorable outage day (U = 1) -> null, never 0
+    gap = get_daily_states("nbs", start=date(1987, 12, 20), end=date(1987, 12, 20))[0]
+    assert gap.area_frac is None and gap.mean_intensity is None and gap.eligible is False
+    # SEBS 2016-06-15: hatched but partially scorable -> record value kept, flagged ineligible
+    part = get_daily_states("sebs", start=date(2016, 6, 15), end=date(2016, 6, 15))[0]
+    assert part.area_frac == pytest.approx(0.106, abs=1e-4) and part.eligible is False
+    # Beaufort 2018-01-15: ice-covered, eligible -> a real zero
+    ice = get_daily_states("beaufort", start=date(2018, 1, 15), end=date(2018, 1, 15))[0]
+    assert ice.area_frac == 0.0 and ice.eligible and ice.coverage == record.LABEL_ICE

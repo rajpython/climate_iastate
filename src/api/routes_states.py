@@ -11,8 +11,9 @@ exposes them as mean_intensity / mean_duration / cumul_intensity / onset_rate
 to keep the JSON contract snake_case.
 
 Source: the board's heatwave record, vintage #7 (D1), certified 1982-01-01 … 2026-08-31, joined to its
-coverage sidecar. Values are the record's own; each day also carries its unknown share, eligibility
-(unknown share ≤ 0.25) and board label. Event detection skips ineligible days (they neither start,
+coverage sidecar. Values are the record's own, except that a no-coverage day (unknown share > 0.25
+and nothing scorable) returns null metrics instead of 0; each day also carries its unknown share,
+eligibility (unknown share ≤ 0.25) and board label. Event detection skips ineligible days (they neither start,
 extend nor break an event).
 """
 from __future__ import annotations
@@ -158,8 +159,9 @@ def get_daily_states(
 ):
     """Return daily aggregated MHW state metrics for a region (record vintage #7, D1).
 
-    ``area_frac`` is the record's published value. A day with ``eligible = false`` (unknown share
-    above 0.25) is incomplete coverage: its area is not an observed zero.
+    A day with ``eligible = false`` (unknown share above 0.25) is incomplete coverage. Where
+    nothing in the zone could be scored on such a day, every metric is null (the record's 0 there
+    is not an observed zero); otherwise the record's published value is returned with the flag.
     """
     df = _load_agg(region_id)
     if start:
@@ -169,14 +171,18 @@ def get_daily_states(
     if df.empty:
         raise HTTPException(status_code=404, detail="No data in requested date range")
 
+    def _v(r, col, nd):
+        # A no-coverage day (gap) is never reported as 0: its metrics are null.
+        return None if r["gap"] else round(float(r[col]), nd)
+
     return [
         DailyState(
             date=r["date"],
-            area_frac=round(float(r["area_frac"]), 4),
-            mean_intensity=round(float(r["Ibar"]), 3),
-            mean_duration=round(float(r["Dbar"]), 2),
-            cumul_intensity=round(float(r["Cbar"]), 3),
-            onset_rate=round(float(r["Obar"]), 3),
+            area_frac=_v(r, "area_frac", 4),
+            mean_intensity=_v(r, "Ibar", 3),
+            mean_duration=_v(r, "Dbar", 2),
+            cumul_intensity=_v(r, "Cbar", 3),
+            onset_rate=_v(r, "Obar", 3),
             unknown_share=round(float(r["unknown_share"]), 4),
             eligible=bool(r["eligible"]),
             coverage=str(r["label"]),

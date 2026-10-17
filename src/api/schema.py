@@ -62,14 +62,16 @@ class RegionInfo(BaseModel):
 # ---------------------------------------------------------------------------
 
 class DailyState(BaseModel):
+    # Metrics are null on a no-coverage day (unknown share > 0.25 and nothing scorable, or no
+    # input): the record carries 0 there, which is not an observed zero.
     date:             date_type
-    area_frac:        float    # cosine-weighted share of region's ocean in confirmed MHW
-    mean_intensity:   float    # parquet column: Ibar (°C above 90th-pct threshold)
-    mean_duration:    float    # parquet column: Dbar (days)
-    cumul_intensity:  float    # parquet column: Cbar (°C·days)
-    onset_rate:       float    # parquet column: Obar (°C/day, nonzero only on confirmation days)
-    # Coverage (vintage #7, D1). area_frac is the record's value as published; on a day whose
-    # unknown_share exceeds 0.25 it is NOT an observed zero — read `eligible` / `coverage`.
+    area_frac:        float | None   # weighted share of the zone's fixed retained domain in a detected MHW
+    mean_intensity:   float | None   # parquet column: Ibar (°C above the seasonal climatological mean)
+    mean_duration:    float | None   # parquet column: Dbar (days)
+    cumul_intensity:  float | None   # parquet column: Cbar (°C·days)
+    onset_rate:       float | None   # parquet column: Obar (°C/day, nonzero only on confirmation days)
+    # Coverage (vintage #7, D1). On any day with eligible = false (unknown share > 0.25) the
+    # values are incomplete coverage, not an observed zero — read `eligible` / `coverage`.
     unknown_share:    float | None = None   # absent input + missing SST + unknown ice + missing θ90
     eligible:         bool | None = None    # unknown_share ≤ 0.25 (the board's day rule)
     coverage:         str | None = None     # board label, e.g. "Incomplete coverage", "Ice-covered …"

@@ -44,8 +44,8 @@ def display_label(col: str, with_unit: bool = False) -> str:
 def metric_legend() -> str:
     """One-line caption suitable for st.caption() at the bottom of any tab."""
     return (
-        "**Metrics:** Area Fraction = share of grid cells in MHW · "
-        "Mean Intensity = °C above threshold · "
+        "**Metrics:** Area Fraction = share of the zone's retained area in a detected MHW · "
+        "Mean Intensity = °C above the seasonal climatological mean · "
         "Mean Duration = days · "
         "Cumul. Intensity = °C·days · "
         "Onset Rate = °C/day"
